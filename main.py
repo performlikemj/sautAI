@@ -1,0 +1,94 @@
+# main.py
+import streamlit as st
+import requests
+from dotenv import load_dotenv
+load_dotenv()
+import os
+from pages.register import register
+from pages.activate import activate
+from pages.assistant import assistant
+from pages.profile import profile 
+from extra_streamlit_components import CookieManager
+import datetime
+
+
+
+load_dotenv()
+
+
+
+cookie_manager = CookieManager()
+
+
+def main():
+    st.title("SautAI")
+    
+    # Map page names to functions
+    PAGES = {
+        "Assistant": assistant,
+        "Register": register,
+        "Activate": activate,
+        "Profile": profile,
+    }
+    # Login Form
+    if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
+        with st.form(key='login_form'):
+            st.header("Login")
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            submit_button = st.form_submit_button(label='Login')
+            
+            if submit_button:
+                # API call to get the token
+                response = requests.post(
+                    f'{os.getenv("DJANGO_URL")}/auth/api/login/',
+                    json={'username': username, 'password': password}
+                )
+                print(response)
+                if response.status_code == 200:
+                    response_data = response.json()
+                    st.success("Logged in successfully!")
+                    st.session_state['user_info'] = response_data
+                    st.session_state['user_id'] = response_data['user_id']
+                    st.session_state['email_confirmed'] = response_data['email_confirmed']
+                    # Set cookie with the access token
+                    expires_at = datetime.datetime.now() + datetime.timedelta(days=1)
+                    cookie_manager.set("access_token", response_data['access'], expires_at=expires_at, key='access_token')
+                    st.session_state['is_logged_in'] = True
+                    st.rerun()
+                else:
+                    st.error("Invalid username or password.")
+                   
+    
+    print("Cookie value after set:", cookie_manager.get('access_token'))
+
+    # Conditional Navigation
+    if 'email_confirmed' in st.session_state and st.session_state['email_confirmed']:
+        # Modify PAGES dict to exclude 'Register' and 'Activate'
+        PAGES.pop('Register', None)
+        PAGES.pop('Activate', None)
+
+    # Logout Button
+    if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
+        if st.button("Logout"):
+            cookie_manager.delete('access_token')
+            # Clear session state as well
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.success("Logged out successfully!")
+            print("Cookie value after delete:", cookie_manager.get('access_token'))
+            st.rerun()
+
+
+    # Hero Page
+    if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
+        st.markdown("""
+            <div style="text-align: center;">
+                <h1>More Time. More Health.</h1>
+                <p>Discover how our service can enhance your lifestyle.</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+
+if __name__ == "__main__":
+    main()
