@@ -1,0 +1,248 @@
+{
+    "data": [
+        {
+            "id": "msg_f2tM8VeuYtdhGedNW9KufS1w",
+            "assistant_id": null,
+            "content": [
+                {
+                    "text": {
+                        "annotations": [],
+                        "value": "try again"
+                    },
+                    "type": "text"
+                }
+            ],
+            "created_at": 1705040634,
+            "file_ids": [],
+            "metadata": {},
+            "object": "thread.message",
+            "role": "user",
+            "run_id": null,
+            "thread_id": "thread_CbzfAzDtCPoG7A3PPunJ8fNb"
+        },
+        {
+            "id": "msg_33uQk29SL3yUJJjKJwL3LFgU",
+            "assistant_id": null,
+            "content": [
+                {
+                    "text": {
+                        "annotations": [],
+                        "value": "what are my past orders?"
+                    },
+                    "type": "text"
+                }
+            ],
+            "created_at": 1705039931,
+            "file_ids": [],
+            "metadata": {},
+            "object": "thread.message",
+            "role": "user",
+            "run_id": null,
+            "thread_id": "thread_CbzfAzDtCPoG7A3PPunJ8fNb"
+        },
+        {
+            "id": "msg_wAbLv7xbppmYJhSakgFQ3nFb",
+            "assistant_id": "asst_051wA8umtj8PQNseD4LdHu70",
+            "content": [
+                {
+                    "text": {
+                        "annotations": [],
+                        "value": "It looks like I couldn't find any specific dishes matching the search term \"delicious.\" Let me try searching for a broader range of dishes to provide you with some options."
+                    },
+                    "type": "text"
+                }
+            ],
+            "created_at": 1705039318,
+            "file_ids": [],
+            "metadata": {},
+            "object": "thread.message",
+            "role": "assistant",
+            "run_id": "run_4wIA13W5EqFAIFZvYVliywFA",
+            "thread_id": "thread_CbzfAzDtCPoG7A3PPunJ8fNb"
+        },
+        {
+            "id": "msg_jYUVyDECvm7BCVteDbuRfSMB",
+            "assistant_id": null,
+            "content": [
+                {
+                    "text": {
+                        "annotations": [],
+                        "value": "give me some options"
+                    },
+                    "type": "text"
+                }
+            ],
+            "created_at": 1705039311,
+            "file_ids": [],
+            "metadata": {},
+            "object": "thread.message",
+            "role": "user",
+            "run_id": null,
+            "thread_id": "thread_CbzfAzDtCPoG7A3PPunJ8fNb"
+        },
+        {
+            "id": "msg_1JKUx55cnN0Rq16dhkTXo1IF",
+            "assistant_id": "asst_051wA8umtj8PQNseD4LdHu70",
+            "content": [
+                {
+                    "text": {
+                        "annotations": [],
+                        "value": "I can search for dishes based on your preferences. What type of cuisine or dish are you in the mood for?"
+                    },
+                    "type": "text"
+                }
+            ],
+            "created_at": 1705039235,
+            "file_ids": [],
+            "metadata": {},
+            "object": "thread.message",
+            "role": "assistant",
+            "run_id": "run_9ykmUWZPBu6i5eT2nZwjfukl",
+            "thread_id": "thread_CbzfAzDtCPoG7A3PPunJ8fNb"
+        },
+        {
+            "id": "msg_c1r2qHDa8NjwORsEux6YZtYV",
+            "assistant_id": null,
+            "content": [
+                {
+                    "text": {
+                        "annotations": [],
+                        "value": "what food do you have?"
+                    },
+                    "type": "text"
+                }
+            ],
+            "created_at": 1705039233,
+            "file_ids": [],
+            "metadata": {},
+            "object": "thread.message",
+            "role": "user",
+            "run_id": null,
+            "thread_id": "thread_CbzfAzDtCPoG7A3PPunJ8fNb"
+        },
+        {
+            "id": "msg_PS9dRxYdBiKSGEiodMVQskYg",
+            "assistant_id": "asst_051wA8umtj8PQNseD4LdHu70",
+            "content": [
+                {
+                    "text": {
+                        "annotations": [],
+                        "value": "Great! I can help you find some delicious meals to enjoy. Do you have any specific preferences or dietary requirements?"
+                    },
+                    "type": "text"
+                }
+            ],
+            "created_at": 1705039049,
+            "file_ids": [],
+            "metadata": {},
+            "object": "thread.message",
+            "role": "assistant",
+            "run_id": "run_gEKPkEO8PqgjVcqTgcwsV1dR",
+            "thread_id": "thread_CbzfAzDtCPoG7A3PPunJ8fNb"
+        },
+        {
+            "id": "msg_sQhXOHgmmh2BhYwSeZMTRc8B",
+            "assistant_id": null,
+            "content": [
+                {
+                    "text": {
+                        "annotations": [],
+                        "value": "I want to eat"
+                    },
+                    "type": "text"
+                }
+            ],
+            "created_at": 1705039046,
+            "file_ids": [],
+            "metadata": {},
+            "object": "thread.message",
+            "role": "user",
+            "run_id": null,
+            "thread_id": "thread_CbzfAzDtCPoG7A3PPunJ8fNb"
+        },
+        {
+            "id": "msg_bfP2pAtoo0m62c0LJit695Dy",
+            "assistant_id": "asst_051wA8umtj8PQNseD4LdHu70",
+            "content": [
+                {
+                    "text": {
+                        "annotations": [],
+                        "value": "I'm here and ready to help! What can I do for you today?"
+                    },
+                    "type": "text"
+                }
+            ],
+            "created_at": 1705038708,
+            "file_ids": [],
+            "metadata": {},
+            "object": "thread.message",
+            "role": "assistant",
+            "run_id": "run_yhwoa257nr95mcZH3vmJma3N",
+            "thread_id": "thread_CbzfAzDtCPoG7A3PPunJ8fNb"
+        },
+        {
+            "id": "msg_w9zOa9l5XDoDGZRRSStGIVnm",
+            "assistant_id": null,
+            "content": [
+                {
+                    "text": {
+                        "annotations": [],
+                        "value": "how about now"
+                    },
+                    "type": "text"
+                }
+            ],
+            "created_at": 1705038704,
+            "file_ids": [],
+            "metadata": {},
+            "object": "thread.message",
+            "role": "user",
+            "run_id": null,
+            "thread_id": "thread_CbzfAzDtCPoG7A3PPunJ8fNb"
+        },
+        {
+            "id": "msg_cWEgt1sqqdBpQHKsPMmhPLb2",
+            "assistant_id": "asst_051wA8umtj8PQNseD4LdHu70",
+            "content": [
+                {
+                    "text": {
+                        "annotations": [],
+                        "value": "Hello! How can I assist you today?"
+                    },
+                    "type": "text"
+                }
+            ],
+            "created_at": 1705038673,
+            "file_ids": [],
+            "metadata": {},
+            "object": "thread.message",
+            "role": "assistant",
+            "run_id": "run_ttBTTkQka50aqvbHKtZq2IQ0",
+            "thread_id": "thread_CbzfAzDtCPoG7A3PPunJ8fNb"
+        },
+        {
+            "id": "msg_Seaisq75Gyr69fIbHA2egsFE",
+            "assistant_id": null,
+            "content": [
+                {
+                    "text": {
+                        "annotations": [],
+                        "value": "test"
+                    },
+                    "type": "text"
+                }
+            ],
+            "created_at": 1705038671,
+            "file_ids": [],
+            "metadata": {},
+            "object": "thread.message",
+            "role": "user",
+            "run_id": null,
+            "thread_id": "thread_CbzfAzDtCPoG7A3PPunJ8fNb"
+        }
+    ],
+    "object": "list",
+    "first_id": "msg_f2tM8VeuYtdhGedNW9KufS1w",
+    "last_id": "msg_Seaisq75Gyr69fIbHA2egsFE",
+    "has_more": false
+}
