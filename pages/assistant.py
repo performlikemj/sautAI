@@ -8,9 +8,27 @@ from dotenv import load_dotenv
 import openai
 from openai import OpenAIError
 from utils import api_call_with_refresh
+import streamlit.components.v1 as components
+
 
 
 load_dotenv()
+
+# Retrieve the environment variable in Python
+django_url = os.getenv("DJANGO_URL")
+
+# Use concatenation to insert the variable into the JavaScript
+components.html("""
+<script>
+let ws = new WebSocket("ws://127.0.0.1:8000/ws/toolcall/");
+
+ws.onmessage = function(event) {
+    let data = JSON.parse(event.data);
+    // Update your UI here with the tool call details
+    console.log("Received data: ", data);
+};
+</script>
+""")
 
 openai_env_key = os.getenv("OPENAI_KEY")
 
