@@ -17,19 +17,6 @@ load_dotenv()
 # Retrieve the environment variable in Python
 django_url = os.getenv("DJANGO_URL")
 
-# Use concatenation to insert the variable into the JavaScript
-components.html("""
-<script>
-let ws = new WebSocket("ws://127.0.0.1:8000/ws/toolcall/");
-
-ws.onmessage = function(event) {
-    let receivedData = JSON.parse(event.data);
-    // Use Streamlit's JavaScript API to set a hidden Streamlit input
-    Streamlit.setComponentValue(receivedData);
-};
-</script>
-""", height=0)  # Height set to 0 to hide the component
-    
 openai_env_key = os.getenv("OPENAI_KEY")
 
 if openai_env_key:
@@ -366,12 +353,6 @@ def chat_with_gpt(prompt, thread_id, user_id):
 def assistant():
     st.title("Dietician Assistant")
 
-    if 'thread_id' not in st.session_state:
-        st.session_state.thread_id = None
-
-    if 'chat_history' not in st.session_state:
-        st.session_state.chat_history = []
-
     # Calorie Intake Form in the Sidebar
     calorie_intake_form(datetime.date.today())
 
@@ -391,8 +372,6 @@ def assistant():
             user_id = st.session_state.get('user_id')
             metric_trends = fetch_user_metrics(user_id)
             plot_metric_trends(metric_trends)
-
-
 
     # Use a container to dynamically update chat messages
     chat_container = st.container()
@@ -441,6 +420,7 @@ def assistant():
         chat_container.empty()
         st.rerun()
         st.success("New chat started. Please enter your question.")
+
 
 
 if __name__ == "__main__":
