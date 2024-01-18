@@ -23,13 +23,13 @@ components.html("""
 let ws = new WebSocket("ws://127.0.0.1:8000/ws/toolcall/");
 
 ws.onmessage = function(event) {
-    let data = JSON.parse(event.data);
-    // Update your UI here with the tool call details
-    console.log("Received data: ", data);
+    let receivedData = JSON.parse(event.data);
+    // Use Streamlit's JavaScript API to set a hidden Streamlit input
+    Streamlit.setComponentValue(receivedData);
 };
 </script>
-""")
-
+""", height=0)  # Height set to 0 to hide the component
+    
 openai_env_key = os.getenv("OPENAI_KEY")
 
 if openai_env_key:
@@ -411,6 +411,11 @@ def assistant():
         with chat_container.chat_message("user"):
             st.markdown(prompt)
         thread_id = st.session_state.thread_id 
+        ws_data = st.empty()  # Placeholder for displaying WebSocket data
+        # Check for new data periodically
+        if 'new_ws_data' in st.session_state:
+            # Process and display the WebSocket data
+            ws_data.json(st.session_state['new_ws_data'])
 
         # Process the question and get response
         # full_response = handle_openai_communication(prompt, thread_id, {"user_id": st.session_state.get('user_id')})
@@ -424,6 +429,8 @@ def assistant():
             # Dynamically update the chat container
             with chat_container.chat_message("assistant"):
                 st.markdown(full_response['last_assistant_message'])
+
+
         else:
             st.error("Could not get a response, please try again.")
 
