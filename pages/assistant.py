@@ -363,11 +363,49 @@ def chat_with_gpt(prompt, thread_id, user_id):
 def assistant():
     st.title("Dietician Assistant")
 
-    # Initialize st.session_state.chat_history and st.session_state.thread_id if they're not already initialized
+    # Initialize session state variables if not already initialized
     if 'chat_history' not in st.session_state:
         st.session_state.chat_history = []
     if 'thread_id' not in st.session_state:
         st.session_state.thread_id = None
+    if 'recommend_follow_up' not in st.session_state:
+        st.session_state.recommend_follow_up = []
+
+    # Function to handle follow-up prompt click
+    def on_follow_up_click(follow_up_prompt):
+        # Update chat history immediately with the follow-up prompt
+        st.session_state.chat_history.append({"role": "user", "content": follow_up_prompt})
+        # Process the follow-up prompt immediately
+        process_user_input(follow_up_prompt)
+        # Clear recommend_follow_up from session state
+        st.session_state.recommend_follow_up = []
+
+    # Function to process and display user input
+    def process_user_input(prompt):
+        with chat_container.chat_message("user"):
+            st.markdown(prompt)
+        thread_id = st.session_state.thread_id 
+        # Process the question and get response
+        # full_response = handle_openai_communication(prompt, thread_id, {"user_id": st.session_state.get('user_id')})
+        # Interaction with the chat_with_gpt endpoint
+        if is_user_authenticated():
+            full_response = chat_with_gpt(prompt, thread_id, user_id=st.session_state.get('user_id'))
+        else:
+            full_response = guest_chat_with_gpt(prompt, thread_id)
+        print('full_response:', full_response)
+        if full_response:
+            st.session_state.thread_id = full_response['new_thread_id']
+            st.session_state.recommend_follow_up = full_response['recommend_follow_up']
+            print("Debug: recommend_follow_up set to:", st.session_state.recommend_follow_up)  # Debug print
+            st.session_state.chat_history.append({"role": "assistant", "content": full_response['last_assistant_message']})
+            # Dynamically update the chat container
+            with chat_container.chat_message("assistant"):
+                st.markdown(full_response['last_assistant_message'])
+            st.rerun()
+
+        else:
+            st.error("Could not get a response, please try again.")
+
 
     if is_user_authenticated():
         # Calorie Intake Form in the Sidebar
@@ -393,52 +431,31 @@ def assistant():
     # Use a container to dynamically update chat messages
     chat_container = st.container()
 
-    # Display chat history using st.chat_message
+    # Display chat history
     for message in st.session_state.chat_history:
         with chat_container.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Replace text_input with st.chat_input
+    # Display recommended follow-up prompts
+    if st.session_state.recommend_follow_up:
+        with st.container():
+            st.write("Recommended Follow-Ups:")
+            for follow_up in st.session_state.recommend_follow_up:
+                st.button(follow_up, key=follow_up, on_click=on_follow_up_click, args=(follow_up,))
+
+    # Chat input for user questions
     prompt = st.chat_input("Enter your question:")
 
     if prompt:
-        # Add user message to chat history
         st.session_state.chat_history.append({"role": "user", "content": prompt})
-        with chat_container.chat_message("user"):
-            st.markdown(prompt)
-        thread_id = st.session_state.thread_id 
-        ws_data = st.empty()  # Placeholder for displaying WebSocket data
-        # Check for new data periodically
-        if 'new_ws_data' in st.session_state:
-            # Process and display the WebSocket data
-            ws_data.json(st.session_state['new_ws_data'])
+        process_user_input(prompt)
 
-        # Process the question and get response
-        # full_response = handle_openai_communication(prompt, thread_id, {"user_id": st.session_state.get('user_id')})
-        # Interaction with the chat_with_gpt endpoint
-        if is_user_authenticated():
-            full_response = chat_with_gpt(prompt, thread_id, user_id=st.session_state.get('user_id'))
-        else:
-            full_response = guest_chat_with_gpt(prompt, thread_id)
-        print('full_response:', full_response)
-        if full_response:
-            st.session_state.thread_id = full_response['new_thread_id']
-            st.session_state.chat_history.append({"role": "assistant", "content": full_response['last_assistant_message']})
-            # Dynamically update the chat container
-            with chat_container.chat_message("assistant"):
-                st.markdown(full_response['last_assistant_message'])
-
-
-        else:
-            st.error("Could not get a response, please try again.")
-
-
+    # Button to start a new chat
     if st.button("Start New Chat"):
         st.session_state.thread_id = None
         st.session_state.chat_history = []
         chat_container.empty()
-        st.rerun()
-        st.success("New chat started. Please enter your question.")
+
 
 
 
