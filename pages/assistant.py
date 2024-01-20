@@ -7,7 +7,7 @@ import datetime
 from dotenv import load_dotenv
 import openai
 from openai import OpenAIError
-from utils import api_call_with_refresh
+from utils import api_call_with_refresh, is_user_authenticated
 import streamlit.components.v1 as components
 
 
@@ -336,6 +336,17 @@ def health_metrics_form():
                 bmi = bmi if bmi != 0.0 else None
                 save_health_metrics(date, weight, bmi, mood, energy_level)
 
+def guest_chat_with_gpt(prompt, thread_id):
+    response_data = requests.post(
+        f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/guest_chat_with_gpt/', 
+        data={'question': prompt, 'thread_id': thread_id}
+    )
+    if response_data.status_code == 200:
+        print('response_data.json():', response_data.json())
+        return response_data.json()
+    else:
+        st.error("Failed to get response from the chatbot.")
+        return None
 
 def chat_with_gpt(prompt, thread_id, user_id):
     response_data = requests.post(
@@ -349,29 +360,35 @@ def chat_with_gpt(prompt, thread_id, user_id):
         st.error("Failed to get response from the chatbot.")
         return None
 
-
 def assistant():
     st.title("Dietician Assistant")
 
-    # Calorie Intake Form in the Sidebar
-    calorie_intake_form(datetime.date.today())
+    # Initialize st.session_state.chat_history and st.session_state.thread_id if they're not already initialized
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = []
+    if 'thread_id' not in st.session_state:
+        st.session_state.thread_id = None
 
-    # Calorie Data Visualization
-    with st.expander("View Calorie Data", expanded=False):
-        selected_date = st.date_input("Select a date", datetime.date.today())
-        visualize_calorie_data(selected_date)
+    if is_user_authenticated():
+        # Calorie Intake Form in the Sidebar
+        calorie_intake_form(datetime.date.today())
 
-    with st.expander("Health Metrics", expanded=False):
-        health_metrics_form()
-        viz_type = st.selectbox("Choose visualization type", ["Static Table", "Latest Metrics", "Trend Chart"])
-        if viz_type == "Static Table":
-            visualize_health_metrics_as_static_table()
-        elif viz_type == "Latest Metrics":
-            show_latest_metrics()
-        elif viz_type == "Trend Chart":
-            user_id = st.session_state.get('user_id')
-            metric_trends = fetch_user_metrics(user_id)
-            plot_metric_trends(metric_trends)
+        # Calorie Data Visualization
+        with st.expander("View Calorie Data", expanded=False):
+            selected_date = st.date_input("Select a date", datetime.date.today())
+            visualize_calorie_data(selected_date)
+
+        with st.expander("Health Metrics", expanded=False):
+            health_metrics_form()
+            viz_type = st.selectbox("Choose visualization type", ["Static Table", "Latest Metrics", "Trend Chart"])
+            if viz_type == "Static Table":
+                visualize_health_metrics_as_static_table()
+            elif viz_type == "Latest Metrics":
+                show_latest_metrics()
+            elif viz_type == "Trend Chart":
+                user_id = st.session_state.get('user_id')
+                metric_trends = fetch_user_metrics(user_id)
+                plot_metric_trends(metric_trends)
 
     # Use a container to dynamically update chat messages
     chat_container = st.container()
@@ -399,8 +416,10 @@ def assistant():
         # Process the question and get response
         # full_response = handle_openai_communication(prompt, thread_id, {"user_id": st.session_state.get('user_id')})
         # Interaction with the chat_with_gpt endpoint
-
-        full_response = chat_with_gpt(prompt, thread_id, user_id=st.session_state.get('user_id'))
+        if is_user_authenticated():
+            full_response = chat_with_gpt(prompt, thread_id, user_id=st.session_state.get('user_id'))
+        else:
+            full_response = guest_chat_with_gpt(prompt, thread_id)
         print('full_response:', full_response)
         if full_response:
             st.session_state.thread_id = full_response['new_thread_id']
