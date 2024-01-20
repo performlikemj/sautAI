@@ -24,12 +24,15 @@ def main():
     st.title("SautAI")
     
     # Map page names to functions
-    PAGES = {
-        "Assistant": assistant,
-        "Register": register,
-        "Activate": activate,
-        "Profile": profile,
-    }
+    PAGES = {}
+    if 'email_confirmed' in st.session_state and st.session_state['email_confirmed']:
+        PAGES["Assistant"] = assistant
+        PAGES["Profile"] = profile
+    else:
+        PAGES["Register"] = register
+        PAGES["Activate"] = activate
+        PAGES["Assistant"] = assistant
+        PAGES["Profile"] = profile
     # Login Form
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
         with st.form(key='login_form'):
@@ -39,6 +42,9 @@ def main():
             submit_button = st.form_submit_button(label='Login')
             
             if submit_button:
+                # Remove guest user from session state
+                for key in list(st.session_state.keys()):
+                    del st.session_state[key]
                 # API call to get the token
                 response = requests.post(
                     f'{os.getenv("DJANGO_URL")}/auth/api/login/',
@@ -62,11 +68,6 @@ def main():
     
     print("Cookie value after set:", cookie_manager.get('access_token'))
 
-    # Conditional Navigation
-    if 'email_confirmed' in st.session_state and st.session_state['email_confirmed']:
-        # Modify PAGES dict to exclude 'Register' and 'Activate'
-        PAGES.pop('Register', None)
-        PAGES.pop('Activate', None)
 
     # Logout Button
     if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
