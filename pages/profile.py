@@ -28,7 +28,7 @@ def profile():
             diet_container = st.container()
             allergy_container = st.container()
             goal_container = st.container()
-
+            address_container = st.container()
             # Goal management section
             with goal_container:
                 st.header("Manage Your Goals")
@@ -166,6 +166,43 @@ def profile():
                     )
                     if update_response.status_code == 200:                    
                         st.success("Allergy updated successfully!")
+            with address_container:
+                # Fetch current address
+                address_response = api_call_with_refresh(
+                    url=f'{os.getenv("DJANGO_URL")}/auth/api/address_details/',
+                    method='get',
+                    headers={'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                )
+                current_address = address_response.json() if address_response.status_code == 200 else {}
+
+                # Input fields for address
+                street = st.text_input("Street", value=current_address.get('street', ''))
+                city = st.text_input("City", value=current_address.get('city', ''))
+                state = st.text_input("State", value=current_address.get('state', ''))
+                postalcode = st.text_input("Postal Code", value=current_address.get('input_postalcode', ''))
+                country = st.text_input("Country", value=current_address.get('country', ''))
+
+                if st.button("Update Address"):
+                    address_data = {
+                        "street": street,
+                        "city": city,
+                        "state": state,
+                        "input_postalcode": postalcode,
+                        "country": country
+                    }
+                    update_address_response = api_call_with_refresh(
+                    url=f'{os.getenv("DJANGO_URL")}/auth/api/update_profile/',
+                        method='post',
+                        data=address_data,
+                        headers={'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                    )
+                    if update_address_response.status_code == 200:
+                        st.success("Address updated successfully!")
+                    elif update_address_response.status_code == 400 and not update_address_response.json().get('is_served'):
+                        print(update_address_response.json())
+                        st.error("We do not currently serve your area.")
+                    else:
+                        st.error("Failed to update address.")
     else:
         # User is not logged in, display a message or redirect
         st.warning("Please log in to view and update your profile.")

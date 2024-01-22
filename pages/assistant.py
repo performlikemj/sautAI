@@ -220,28 +220,34 @@ def plot_metric_trends():
     metric_trends = fetch_user_metrics(user_id)
     
     if metric_trends:
+        # Original data
         df = pd.DataFrame(metric_trends)
-        
         df['date'] = pd.to_datetime(df['date_recorded'])
-        
         df.set_index('date', inplace=True)
+
+        # Full range dates DataFrame
+        all_dates = pd.date_range(df.index.min(), df.index.max(), freq='D')
+        df_full = pd.DataFrame(index=all_dates)
         
-        min_date, max_date = df.index.min(), df.index.max()
+        # Joining the full dates DataFrame with the original data
+        # Dates without data in the original DataFrame will have NaN values after the join
+        df_full = df_full.join(df, how='left')
 
-        # If only one data point is available, it cannot plot a range
-        if min_date == max_date:
-            st.warning("Only one data point available. Displaying the data without range selection.")
-            st.line_chart(df[['weight', 'bmi', 'energy_level']])
-        else:
-            selected_range = st.select_slider(
-                "Select Date Range", 
-                options=pd.date_range(min_date, max_date, freq='D'),
-                value=(min_date, max_date)
-            )
+        min_date, max_date = df_full.index.min(), df_full.index.max()
 
-            filtered_df = df.loc[selected_range[0]:selected_range[1]]
+        # User selects a date range for visualization
+        selected_range = st.select_slider(
+            "Select Date Range", 
+            options=pd.date_range(min_date, max_date, freq='D'),
+            value=(min_date, max_date)
+        )
 
-            st.line_chart(filtered_df[['weight', 'bmi', 'energy_level']])
+        # Filter the DataFrame based on the selected date range
+        filtered_df = df_full.loc[selected_range[0]:selected_range[1]]
+
+        # Plotting the chart with filtered DataFrame
+        # The chart will show gaps where the data is NaN (not available for certain dates)
+        st.line_chart(filtered_df[['weight', 'bmi', 'energy_level']])
     else:
         st.error("No metric trends available to display.")
 
@@ -274,7 +280,7 @@ def visualize_health_metrics_as_static_table():
                 if end_index < len(df):
                     st.session_state.page_number += 1
     else:
-        st.error("No health metrics data available to display.")
+        st.info("No health metrics data available to display.")
 
 def plot_metric_trend(metric_name, df, selected_range):
     """
@@ -371,6 +377,7 @@ def assistant():
     if 'recommend_follow_up' not in st.session_state:
         st.session_state.recommend_follow_up = []
 
+
     # Function to handle follow-up prompt click
     def on_follow_up_click(follow_up_prompt):
         # Update chat history immediately with the follow-up prompt
@@ -401,7 +408,6 @@ def assistant():
             # Dynamically update the chat container
             with chat_container.chat_message("assistant"):
                 st.markdown(full_response['last_assistant_message'])
-            st.rerun()
 
         else:
             st.error("Could not get a response, please try again.")
@@ -449,11 +455,13 @@ def assistant():
     if prompt:
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         process_user_input(prompt)
+        st.rerun()
 
     # Button to start a new chat
     if st.button("Start New Chat"):
         st.session_state.thread_id = None
         st.session_state.chat_history = []
+        st.session_state.recommend_follow_up = []
         chat_container.empty()
 
 
