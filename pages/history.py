@@ -1,10 +1,17 @@
-# pages/threads.py
+# pages/history.py
 import streamlit as st
 import requests
 from dotenv import load_dotenv
 load_dotenv()
 import os
 from utils import api_call_with_refresh
+from datetime import datetime
+
+
+
+
+
+
 
 def thread_detail(thread_id):
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
@@ -28,8 +35,8 @@ def thread_detail(thread_id):
 
 
 def threads():
-    st.title("Thread History")
-    st.header("Thread History")
+    st.title("Chat History")
+
     
     if 'is_logged_in' in st.session_state and st.session_state.is_logged_in:
         # Initialize or update current page in session state
@@ -49,7 +56,7 @@ def threads():
         if response.status_code == 200:
             chat_threads_response = response.json()
             chat_threads = chat_threads_response['results']
-            st.write("Your recent chat threads:")
+            st.write("Your recent chat history:")
 
             # Pagination buttons
             col1, col2 = st.columns(2)
@@ -71,6 +78,14 @@ def threads():
 
             # Displaying each chat thread
             for thread in chat_threads:
+                # Parse the date string into a datetime object
+                created_at = datetime.strptime(thread['created_at'], "%Y-%m-%dT%H:%M:%S.%fZ")
+
+                # Format the datetime object into a string
+                formatted_date = created_at.strftime("%B %d, %Y - %H:%M:%S")
+
+                st.write(formatted_date)
+
                 # Toggle thread detail view
                 if st.button(thread['title'], key=thread['id']):
                     if st.session_state.get('selected_thread_id') == thread['openai_thread_id']:
@@ -84,6 +99,9 @@ def threads():
                 # Check if thread details should be displayed
                 if st.session_state.get('selected_thread_id') == thread['openai_thread_id']:
                     thread_detail(thread['openai_thread_id'])
+
+                # Add a divider after each thread
+                st.divider()
         else:
             st.error("Error fetching threads.")
     else:
