@@ -51,7 +51,7 @@ def main():
                     expires_at = datetime.datetime.now() + datetime.timedelta(days=1)
                     cookie_manager.set("access_token", response_data['access'], expires_at=expires_at, key='access_token')
                     st.session_state['is_logged_in'] = True
-                    st.switch_page("Assistant")
+                    st.switch_page("pages/assistant.py")
                 else:
                     st.error("Invalid username or password.")
                    
