@@ -23,16 +23,6 @@ cookie_manager = CookieManager()
 def main():
     st.title("SautAI")
     
-    # Map page names to functions
-    PAGES = {}
-    if 'email_confirmed' in st.session_state and st.session_state['email_confirmed']:
-        PAGES["Assistant"] = assistant
-        PAGES["Profile"] = profile
-    else:
-        PAGES["Register"] = register
-        PAGES["Activate"] = activate
-        PAGES["Assistant"] = assistant
-        PAGES["Profile"] = profile
     # Login Form
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
         with st.form(key='login_form'):
@@ -61,7 +51,7 @@ def main():
                     expires_at = datetime.datetime.now() + datetime.timedelta(days=1)
                     cookie_manager.set("access_token", response_data['access'], expires_at=expires_at, key='access_token')
                     st.session_state['is_logged_in'] = True
-                    st.rerun()
+                    st.switch_page("Assistant")
                 else:
                     st.error("Invalid username or password.")
                    
