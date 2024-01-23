@@ -463,6 +463,7 @@ def assistant():
         st.session_state.chat_history = []
         st.session_state.recommend_follow_up = []
         chat_container.empty()
+        st.rerun()
 
 
 
