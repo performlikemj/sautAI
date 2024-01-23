@@ -8,7 +8,7 @@ load_dotenv()
 def activate():
     st.title("Account Activation")
     
-    query_params = st.experimental_get_query_params()
+    query_params = st.query_params()
     uid = query_params.get("uid", [""])[0]
     token = query_params.get("token", [""])[0]
 
