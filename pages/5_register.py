@@ -10,6 +10,12 @@ import time
 import requests
 from openai import OpenAIError
 
+st.set_page_config(
+    page_title="sautAI",
+    page_icon="🥘",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
 
 

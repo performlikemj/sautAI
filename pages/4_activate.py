@@ -5,6 +5,14 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+st.set_page_config(
+    page_title="sautAI",
+    page_icon="🥘",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+
+
 def activate():
     st.title("Account Activation")
     
@@ -15,7 +23,7 @@ def activate():
         response = requests.post(f'{os.getenv("DJANGO_URL")}/auth/api/register/verify-email/', data={'uid': uid, 'token': token})
         if response.status_code == 200:
             st.success("Account activated successfully!")
-            st.switch_page("pages/assistant.py")
+            st.switch_page("pages/1_assistant.py")
         else:
             st.error("Account activation failed.")
 

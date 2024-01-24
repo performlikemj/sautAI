@@ -14,6 +14,14 @@ import streamlit.components.v1 as components
 
 load_dotenv()
 
+st.set_page_config(
+    page_title="sautAI",
+    page_icon="🥘",
+    layout="wide",
+    initial_sidebar_state="auto",
+)
+
+
 # Retrieve the environment variable in Python
 django_url = os.getenv("DJANGO_URL")
 
@@ -435,7 +443,7 @@ def assistant():
                 plot_metric_trends(metric_trends)
 
     # Use a container to dynamically update chat messages
-    chat_container = st.container()
+    chat_container = st.container(height=400)
 
     # Display chat history
     for message in st.session_state.chat_history:
