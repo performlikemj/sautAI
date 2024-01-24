@@ -4,10 +4,6 @@ import requests
 from dotenv import load_dotenv
 load_dotenv()
 import os
-from pages.register import register
-from pages.activate import activate
-from pages.assistant import assistant
-from pages.profile import profile 
 from extra_streamlit_components import CookieManager
 import datetime
 
@@ -16,13 +12,18 @@ import datetime
 load_dotenv()
 
 
+st.set_page_config(
+    page_title="sautAI",
+    page_icon="🥘",
+    layout="wide",
+    initial_sidebar_state="auto",
+)
 
 cookie_manager = CookieManager()
 
 
 def main():
-    st.title("SautAI")
-    
+
     # Login Form
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
         with st.form(key='login_form'):
@@ -30,6 +31,7 @@ def main():
             username = st.text_input("Username")
             password = st.text_input("Password", type="password")
             submit_button = st.form_submit_button(label='Login')
+            register_button = st.form_submit_button(label="Register")
             
             if submit_button:
                 # Remove guest user from session state
@@ -51,9 +53,11 @@ def main():
                     expires_at = datetime.datetime.now() + datetime.timedelta(days=1)
                     cookie_manager.set("access_token", response_data['access'], expires_at=expires_at, key='access_token')
                     st.session_state['is_logged_in'] = True
-                    st.switch_page("pages/assistant.py")
+                    st.switch_page("pages/1_assistant.py")
                 else:
                     st.error("Invalid username or password.")
+            if register_button:
+                st.switch_page("pages/5_register.py")
                    
     
     print("Cookie value after set:", cookie_manager.get('access_token'))
@@ -72,13 +76,12 @@ def main():
 
 
     # Hero Page
-    if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
-        st.markdown("""
-            <div style="text-align: center;">
-                <h1>More Time. More Health.</h1>
-                <p>Discover how our service can enhance your lifestyle.</p>
-            </div>
-            """, unsafe_allow_html=True)
+    st.markdown("""
+        <div style="text-align: center;">
+            <h1>More Time. More Health.</h1>
+            <p>Discover how our service can enhance your lifestyle.</p>
+        </div>
+        """, unsafe_allow_html=True)
         
 
 if __name__ == "__main__":
