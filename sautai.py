@@ -12,13 +12,6 @@ import datetime
 load_dotenv()
 
 
-st.set_page_config(
-    page_title="sautAI",
-    page_icon="🥘",
-    layout="wide",
-    initial_sidebar_state="auto",
-)
-
 cookie_manager = CookieManager()
 
 
@@ -71,7 +64,7 @@ def main():
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.success("Logged out successfully!")
-            print("Cookie value after delete:", cookie_manager.get('access_token'))
+            print("Cookie value after delete:", cookie_manager.get(key='access_token'))
             st.rerun()
         sidebar_auth()
 
@@ -86,12 +79,12 @@ def main():
 def sidebar_auth():
     if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
         if st.sidebar.button("Logout", key='sidebar_auth'):
-            cookie_manager.delete('access_token')
+            cookie_manager.delete(key='access_token')
             # Clear session state as well
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.success("Logged out successfully!")
-            print("Cookie value after delete:", cookie_manager.get('access_token'))
+            print("Cookie value after delete:", cookie_manager.get(key='access_token'))
             st.rerun()
     
 def page_auth():

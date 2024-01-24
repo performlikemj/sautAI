@@ -2,3 +2,4 @@
 *.pem
 *.toml
 *.bk
+*.pyc
