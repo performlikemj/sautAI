@@ -3,7 +3,7 @@ import requests
 import os
 import datetime
 from utils import api_call_with_refresh, is_user_authenticated
-from sautai import sidebar_auth
+from sautai import sidebar_auth, page_auth
 
 
 def profile():
@@ -211,6 +211,7 @@ def profile():
     else:
         # User is not logged in, display a message or redirect
         st.warning("Please log in to view and update your profile.")
+        page_auth()
 
 if __name__ == "__main__":
     profile()

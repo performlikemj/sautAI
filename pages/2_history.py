@@ -6,7 +6,7 @@ load_dotenv()
 import os
 from utils import api_call_with_refresh
 from datetime import datetime
-from sautai import sidebar_auth
+from sautai import sidebar_auth, page_auth
 
 
 
@@ -106,6 +106,7 @@ def threads():
             st.error("Error fetching threads.")
     else:
         st.warning("Please log in to view your threads.")
+        page_auth()
 
 if __name__ == "__main__":
     threads()
