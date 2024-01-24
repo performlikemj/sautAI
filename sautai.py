@@ -93,9 +93,10 @@ def sidebar_auth():
             st.success("Logged out successfully!")
             print("Cookie value after delete:", cookie_manager.get('access_token'))
             st.rerun()
-    else:
-        if st.sidebar.button("Login", key='sidebar_login'):
-            st.switch_page("pages/1_assistant.py")
+    
+def page_auth():
+    if st.button("Login", key='sidebar_login'):
+        st.switch_page("sautai.py")
 
 
 if __name__ == "__main__":
