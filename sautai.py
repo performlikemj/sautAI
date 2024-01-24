@@ -4,7 +4,6 @@ import requests
 from dotenv import load_dotenv
 load_dotenv()
 import os
-from extra_streamlit_components import CookieManager
 import datetime
 
 
@@ -12,7 +11,6 @@ import datetime
 load_dotenv()
 
 
-cookie_manager = CookieManager()
 
 
 def main():
@@ -44,7 +42,6 @@ def main():
                     st.session_state['email_confirmed'] = response_data['email_confirmed']
                     # Set cookie with the access token
                     expires_at = datetime.datetime.now() + datetime.timedelta(days=1)
-                    cookie_manager.set("access_token", response_data['access'], expires_at=expires_at, key='access_token')
                     st.session_state['is_logged_in'] = True
                     st.switch_page("pages/1_assistant.py")
                 else:
@@ -58,7 +55,6 @@ def main():
     # Logout Button
     if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
         if st.button("Logout", key='form_logout'):
-            cookie_manager.delete('access_token')
             # Clear session state as well
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
@@ -77,7 +73,6 @@ def main():
 def sidebar_auth():
     if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
         if st.sidebar.button("Logout", key='sidebar_auth'):
-            cookie_manager.delete(key='access_token')
             # Clear session state as well
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
