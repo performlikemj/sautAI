@@ -3,7 +3,7 @@ import requests
 import os
 import datetime
 from utils import api_call_with_refresh, is_user_authenticated
-from sautai import sidebar_logout
+from sautai import sidebar_auth
 
 
 def profile():
@@ -12,7 +12,7 @@ def profile():
 
     # Logout Button
     if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
-        sidebar_logout()
+        sidebar_auth()
     
     # Check if user is logged in
     if 'user_info' in st.session_state and st.session_state.user_info:

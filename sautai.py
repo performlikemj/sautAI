@@ -73,7 +73,7 @@ def main():
             st.success("Logged out successfully!")
             print("Cookie value after delete:", cookie_manager.get('access_token'))
             st.rerun()
-        sidebar_logout()
+        sidebar_auth()
 
     # Hero Page
     st.markdown("""
@@ -83,15 +83,19 @@ def main():
         </div>
         """, unsafe_allow_html=True)
         
-def sidebar_logout():
-    if st.sidebar.button("Logout", key='sidebar_logout'):
-        cookie_manager.delete('access_token')
-        # Clear session state as well
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
-        st.success("Logged out successfully!")
-        print("Cookie value after delete:", cookie_manager.get('access_token'))
-        st.rerun()
+def sidebar_auth():
+    if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
+        if st.sidebar.button("Logout", key='sidebar_auth'):
+            cookie_manager.delete('access_token')
+            # Clear session state as well
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.success("Logged out successfully!")
+            print("Cookie value after delete:", cookie_manager.get('access_token'))
+            st.rerun()
+    else:
+        if st.sidebar.button("Login", key='sidebar_login'):
+            st.switch_page("pages/1_assistant.py")
 
 
 if __name__ == "__main__":
