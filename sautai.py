@@ -53,7 +53,6 @@ def main():
                 st.switch_page("pages/5_register.py")
                    
     
-    print("Cookie value after set:", cookie_manager.get('access_token'))
 
 
     # Logout Button
@@ -64,7 +63,6 @@ def main():
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.success("Logged out successfully!")
-            print("Cookie value after delete:", cookie_manager.get(key='access_token'))
             st.rerun()
         sidebar_auth()
 
@@ -84,7 +82,6 @@ def sidebar_auth():
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.success("Logged out successfully!")
-            print("Cookie value after delete:", cookie_manager.get(key='access_token'))
             st.rerun()
     
 
