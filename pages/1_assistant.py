@@ -14,13 +14,6 @@ import streamlit.components.v1 as components
 
 load_dotenv()
 
-st.set_page_config(
-    page_title="sautAI",
-    page_icon="🥘",
-    layout="wide",
-    initial_sidebar_state="auto",
-)
-
 
 # Retrieve the environment variable in Python
 django_url = os.getenv("DJANGO_URL")

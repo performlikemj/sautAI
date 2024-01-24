@@ -9,15 +9,6 @@ from datetime import datetime
 
 
 
-st.set_page_config(
-    page_title="sautAI",
-    page_icon="🥘",
-    layout="wide",
-    initial_sidebar_state="auto",
-)
-
-
-
 
 def thread_detail(thread_id):
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}

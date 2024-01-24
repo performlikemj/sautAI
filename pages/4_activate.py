@@ -5,19 +5,12 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-st.set_page_config(
-    page_title="sautAI",
-    page_icon="🥘",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
-
 
 def activate():
     st.title("Account Activation")
     
-    uid = st.query_params.get("uid", [""])[0]
-    token = st.query_params.get("token", [""])[0]
+    uid = st.query_params.get("uid", [""])
+    token = st.query_params.get("token", [""])
 
     if st.button("Activate Account"):
         response = requests.post(f'{os.getenv("DJANGO_URL")}/auth/api/register/verify-email/', data={'uid': uid, 'token': token})
