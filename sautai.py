@@ -14,7 +14,7 @@ load_dotenv()
 
 st.set_page_config(
     page_title="sautAI",
-    page_icon="🥘",
+    page_icon=":knife_fork_plate:",
     layout="wide",
     initial_sidebar_state="auto",
 )

@@ -1,5 +1,5 @@
 #!/bin/sh
-'''exec' "/Users/michaeljones/Documents/Projects/Web Development/sautAI/.sautai/bin/python3.11" "$0" "$@"
+'''exec' "/Users/michaeljones/Documents/Projects/Web Development/sautAI/.sautai/bin/python" "$0" "$@"
 ' '''
 # -*- coding: utf-8 -*-
 import re
