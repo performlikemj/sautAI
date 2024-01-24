@@ -3,3 +3,5 @@
 *.toml
 *.bk
 *.pyc
+get-pip.py
+```
