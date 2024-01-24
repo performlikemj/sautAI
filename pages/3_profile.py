@@ -211,7 +211,6 @@ def profile():
     else:
         # User is not logged in, display a message or redirect
         st.warning("Please log in to view and update your profile.")
-        page_auth()
 
 if __name__ == "__main__":
     profile()

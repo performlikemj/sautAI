@@ -87,9 +87,6 @@ def sidebar_auth():
             print("Cookie value after delete:", cookie_manager.get(key='access_token'))
             st.rerun()
     
-def page_auth():
-    if st.button("Login", key='sidebar_login'):
-        st.switch_page("sautai.py")
 
 
 if __name__ == "__main__":
