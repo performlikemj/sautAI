@@ -1,1 +1,4 @@
 *.env
+*.pem
+*.toml
+*.bk

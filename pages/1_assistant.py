@@ -349,8 +349,9 @@ def guest_chat_with_gpt(prompt, thread_id):
         data={'question': prompt, 'thread_id': thread_id}
     )
     if response_data.status_code == 200:
-        print('response_data.json():', response_data.json())
         return response_data.json()
+    if response_data.status_code == 429:  # Rate limit status code
+        st.error("You've exceeded the rate limit. Please try again later or consider registering.")
     else:
         st.error("Failed to get response from the chatbot.")
         return None
