@@ -16,7 +16,7 @@ def activate():
         response = requests.post(f'{os.getenv("DJANGO_URL")}/auth/api/register/verify-email/', data={'uid': uid, 'token': token})
         if response.status_code == 200:
             st.success("Account activated successfully!")
-            st.switch_page("pages/1_assistant.py")
+            st.switch_page("sautai.py")
         else:
             st.error("Account activation failed.")
 

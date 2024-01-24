@@ -9,7 +9,7 @@ import openai
 from openai import OpenAIError
 from utils import api_call_with_refresh, is_user_authenticated
 import streamlit.components.v1 as components
-
+from sautai import sidebar_logout
 
 
 load_dotenv()
@@ -466,7 +466,9 @@ def assistant():
         chat_container.empty()
         st.rerun()
 
-
+    # Logout Button
+    if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
+        sidebar_logout()
 
 
 if __name__ == "__main__":
