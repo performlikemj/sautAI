@@ -7,10 +7,8 @@ import openai
 from openai import OpenAIError
 import requests
 import streamlit as st
-from extra_streamlit_components import CookieManager
 
 # Assuming you have already initialized the CookieManager
-cookies_manager = CookieManager()
 
 def refresh_token(refresh_token):
     refresh_response = requests.post(
@@ -29,9 +27,6 @@ def api_call_with_refresh(url, method='get', data=None, headers=None):
         new_tokens = refresh_token(st.session_state.user_info["refresh"])
         if new_tokens:
             st.session_state.user_info.update(new_tokens)
-
-            # Update the cookie with the new access token
-            cookies_manager.set("access_token", val=new_tokens["access"], max_age=86400)
 
             headers['Authorization'] = f'Bearer {new_tokens["access"]}'
             response = requests.request(method, url, json=data, headers=headers)  # Retry with new token
