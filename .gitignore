@@ -4,4 +4,5 @@
 *.bk
 *.pyc
 get-pip.py
+.sautai*
 ```
