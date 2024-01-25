@@ -32,10 +32,6 @@ def thread_detail(thread_id):
 
 def threads():
     st.title("Chat History")
-
-    # Logout Button
-    if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
-        sidebar_auth()
     
     if 'is_logged_in' in st.session_state and st.session_state.is_logged_in:
         # Initialize or update current page in session state
