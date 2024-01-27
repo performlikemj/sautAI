@@ -9,7 +9,6 @@ import re
 import time
 import requests
 from openai import OpenAIError
-from sautai import sidebar_auth
 
 
 
@@ -18,9 +17,6 @@ def register():
     st.header("Register")
     st.write("Create an account.")
 
-    # Logout Button
-    if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
-        sidebar_auth()
 
     with st.form(key='registration_form'):
         username = st.text_input("Username")
