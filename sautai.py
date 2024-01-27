@@ -50,6 +50,9 @@ def main():
                         st.session_state['user_id'] = response_data['user_id']
                         st.session_state['email_confirmed'] = response_data['email_confirmed']
                         # Set cookie with the access token
+                        st.session_state['access_token'] = response_data['access']
+                        # Set cookie with the refresh token
+                        st.session_state['refresh_token'] = response_data['refresh']
                         expires_at = datetime.datetime.now() + datetime.timedelta(days=1)
                         st.session_state['is_logged_in'] = True
                         st.switch_page("pages/1_assistant.py")
