@@ -9,6 +9,7 @@ import openai
 from openai import OpenAIError
 from utils import api_call_with_refresh, is_user_authenticated
 import streamlit.components.v1 as components
+import numpy as np
 
 
 load_dotenv()
@@ -54,7 +55,8 @@ def show_latest_metrics():
     latest_metrics = metrics()
 
     if latest_metrics:
-        st.markdown(f"**Latest Weight:** {latest_metrics['weight']} kg")
+        weight_display = float(latest_metrics['weight']) if st.session_state['weight_unit'] == 'kg' else np.round(float(latest_metrics['weight']) * 2.20462, 2)
+        st.markdown(f"**Latest Weight:** {weight_display} {st.session_state['weight_unit']}")
         st.markdown(f"**Latest BMI:** {latest_metrics['bmi']}")
         st.markdown(f"**Current Mood:** {latest_metrics['mood']}")
         st.markdown(f"**Energy Level:** {latest_metrics['energy_level']}")
@@ -327,10 +329,22 @@ def plot_metric_trends(metric_trends):
         st.error("No metric trends available to display.")
 
 def health_metrics_form():
+    # Add a session state variable for weight unit if not present
+    if 'weight_unit' not in st.session_state:
+        st.session_state['weight_unit'] = 'kg'  # default unit
+
     with st.sidebar.expander("Health Metrics", expanded=False):  # Set expanded to False
+        # Toggle for weight unit
+        weight_unit = st.radio("Weight Unit", ('kg', 'lbs'))
+
+        # Update the session state variable
+        st.session_state['weight_unit'] = weight_unit
+
         with st.form(key='health_metrics_form'):
             date = st.date_input("Date", value=datetime.date.today())
-            weight = st.number_input("Weight (kg)", min_value=0.0, format="%.2f")
+            weight_input = st.number_input(f"Weight ({st.session_state['weight_unit']})", min_value=0.0, format="%.2f")
+            # Convert lbs to kg if necessary
+            weight = weight_input if st.session_state['weight_unit'] == 'kg' else np.round(weight_input / 2.20462, 2)
             bmi = st.number_input("BMI", min_value=0.0, format="%.2f")
             mood = st.selectbox("Mood", ["Happy", "Sad", "Stressed", "Relaxed", "Energetic", "Tired", "Neutral"])
             energy_level = st.slider("Energy Level", 1, 10, 5)
