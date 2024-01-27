@@ -8,7 +8,7 @@ import datetime
 import logging
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG,
+logging.basicConfig(level=logging.WARNING,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     filename='app.log', # Log to a file. Remove this to log to console
                     filemode='w') # 'w' to overwrite the log file on each run, 'a' to append
@@ -78,6 +78,7 @@ def main():
             </div>
             """, unsafe_allow_html=True)
     except Exception as e:
+        st.error("Error occurred. We're looking into it.")
         logging.error("Error occurred", exc_info=True)  # Logs the error with traceback
 
         

@@ -6,8 +6,16 @@ load_dotenv()
 import os
 from utils import api_call_with_refresh
 from datetime import datetime
+import logging
 
+# Configure logging
+logging.basicConfig(level=logging.WARNING,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    filename='history.log', # Log to a file. Remove this to log to console
+                    filemode='w') # 'w' to overwrite the log file on each run, 'a' to append
 
+# Example usage
+logging.info("Starting the Streamlit app")
 
 def thread_detail(thread_id):
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
@@ -32,75 +40,78 @@ def thread_detail(thread_id):
 
 def threads():
     st.title("Chat History")
-    
-    if 'is_logged_in' in st.session_state and st.session_state.is_logged_in:
-        # Initialize or update current page in session state
-        current_page = st.session_state.get('current_page', 1)
-       
-        # Initialize pagination variables
-        prev_page = False
-        next_page = False
-        # Fetch chat threads
-        headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-        response = api_call_with_refresh(
-            url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/thread_history/?page={current_page}',
-            method='get',
-            headers=headers
-        )
+    try:
+        if 'is_logged_in' in st.session_state and st.session_state.is_logged_in:
+            # Initialize or update current page in session state
+            current_page = st.session_state.get('current_page', 1)
+        
+            # Initialize pagination variables
+            prev_page = False
+            next_page = False
+            # Fetch chat threads
+            headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+            response = api_call_with_refresh(
+                url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/thread_history/?page={current_page}',
+                method='get',
+                headers=headers
+            )
 
-        if response.status_code == 200:
-            chat_threads_response = response.json()
-            chat_threads = chat_threads_response['results']
-            st.write("Your recent chat history:")
+            if response.status_code == 200:
+                chat_threads_response = response.json()
+                chat_threads = chat_threads_response['results']
+                st.write("Your recent chat history:")
 
-            # Pagination buttons
-            col1, col2 = st.columns(2)
-            with col1:
-                if chat_threads_response['previous']:
-                    prev_page = st.button('Previous page', key='previous_page')
-            with col2:
-                if chat_threads_response['next']:
-                    next_page = st.button('Next page', key='next_page')
+                # Pagination buttons
+                col1, col2 = st.columns(2)
+                with col1:
+                    if chat_threads_response['previous']:
+                        prev_page = st.button('Previous page', key='previous_page')
+                with col2:
+                    if chat_threads_response['next']:
+                        next_page = st.button('Next page', key='next_page')
 
-            if prev_page:
-                st.session_state.current_page = max(1, current_page - 1)
-            if next_page:
-                st.session_state.current_page = current_page + 1
+                if prev_page:
+                    st.session_state.current_page = max(1, current_page - 1)
+                if next_page:
+                    st.session_state.current_page = current_page + 1
 
-            # Refresh the page after pagination button click
-            if prev_page or next_page:
-                st.experimental_rerun()
+                # Refresh the page after pagination button click
+                if prev_page or next_page:
+                    st.experimental_rerun()
 
-            # Displaying each chat thread
-            for thread in chat_threads:
-                # Parse the date string into a datetime object
-                created_at = datetime.strptime(thread['created_at'], "%Y-%m-%dT%H:%M:%S.%fZ")
+                # Displaying each chat thread
+                for thread in chat_threads:
+                    # Parse the date string into a datetime object
+                    created_at = datetime.strptime(thread['created_at'], "%Y-%m-%dT%H:%M:%S.%fZ")
 
-                # Format the datetime object into a string
-                formatted_date = created_at.strftime("%B %d, %Y - %H:%M:%S")
+                    # Format the datetime object into a string
+                    formatted_date = created_at.strftime("%B %d, %Y - %H:%M:%S")
 
-                st.write(formatted_date)
+                    st.write(formatted_date)
 
-                # Toggle thread detail view
-                if st.button(thread['title'], key=thread['id']):
+                    # Toggle thread detail view
+                    if st.button(thread['title'], key=thread['id']):
+                        if st.session_state.get('selected_thread_id') == thread['openai_thread_id']:
+                            # Toggle off if the same thread is clicked again
+                            st.session_state.selected_thread_id = None
+                        else:
+                            # Show new thread details
+                            st.session_state.selected_thread_id = thread['openai_thread_id']
+                            thread_detail(thread['openai_thread_id'])
+
+                    # Check if thread details should be displayed
                     if st.session_state.get('selected_thread_id') == thread['openai_thread_id']:
-                        # Toggle off if the same thread is clicked again
-                        st.session_state.selected_thread_id = None
-                    else:
-                        # Show new thread details
-                        st.session_state.selected_thread_id = thread['openai_thread_id']
                         thread_detail(thread['openai_thread_id'])
 
-                # Check if thread details should be displayed
-                if st.session_state.get('selected_thread_id') == thread['openai_thread_id']:
-                    thread_detail(thread['openai_thread_id'])
-
-                # Add a divider after each thread
-                st.divider()
+                    # Add a divider after each thread
+                    st.divider()
+            else:
+                st.error("Error fetching threads.")
         else:
-            st.error("Error fetching threads.")
-    else:
-        st.warning("Please log in to view your threads.")
+            st.warning("Please log in to view your threads.")
+    except Exception as e:
+        st.error("An Error occurred. We are looking into it.")
+        logging.error("Error occurred", exc_info=True)
 
 
 if __name__ == "__main__":
