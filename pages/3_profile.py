@@ -155,7 +155,7 @@ def profile():
                     'Lentils', 
                     'None'
                 ]
-                user_allergy = user_data.get('allergy', '')
+                user_allergy = user_data.get('allergies', '')
                 index = 0
                 if user_allergy in allergies:
                     index = allergies.index(user_allergy)
@@ -164,7 +164,7 @@ def profile():
                     update_response = api_call_with_refresh(
                         url=f'{os.getenv("DJANGO_URL")}/auth/api/update_profile/',
                         method='post',
-                        data={'allergy': allergy},
+                        data={'allergies': allergy},
                         headers={'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
                     )
                     if update_response.status_code == 200:                    
