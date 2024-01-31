@@ -67,3 +67,55 @@ Traceback (most recent call last):
   File "/Users/michaeljones/Documents/Projects/Web Development/sautAI/.sautai/lib/python3.11/site-packages/requests/adapters.py", line 519, in send
     raise ConnectionError(e, request=request)
 requests.exceptions.ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /customer_dashboard/api/thread_history/?page=1 (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x130580b90>: Failed to establish a new connection: [Errno 61] Connection refused'))
+2024-01-30 12:55:18,280 - root - ERROR - Error occurred
+Traceback (most recent call last):
+  File "/Users/michaeljones/Documents/Projects/Web Development/sautAI/sautai.py", line 29, in main
+    if st.button("Forgot your password?"):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/michaeljones/Documents/Projects/Web Development/sautAI/.sautai/lib/python3.11/site-packages/streamlit/runtime/metrics_util.py", line 396, in wrapped_func
+    result = non_optional_func(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/michaeljones/Documents/Projects/Web Development/sautAI/.sautai/lib/python3.11/site-packages/streamlit/elements/widgets/button.py", line 157, in button
+    return self.dg._button(
+           ^^^^^^^^^^^^^^^^
+  File "/Users/michaeljones/Documents/Projects/Web Development/sautAI/.sautai/lib/python3.11/site-packages/streamlit/elements/widgets/button.py", line 553, in _button
+    raise StreamlitAPIException(
+streamlit.errors.StreamlitAPIException: `st.button()` can't be used in an `st.form()`.
+
+For more information, refer to the
+[documentation for forms](https://docs.streamlit.io/library/api-reference/control-flow/st.form).
+
+2024-01-30 12:56:37,550 - root - ERROR - Error occurred
+Traceback (most recent call last):
+  File "/Users/michaeljones/Documents/Projects/Web Development/sautAI/sautai.py", line 29, in main
+    if st.button("Forgot your password?"):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/michaeljones/Documents/Projects/Web Development/sautAI/.sautai/lib/python3.11/site-packages/streamlit/runtime/metrics_util.py", line 396, in wrapped_func
+    result = non_optional_func(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/michaeljones/Documents/Projects/Web Development/sautAI/.sautai/lib/python3.11/site-packages/streamlit/elements/widgets/button.py", line 157, in button
+    return self.dg._button(
+           ^^^^^^^^^^^^^^^^
+  File "/Users/michaeljones/Documents/Projects/Web Development/sautAI/.sautai/lib/python3.11/site-packages/streamlit/elements/widgets/button.py", line 553, in _button
+    raise StreamlitAPIException(
+streamlit.errors.StreamlitAPIException: `st.button()` can't be used in an `st.form()`.
+
+For more information, refer to the
+[documentation for forms](https://docs.streamlit.io/library/api-reference/control-flow/st.form).
+
+2024-01-30 17:02:04,036 - root - ERROR - Error occurred
+Traceback (most recent call last):
+  File "/Users/michaeljones/Documents/Projects/Web Development/sautAI/sautai.py", line 34, in main
+    st.switch_page("pages/activate.py", {'action': 'password_reset'})
+  File "/Users/michaeljones/Documents/Projects/Web Development/sautAI/.sautai/lib/python3.11/site-packages/streamlit/runtime/metrics_util.py", line 396, in wrapped_func
+    result = non_optional_func(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: switch_page() takes 1 positional argument but 2 were given
+2024-01-30 17:02:49,992 - root - ERROR - Error occurred
+Traceback (most recent call last):
+  File "/Users/michaeljones/Documents/Projects/Web Development/sautAI/sautai.py", line 64, in main
+    st.switch_page("pages/activate.py", {'action': 'password_reset'})
+  File "/Users/michaeljones/Documents/Projects/Web Development/sautAI/.sautai/lib/python3.11/site-packages/streamlit/runtime/metrics_util.py", line 396, in wrapped_func
+    result = non_optional_func(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: switch_page() takes 1 positional argument but 2 were given
