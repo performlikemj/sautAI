@@ -11,8 +11,8 @@ from utils import api_call_with_refresh, is_user_authenticated
 import streamlit.components.v1 as components
 import numpy as np
 
-
 load_dotenv()
+
 
 
 # Retrieve the environment variable in Python
