@@ -14,6 +14,11 @@ logging.basicConfig(level=logging.WARNING,
 
 logging.info("Starting the Streamlit app")
 
+st.set_page_config(
+    page_title="sautAI",
+    page_icon="🥘",
+)
+
 def main():
     try:
         # Login Form

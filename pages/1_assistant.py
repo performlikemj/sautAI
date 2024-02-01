@@ -25,6 +25,11 @@ if openai_env_key:
 
 client = openai
 
+st.set_page_config(
+    page_title="sautAI",
+    page_icon="🥘",
+)
+
 def fetch_user_metrics(user_id):
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
     response = api_call_with_refresh(

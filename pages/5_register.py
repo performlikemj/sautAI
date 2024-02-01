@@ -11,6 +11,10 @@ import requests
 from openai import OpenAIError
 import pycountry
 
+st.set_page_config(
+    page_title="sautAI",
+    page_icon="🥘",
+)
 
 def register():
     st.title("Register")
@@ -28,6 +32,11 @@ def register():
 
         # Address fields
         st.subheader("Address")
+        st.write("""
+        Your address is used to:
+        1. Find supported supermarkets in your area
+        2. Find chefs in your area to provide meal planning meals
+        """)
         street = st.text_input("Street")
         city = st.text_input("City")
         state = st.text_input("State/Province")
