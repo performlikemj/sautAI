@@ -513,7 +513,7 @@ def assistant():
         st.rerun()
 
     # Button to start a new chat
-    if st.button("Start New Chat"):
+    if st.session_state.chat_history and st.button("Start New Chat"):
         st.session_state.thread_id = None
         st.session_state.chat_history = []
         st.session_state.recommend_follow_up = []
