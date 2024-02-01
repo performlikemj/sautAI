@@ -46,6 +46,7 @@ pandas==2.1.4
 Pillow==10.1.0
 protobuf==4.25.1
 pyarrow==14.0.2
+pycountry==23.12.11
 pycparser==2.21
 pydantic==2.5.3
 pydantic_core==2.14.6
