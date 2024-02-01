@@ -4,7 +4,10 @@ import os
 import datetime
 from utils import api_call_with_refresh, is_user_authenticated
 
-
+st.set_page_config(
+    page_title="sautAI",
+    page_icon="🥘",
+)
 
 def profile():
     st.title("Profile")

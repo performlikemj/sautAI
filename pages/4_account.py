@@ -7,6 +7,11 @@ from utils import api_call_with_refresh
 
 load_dotenv()
 
+st.set_page_config(
+    page_title="sautAI",
+    page_icon="🥘",
+)
+
 def activate_or_reset_password():
     st.title("Account Management")
 

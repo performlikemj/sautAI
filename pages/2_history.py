@@ -17,6 +17,11 @@ logging.basicConfig(level=logging.WARNING,
 # Example usage
 logging.info("Starting the Streamlit app")
 
+st.set_page_config(
+    page_title="sautAI",
+    page_icon="🥘",
+)
+
 def thread_detail(thread_id):
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
     response = api_call_with_refresh(
