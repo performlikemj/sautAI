@@ -45,9 +45,7 @@ st.set_page_config(
 )
 
 def profile():
-    st.title("Profile")
-    st.header("Profile")
-
+    # Login Form
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
         with st.expander("Login", expanded=False):
             st.write("Login to your account.")
@@ -79,7 +77,7 @@ def profile():
                     st.session_state['refresh_token'] = response_data['refresh']
                     expires_at = datetime.datetime.now() + datetime.timedelta(days=1)
                     st.session_state['is_logged_in'] = True
-                    st.switch_page("pages/1_assistant.py")
+                    st.rerun()
                 else:
                     st.error("Invalid username or password.")
             if register_button:
@@ -90,6 +88,17 @@ def profile():
             if st.button("Forgot your password?"):
                 # Directly navigate to the activate page for password reset
                 st.switch_page("pages/4_account.py")
+
+    # Logout Button
+    if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
+        if st.button("Logout", key='form_logout'):
+            # Clear session state as well
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.success("Logged out successfully!")
+            st.rerun()
+            
+    st.title("Profile")
 
     # Check if user is logged in
     if 'user_info' in st.session_state and st.session_state.user_info:
