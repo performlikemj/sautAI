@@ -1,0 +1,14 @@
+2024-02-02 05:36:17,680 - root - ERROR - Error occurred
+Traceback (most recent call last):
+  File "/Users/michaeljones/Documents/Projects/Web Development/sautAI/sautai.py", line 172, in main
+    with st.form(key='login_form'):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/michaeljones/Documents/Projects/Web Development/sautAI/.sautai/lib/python3.11/site-packages/streamlit/runtime/metrics_util.py", line 396, in wrapped_func
+    result = non_optional_func(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/michaeljones/Documents/Projects/Web Development/sautAI/.sautai/lib/python3.11/site-packages/streamlit/elements/form.py", line 213, in form
+    raise StreamlitAPIException(_build_duplicate_form_message(key))
+streamlit.errors.StreamlitAPIException: There are multiple identical forms with `key='login_form'`.
+
+To fix this, please make sure that the `key` argument is unique for
+each `st.form` you create.
