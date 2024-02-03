@@ -12,6 +12,7 @@ click==8.1.7
 contourpy==1.2.0
 cryptography==41.0.7
 cycler==0.12.1
+deprecation==2.1.0
 distro==1.9.0
 elastic-transport==8.11.0
 elasticsearch==8.11.1
@@ -77,6 +78,7 @@ streamlit-extras==0.3.6
 streamlit-faker==0.0.3
 streamlit-image-coordinates==0.1.6
 streamlit-keyup==0.2.2
+streamlit-modal==0.1.2
 streamlit-toggle-switch==1.0.2
 streamlit-vertical-slider==2.5.5
 tenacity==8.2.3
