@@ -131,7 +131,7 @@ def threads():
                 del st.session_state[key]
             st.success("Logged out successfully!")
             st.rerun()
-            
+
     st.title("Chat History")
 
     try:
@@ -200,9 +200,9 @@ def threads():
                     # Add a divider after each thread
                     st.divider()
             else:
-                st.error("Error fetching threads.")
+                st.error("Error fetching history.")
         else:
-            st.warning("Please log in to view your threads.")
+            st.warning("Please log in to view your history.")
     except Exception as e:
         st.error("An Error occurred. We are looking into it.")
         logging.error("Error occurred", exc_info=True)
