@@ -10,6 +10,7 @@ from openai import OpenAIError
 from utils import api_call_with_refresh, is_user_authenticated
 import streamlit.components.v1 as components
 import numpy as np
+from streamlit_modal import Modal
 
 load_dotenv()
 
@@ -128,19 +129,32 @@ def edit_calorie_record(record_id):
     user_id = st.session_state.get('user_id')
     record_data = fetch_calorie_data(record_id)
 
+    # Define the portion size choices to match those in your Django model
+    portion_size_options = {
+        'XS': 'Extra Small',
+        'S': 'Small',
+        'M': 'Medium',
+        'L': 'Large',
+        'XL': 'Extra Large',
+    }
+
     if record_data:
         with st.form(key='edit_calorie_form'):
             new_date = st.date_input("Date", value=pd.to_datetime(record_data['date_recorded']).date())
             new_meal_name = st.text_input("Meal Name", value=record_data['meal_name'])
             new_meal_description = st.text_area("Meal Description", value=record_data['meal_description'])
-            new_portion_size = st.text_input("Portion Size", value=record_data['portion_size'])
+            
+            # Use a selectbox for portion size instead of text input
+            # Convert the stored portion size value back to its descriptive form for the selectbox default value
+            new_portion_size = st.selectbox("Portion Size", options=list(portion_size_options.keys()), format_func=lambda x: portion_size_options[x], index=list(portion_size_options.keys()).index(record_data['portion_size']))
+            
             submit_button = st.form_submit_button("Save Changes")
 
             if submit_button:
                 update_payload = {
                     "meal_name": new_meal_name,  # Use the new meal name
                     "meal_description": new_meal_description,
-                    "portion_size": new_portion_size,
+                    "portion_size": new_portion_size,  # Save the key of the selected portion size
                     "date_recorded": new_date.strftime('%Y-%m-%d')
                 }
                 update_response = api_call_with_refresh(
@@ -189,23 +203,77 @@ def add_calorie_intake(user_id, meal_name, meal_description, portion_size, selec
     else:
         st.error(f"Failed to add calorie intake: {response.text}")
 
+# Define the portion size explanation modal
+portion_size_modal = Modal(
+    "Understanding Portion Sizes", 
+    key="portion-size-modal",
+    padding=20,
+    max_width=744
+)
+
 def calorie_intake_form(selected_date):
     with st.sidebar:
         with st.expander("Calorie Intake", expanded=True):
+            # Portion size explanation setup
+            portion_size_modal = Modal(
+                "Understanding Portion Sizes",
+                key="portion-size-modal",
+                padding=20,
+                max_width=744
+            )
+            
+
             with st.form(key='calorie_intake_form'):
                 st.date_input("Date", value=selected_date, key='calorie_date')
                 st.text_input("Meal Name", key='meal_name')
                 st.text_area("Meal Description", key='meal_description')
-                st.text_input("Portion Size", key='portion_size')
+
+                # Define the portion size choices to match those in your Django model
+                portion_size_options = {
+                    'XS': 'Extra Small',
+                    'S': 'Small',
+                    'M': 'Medium',
+                    'L': 'Large',
+                    'XL': 'Extra Large',
+                }
+                
+                # Use a selectbox for portion size
+                portion_size = st.selectbox("Portion Size", options=list(portion_size_options.keys()), format_func=lambda x: portion_size_options[x], key='portion_size')
+
                 submit_button = st.form_submit_button(label='Submit')
                 if submit_button:
                     user_id = st.session_state.get('user_id')
                     # Retrieving the values
                     meal_name = st.session_state['meal_name']
                     meal_description = st.session_state['meal_description']
-                    portion_size = st.session_state['portion_size']
                     selected_date = st.session_state['calorie_date']
                     add_calorie_intake(user_id, meal_name, meal_description, portion_size, selected_date)
+
+            # Trigger for the portion size explanation modal
+            # Placed outside the form but within the same expander for UI consistency
+            open_modal_button = st.button("Understand Portion Sizes?", key="open-portion-size-info")
+            if open_modal_button:
+                portion_size_modal.open()
+
+
+if portion_size_modal.is_open():
+    with portion_size_modal.container():
+        st.markdown("""
+        Eating the right portion sizes is crucial for maintaining a balanced diet. But what exactly is a "portion size"? Let's explore. 🍽️
+        
+        ### Visual Guides to Portion Sizes
+        **Fruits & Vegetables:** A serving should be about the size of your fist. 🍎🥦
+        
+        
+        **Proteins:** A meat or fish serving is about the size of a deck of cards. 🥩🐟
+        
+        
+        **Grains:** A serving of grains is roughly one cupped hand. 🍚
+        
+        
+        Understanding and managing portion sizes can significantly impact your nutritional intake and overall health. 💪
+        """)
+
 
 
 def visualize_calorie_data(selected_date):
@@ -474,7 +542,7 @@ def assistant():
                 del st.session_state[key]
             st.success("Logged out successfully!")
             st.rerun()
-            
+
     st.title("Dietician Assistant")
 
 

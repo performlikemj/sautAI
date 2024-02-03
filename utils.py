@@ -35,3 +35,6 @@ def api_call_with_refresh(url, method='get', data=None, headers=None):
 # Define a function to check if a user is authenticated
 def is_user_authenticated():
     return 'user_info' in st.session_state and 'access' in st.session_state.user_info
+
+
+
