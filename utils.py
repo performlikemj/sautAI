@@ -7,9 +7,9 @@ import openai
 from openai import OpenAIError
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 
-# Assuming you have already initialized the CookieManager
-
+# Define a function to get the user's access token
 def refresh_token(refresh_token):
     refresh_response = requests.post(
         f'{os.getenv("DJANGO_URL")}/auth/api/token/refresh/', 
