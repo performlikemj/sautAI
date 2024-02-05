@@ -261,28 +261,31 @@ if portion_size_modal.is_open():
     with portion_size_modal.container():
         with st.container():
             st.markdown("""
-            Understanding portion sizes is a key factor in maintaining a balanced diet and accurately logging your meals. Let's break down what typical portion sizes look like and how they can guide you in logging meals more effectively. 🍽️
+            ### Understanding Our Portion Sizes
+            When logging your meals, selecting the right portion size helps in accurately tracking your nutritional intake. Here's a guide to what each portion size category represents, making it easier for you to choose when logging meals:
 
-            ### Visual Guides to Portion Sizes
+            - **Extra Small (XS):** Ideal for small snacks or condiments. Think of a tablespoon of peanut butter or a small handful of nuts. 🥜
 
-            - **Fruits & Vegetables:** Aim for a portion about the size of your fist. For leafy greens, two hands cupped together is a good measure. 🍎🥦
+            - **Small (S):** Suitable for side dishes or smaller servings of fruits and vegetables. Imagine a single piece of fruit or half a cup of cooked vegetables. 🍏🥕
 
-            - **Proteins:** For meat, fish, or plant-based alternatives, think of the size of a deck of cards or the palm of your hand (excluding fingers). 🥩🐟
+            - **Medium (M):** The right size for main components of your meals, like a cup of cooked pasta, a medium-sized chicken breast, or a bowl of salad. 🍝🍗🥗
 
-            - **Grains and Starches:** A serving is roughly what can fit in one cupped hand. For bread, one slice typically represents one serving. 🍚🍞
+            - **Large (L):** Fits larger meals and servings, such as a big dinner plate with multiple components or a large smoothie. 🍲🥤
 
-            - **Fats and Oils:** Healthy fats, like nuts, seeds, or avocado, should be about a small handful or the size of your thumb for oils and butter. 🥑🧈
+            - **Extra Large (XL):** Reserved for very large or shared meals. Think of a family-sized meal or a large pizza. 🍕👨‍👩‍👧‍👦
 
-            ### How This Helps With Meal Logging
+            ### How to Use Portion Sizes for Meal Logging
 
-            When logging meals in our app, visualizing these portion sizes can help you estimate the amounts of each component in your meal. This not only aids in more accurate nutritional tracking but also helps you understand your eating habits better.
+            Using these categories, try to estimate the portion sizes of the meals you're logging. For example:
 
-            For meals with multiple ingredients, try to break down the meal into these components. If you're having a sandwich, for example, log the bread (grains), the meat (proteins), and any vegetables separately based on these portion sizes. This detailed logging helps us provide you with more accurate nutritional insights and personalized feedback.
+            - A sandwich with a small side salad might be a **Medium (M)** for the sandwich and **Small (S)** for the salad.
+            - A bowl of fruit salad could be **Large (L)** depending on the quantity.
 
-            Remember, these are guidelines to help you gauge portion sizes better. Your actual needs may vary based on your dietary goals, activity level, and nutritional requirements. Feel free to adjust portions accordingly and consult with a nutritionist for personalized advice. 💪
+            Remember, these sizes are guidelines to help you in logging your meals more accurately. Depending on your dietary needs, you might adjust the portions. Our goal is to make meal tracking insightful and tailored to your health journey.
 
-            Happy logging, and here's to your health!
+            Happy meal logging!
             """)
+
 
 
 def visualize_calorie_data(selected_date):
