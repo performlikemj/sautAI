@@ -203,6 +203,7 @@ def add_calorie_intake(user_id, meal_name, meal_description, portion_size, selec
     else:
         st.error(f"Failed to add calorie intake: {response.text}")
 
+
 # Define the portion size explanation modal
 portion_size_modal = Modal(
     "Understanding Portion Sizes", 
@@ -258,22 +259,30 @@ def calorie_intake_form(selected_date):
 
 if portion_size_modal.is_open():
     with portion_size_modal.container():
-        st.markdown("""
-        Eating the right portion sizes is crucial for maintaining a balanced diet. But what exactly is a "portion size"? Let's explore. 🍽️
-        
-        ### Visual Guides to Portion Sizes
-        **Fruits & Vegetables:** A serving should be about the size of your fist. 🍎🥦
-        
-        
-        **Proteins:** A meat or fish serving is about the size of a deck of cards. 🥩🐟
-        
-        
-        **Grains:** A serving of grains is roughly one cupped hand. 🍚
-        
-        
-        Understanding and managing portion sizes can significantly impact your nutritional intake and overall health. 💪
-        """)
+        with st.container():
+            st.markdown("""
+            Understanding portion sizes is a key factor in maintaining a balanced diet and accurately logging your meals. Let's break down what typical portion sizes look like and how they can guide you in logging meals more effectively. 🍽️
 
+            ### Visual Guides to Portion Sizes
+
+            - **Fruits & Vegetables:** Aim for a portion about the size of your fist. For leafy greens, two hands cupped together is a good measure. 🍎🥦
+
+            - **Proteins:** For meat, fish, or plant-based alternatives, think of the size of a deck of cards or the palm of your hand (excluding fingers). 🥩🐟
+
+            - **Grains and Starches:** A serving is roughly what can fit in one cupped hand. For bread, one slice typically represents one serving. 🍚🍞
+
+            - **Fats and Oils:** Healthy fats, like nuts, seeds, or avocado, should be about a small handful or the size of your thumb for oils and butter. 🥑🧈
+
+            ### How This Helps With Meal Logging
+
+            When logging meals in our app, visualizing these portion sizes can help you estimate the amounts of each component in your meal. This not only aids in more accurate nutritional tracking but also helps you understand your eating habits better.
+
+            For meals with multiple ingredients, try to break down the meal into these components. If you're having a sandwich, for example, log the bread (grains), the meat (proteins), and any vegetables separately based on these portion sizes. This detailed logging helps us provide you with more accurate nutritional insights and personalized feedback.
+
+            Remember, these are guidelines to help you gauge portion sizes better. Your actual needs may vary based on your dietary goals, activity level, and nutritional requirements. Feel free to adjust portions accordingly and consult with a nutritionist for personalized advice. 💪
+
+            Happy logging, and here's to your health!
+            """)
 
 
 def visualize_calorie_data(selected_date):
