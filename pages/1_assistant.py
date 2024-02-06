@@ -172,12 +172,12 @@ def edit_calorie_record(record_id):
 def delete_calorie_record(record_id):
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
     response = requests.delete(
-        f'{os.getenv("DJANGO_URL")}/api/delete_calorie_intake/{record_id}/',
+        f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/delete_calorie_intake/{record_id}/',
         headers=headers
     )
     if response.status_code == 200:
         st.success("Calorie record deleted successfully")
-        st.experimental_rerun() 
+        st.rerun() 
     else:
         st.error("Failed to delete calorie record")
 
