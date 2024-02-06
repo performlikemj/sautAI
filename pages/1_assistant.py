@@ -573,14 +573,15 @@ def assistant():
         st.session_state.chat_history.append({"role": "user", "content": follow_up_prompt})
         # Process the follow-up prompt immediately
         process_user_input(follow_up_prompt)
-        # Clear recommend_follow_up from session state
-        st.session_state.recommend_follow_up = []
+
 
     # Function to process and display user input
     def process_user_input(prompt):
         with chat_container.chat_message("user"):
             st.markdown(prompt)
         thread_id = st.session_state.thread_id 
+        # Clear recommend_follow_up from session state
+        st.session_state.recommend_follow_up = []
         # Process the question and get response
         # full_response = handle_openai_communication(prompt, thread_id, {"user_id": st.session_state.get('user_id')})
         # Interaction with the chat_with_gpt endpoint
