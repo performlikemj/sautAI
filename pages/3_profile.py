@@ -7,7 +7,7 @@ from utils import api_call_with_refresh, is_user_authenticated
 st.set_page_config(
     page_title="sautAI - Your Diet and Nutrition Guide",
     page_icon="🥗", 
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
     menu_items={
         'Report a bug': "mailto:support@sautai.com",
         'About': """
