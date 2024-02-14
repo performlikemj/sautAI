@@ -532,7 +532,6 @@ def assistant():
                     st.session_state['access_token'] = response_data['access']
                     # Set cookie with the refresh token
                     st.session_state['refresh_token'] = response_data['refresh']
-                    expires_at = datetime.datetime.now() + datetime.timedelta(days=1)
                     st.session_state['is_logged_in'] = True
                     st.rerun()
                 else:
@@ -566,27 +565,6 @@ def assistant():
     if 'recommend_follow_up' not in st.session_state:
         st.session_state.recommend_follow_up = []
 
-    # Check if the user is authenticated
-    if is_user_authenticated():
-        # Check if the summary has already been provided
-        if 'summary_provided' not in st.session_state or not st.session_state['summary_provided']:
-            # Make a GET request to the user summary endpoint
-            response = api_call_with_refresh(
-                f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/user_summary/',
-                headers={'Authorization': f'Bearer {st.session_state["access_token"]}'}
-            )
-            if response.status_code == 200:
-                # Parse the response and add it to the chat history
-                response_data = response.json()
-                for message in response_data['data']:
-                    st.session_state.chat_history.append({
-                        "role": message['role'],
-                        "content": message['content'][0]['text']['value']
-                    })
-                # Set the summary_provided session state variable to True
-                st.session_state['summary_provided'] = True
-            else:
-                st.error("Failed to get user summary")
 
     # Function to handle follow-up prompt click
     def on_follow_up_click(follow_up_prompt):
