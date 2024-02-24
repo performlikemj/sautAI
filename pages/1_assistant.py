@@ -85,8 +85,8 @@ def metrics():
     user_id = st.session_state.get('user_id')
     metrics_data = fetch_user_metrics(user_id)
     
-    # Check if metrics_data is not empty
-    if metrics_data:
+    # Check if metrics_data is a list and it's not empty
+    if isinstance(metrics_data, list) and metrics_data:
         return metrics_data[0]  # Return the first element if available
     else:
         return None  # Return None if no data is available
@@ -427,7 +427,8 @@ def plot_metric_trends(metric_trends):
     """
     Plot trends for weight, BMI, and energy level.
     """
-    if metric_trends:
+    # Check if metric_trends is not empty and the first item is a dictionary
+    if metric_trends and isinstance(metric_trends, list) and isinstance(metric_trends[0], dict):
         df = pd.DataFrame(metric_trends)
         df['weight'] = pd.to_numeric(df['weight'], errors='coerce')
         df['bmi'] = pd.to_numeric(df['bmi'], errors='coerce')
@@ -446,7 +447,8 @@ def plot_metric_trends(metric_trends):
         plot_metric_trend('bmi', df, selected_range)
         plot_metric_trend('energy_level', df, selected_range)
     else:
-        st.error("No metric trends available to display.")
+        st.warning("No metric trends available to display.")
+
 
 def health_metrics_form():
     # Add a session state variable for weight unit if not present
