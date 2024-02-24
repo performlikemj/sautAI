@@ -71,6 +71,7 @@ def login_form():
                 st.session_state['user_id'] = response_data['user_id']
                 st.session_state['email_confirmed'] = response_data['email_confirmed']
                 st.session_state['is_chef'] = response_data['is_chef']  # Include the is_chef attribute in the session state
+                print(f'is_chef: {response_data["is_chef"]}')
                 st.session_state['current_role'] = response_data['current_role']
                 st.session_state['access_token'] = response_data['access']
                 st.session_state['refresh_token'] = response_data['refresh']
@@ -89,28 +90,27 @@ def login_form():
 
 
 def toggle_chef_mode():
-    # Ensure 'user_info' exists and contains 'is_chef'
-    if 'user_info' in st.session_state and 'is_chef' in st.session_state['user_info']:
+    # Ensure 'user_info' exists, contains 'is_chef', and user is authorized as a chef
+    if 'user_info' in st.session_state and st.session_state['user_info'].get('is_chef', False):
         
-        # Use the value from 'user_info' for initial toggle state
-        chef_mode = st.toggle("Switch Chef | Customer", value=st.session_state['user_info']['is_chef'], key="chef_mode_toggle")
-        print(f'chef_mode: {chef_mode}')
+        # Display the toggle only if the user is authorized to be a chef
+        chef_mode = st.toggle("Switch Chef | Customer", value=st.session_state['user_info'].get('current_role') == 'chef', key="chef_mode_toggle")
+        print(f'chef_mode: {chef_mode}')  # Debugging output
         
         # Check if there's a change in the toggle state compared to 'user_info'
-        if chef_mode != st.session_state['user_info']['is_chef']:
+        if ((chef_mode and st.session_state['user_info']['current_role'] != 'chef') or
+            (not chef_mode and st.session_state['user_info']['current_role'] != 'customer')):
            
             # Call the backend to switch the user role
             result = switch_user_role()
             
             if result:  # If role switch is successful, update 'user_info' in session state
-                st.session_state['user_info']['is_chef'] = chef_mode
-                # Assuming 'result' contains the updated role information
-                st.session_state['current_role'] = result['current_role']  # Update this based on actual response structure
-                print(f"Role switched to: {st.session_state['current_role']}")  # Debug print
+                # Assuming 'result' properly reflects the updated role
+                new_role = 'chef' if chef_mode else 'customer'
+                st.session_state['current_role'] = new_role
+                st.session_state['user_info']['current_role'] = new_role
                 st.rerun()
             else:
-                # If role switch failed, revert the toggle to reflect actual user role
+                # If role switch failed, inform the user and revert the toggle to reflect actual user role
                 st.error("Failed to switch roles.")
-                st.session_state['user_info']['is_chef'] = not chef_mode  # Revert to original state
-                st.rerun()
-
+                # No need to rerun here; just display the error message and keep the state consistent
