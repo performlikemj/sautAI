@@ -7,7 +7,7 @@ import datetime
 from dotenv import load_dotenv
 import openai
 from openai import OpenAIError
-from utils import api_call_with_refresh, is_user_authenticated
+from utils import api_call_with_refresh, is_user_authenticated, login_form, toggle_chef_mode
 import streamlit.components.v1 as components
 import numpy as np
 from streamlit_modal import Modal
@@ -504,46 +504,7 @@ def chat_with_gpt(prompt, thread_id, user_id):
 def assistant():
     # Login Form
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
-        with st.expander("Login", expanded=False):
-            st.write("Login to your account.")
-            with st.form(key='login_form'):
-                username = st.text_input("Username")
-                password = st.text_input("Password", type="password")
-                submit_button = st.form_submit_button(label='Login')
-                register_button = st.form_submit_button(label="Register")
-
-            if submit_button:
-                # Remove guest user from session state
-                for key in list(st.session_state.keys()):
-                    del st.session_state[key]
-                # API call to get the token
-                response = requests.post(
-                    f'{os.getenv("DJANGO_URL")}/auth/api/login/',
-                    json={'username': username, 'password': password}
-                )
-                print(response)
-                if response.status_code == 200:
-                    response_data = response.json()
-                    st.success("Logged in successfully!")
-                    st.session_state['user_info'] = response_data
-                    st.session_state['user_id'] = response_data['user_id']
-                    st.session_state['email_confirmed'] = response_data['email_confirmed']
-                    # Set cookie with the access token
-                    st.session_state['access_token'] = response_data['access']
-                    # Set cookie with the refresh token
-                    st.session_state['refresh_token'] = response_data['refresh']
-                    st.session_state['is_logged_in'] = True
-                    st.rerun()
-                else:
-                    st.error("Invalid username or password.")
-            if register_button:
-                st.switch_page("pages/5_register.py")
-                    
-
-            # Password Reset Button
-            if st.button("Forgot your password?"):
-                # Directly navigate to the activate page for password reset
-                st.switch_page("pages/4_account.py")
+        login_form()
 
     # Logout Button
     if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
@@ -553,107 +514,110 @@ def assistant():
                 del st.session_state[key]
             st.success("Logged out successfully!")
             st.rerun()
+        # Call the toggle_chef_mode function
+        toggle_chef_mode()
 
-    st.title("Dietician Assistant")
-
-
-    # Initialize session state variables if not already initialized
-    if 'chat_history' not in st.session_state:
-        st.session_state.chat_history = []
-    if 'thread_id' not in st.session_state:
-        st.session_state.thread_id = None
-    if 'recommend_follow_up' not in st.session_state:
-        st.session_state.recommend_follow_up = []
+    # Assistant and other functionalities should not be shown if user is in chef mode
+    if 'current_role' in st.session_state and st.session_state['current_role'] != 'chef':
+        st.title("Dietician Assistant")
 
 
-    # Function to handle follow-up prompt click
-    def on_follow_up_click(follow_up_prompt):
-        # Update chat history immediately with the follow-up prompt
-        st.session_state.chat_history.append({"role": "user", "content": follow_up_prompt})
-        # Process the follow-up prompt immediately
-        process_user_input(follow_up_prompt)
+        # Initialize session state variables if not already initialized
+        if 'chat_history' not in st.session_state:
+            st.session_state.chat_history = []
+        if 'thread_id' not in st.session_state:
+            st.session_state.thread_id = None
+        if 'recommend_follow_up' not in st.session_state:
+            st.session_state.recommend_follow_up = []
 
 
-    # Function to process and display user input
-    def process_user_input(prompt):
-        with chat_container.chat_message("user"):
-            st.markdown(prompt)
-        thread_id = st.session_state.thread_id 
-        # Clear recommend_follow_up from session state
-        st.session_state.recommend_follow_up = []
-        # Process the question and get response
-        # full_response = handle_openai_communication(prompt, thread_id, {"user_id": st.session_state.get('user_id')})
-        # Interaction with the chat_with_gpt endpoint
+        # Function to handle follow-up prompt click
+        def on_follow_up_click(follow_up_prompt):
+            # Update chat history immediately with the follow-up prompt
+            st.session_state.chat_history.append({"role": "user", "content": follow_up_prompt})
+            # Process the follow-up prompt immediately
+            process_user_input(follow_up_prompt)
+
+
+        # Function to process and display user input
+        def process_user_input(prompt):
+            with chat_container.chat_message("user"):
+                st.markdown(prompt)
+            thread_id = st.session_state.thread_id 
+            # Clear recommend_follow_up from session state
+            st.session_state.recommend_follow_up = []
+            # Process the question and get response
+            # full_response = handle_openai_communication(prompt, thread_id, {"user_id": st.session_state.get('user_id')})
+            # Interaction with the chat_with_gpt endpoint
+            if is_user_authenticated():
+                full_response = chat_with_gpt(prompt, thread_id, user_id=st.session_state.get('user_id'))
+            else:
+                full_response = guest_chat_with_gpt(prompt, thread_id)
+            print('full_response:', full_response)
+            if full_response:
+                st.session_state.thread_id = full_response['new_thread_id']
+                st.session_state.recommend_follow_up = full_response['recommend_follow_up']
+                print("Debug: recommend_follow_up set to:", st.session_state.recommend_follow_up)  # Debug print
+                st.session_state.chat_history.append({"role": "assistant", "content": full_response['last_assistant_message']})
+                # Dynamically update the chat container
+                with chat_container.chat_message("assistant"):
+                    st.markdown(full_response['last_assistant_message'])
+
+            else:
+                st.error("Could not get a response, please try again.")
+
+
         if is_user_authenticated():
-            full_response = chat_with_gpt(prompt, thread_id, user_id=st.session_state.get('user_id'))
-        else:
-            full_response = guest_chat_with_gpt(prompt, thread_id)
-        print('full_response:', full_response)
-        if full_response:
-            st.session_state.thread_id = full_response['new_thread_id']
-            st.session_state.recommend_follow_up = full_response['recommend_follow_up']
-            print("Debug: recommend_follow_up set to:", st.session_state.recommend_follow_up)  # Debug print
-            st.session_state.chat_history.append({"role": "assistant", "content": full_response['last_assistant_message']})
-            # Dynamically update the chat container
-            with chat_container.chat_message("assistant"):
-                st.markdown(full_response['last_assistant_message'])
+            # Calorie Intake Form in the Sidebar
+            calorie_intake_form(datetime.date.today())
 
-        else:
-            st.error("Could not get a response, please try again.")
+            # Calorie Data Visualization
+            with st.expander("View Calorie Data", expanded=False):
+                selected_date = st.date_input("Select a date", datetime.date.today())
+                visualize_calorie_data(selected_date)
 
+            with st.expander("Health Metrics", expanded=False):
+                health_metrics_form()
+                viz_type = st.selectbox("Choose visualization type", ["Static Table", "Latest Metrics", "Trend Chart"])
+                if viz_type == "Static Table":
+                    visualize_health_metrics_as_static_table()
+                elif viz_type == "Latest Metrics":
+                    show_latest_metrics()
+                elif viz_type == "Trend Chart":
+                    user_id = st.session_state.get('user_id')
+                    metric_trends = fetch_user_metrics(user_id)
+                    plot_metric_trends(metric_trends)
 
-    if is_user_authenticated():
-        # Calorie Intake Form in the Sidebar
-        calorie_intake_form(datetime.date.today())
+        # Use a container to dynamically update chat messages
+        chat_container = st.container(height=400)
 
-        # Calorie Data Visualization
-        with st.expander("View Calorie Data", expanded=False):
-            selected_date = st.date_input("Select a date", datetime.date.today())
-            visualize_calorie_data(selected_date)
+        # Display chat history
+        for message in st.session_state.chat_history:
+            with chat_container.chat_message(message["role"]):
+                st.markdown(message["content"])
 
-        with st.expander("Health Metrics", expanded=False):
-            health_metrics_form()
-            viz_type = st.selectbox("Choose visualization type", ["Static Table", "Latest Metrics", "Trend Chart"])
-            if viz_type == "Static Table":
-                visualize_health_metrics_as_static_table()
-            elif viz_type == "Latest Metrics":
-                show_latest_metrics()
-            elif viz_type == "Trend Chart":
-                user_id = st.session_state.get('user_id')
-                metric_trends = fetch_user_metrics(user_id)
-                plot_metric_trends(metric_trends)
+        # Display recommended follow-up prompts
+        if st.session_state.recommend_follow_up:
+            with st.container():
+                st.write("Recommended Follow-Ups:")
+                for follow_up in st.session_state.recommend_follow_up:
+                    st.button(follow_up, key=follow_up, on_click=on_follow_up_click, args=(follow_up,))
 
-    # Use a container to dynamically update chat messages
-    chat_container = st.container(height=400)
+        # Chat input for user questions
+        prompt = st.chat_input("Enter your question:")
 
-    # Display chat history
-    for message in st.session_state.chat_history:
-        with chat_container.chat_message(message["role"]):
-            st.markdown(message["content"])
+        if prompt:
+            st.session_state.chat_history.append({"role": "user", "content": prompt})
+            process_user_input(prompt)
+            st.rerun()
 
-    # Display recommended follow-up prompts
-    if st.session_state.recommend_follow_up:
-        with st.container():
-            st.write("Recommended Follow-Ups:")
-            for follow_up in st.session_state.recommend_follow_up:
-                st.button(follow_up, key=follow_up, on_click=on_follow_up_click, args=(follow_up,))
-
-    # Chat input for user questions
-    prompt = st.chat_input("Enter your question:")
-
-    if prompt:
-        st.session_state.chat_history.append({"role": "user", "content": prompt})
-        process_user_input(prompt)
-        st.rerun()
-
-    # Button to start a new chat
-    if st.session_state.chat_history and st.button("Start New Chat"):
-        st.session_state.thread_id = None
-        st.session_state.chat_history = []
-        st.session_state.recommend_follow_up = []
-        chat_container.empty()
-        st.rerun()
-
+        # Button to start a new chat
+        if st.session_state.chat_history and st.button("Start New Chat"):
+            st.session_state.thread_id = None
+            st.session_state.chat_history = []
+            st.session_state.recommend_follow_up = []
+            chat_container.empty()
+            st.rerun()
 
 
 if __name__ == "__main__":

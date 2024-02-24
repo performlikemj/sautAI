@@ -3,7 +3,7 @@ import streamlit as st
 import requests
 import os
 from dotenv import load_dotenv
-from utils import api_call_with_refresh
+from utils import api_call_with_refresh, login_form, toggle_chef_mode
 import datetime
 
 load_dotenv()
@@ -51,47 +51,7 @@ st.set_page_config(
 def activate_or_reset_password():
     # Login Form
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
-        with st.expander("Login", expanded=False):
-            st.write("Login to your account.")
-            with st.form(key='login_form'):
-                username = st.text_input("Username")
-                password = st.text_input("Password", type="password")
-                submit_button = st.form_submit_button(label='Login')
-                register_button = st.form_submit_button(label="Register")
-
-            if submit_button:
-                # Remove guest user from session state
-                for key in list(st.session_state.keys()):
-                    del st.session_state[key]
-                # API call to get the token
-                response = requests.post(
-                    f'{os.getenv("DJANGO_URL")}/auth/api/login/',
-                    json={'username': username, 'password': password}
-                )
-                print(response)
-                if response.status_code == 200:
-                    response_data = response.json()
-                    st.success("Logged in successfully!")
-                    st.session_state['user_info'] = response_data
-                    st.session_state['user_id'] = response_data['user_id']
-                    st.session_state['email_confirmed'] = response_data['email_confirmed']
-                    # Set cookie with the access token
-                    st.session_state['access_token'] = response_data['access']
-                    # Set cookie with the refresh token
-                    st.session_state['refresh_token'] = response_data['refresh']
-                    expires_at = datetime.datetime.now() + datetime.timedelta(days=1)
-                    st.session_state['is_logged_in'] = True
-                    st.rerun()
-                else:
-                    st.error("Invalid username or password.")
-            if register_button:
-                st.switch_page("pages/5_register.py")
-                    
-
-            # Password Reset Button
-            if st.button("Forgot your password?"):
-                # Directly navigate to the activate page for password reset
-                st.switch_page("pages/4_account.py")
+        login_form()
 
     # Logout Button
     if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
@@ -101,111 +61,115 @@ def activate_or_reset_password():
                 del st.session_state[key]
             st.success("Logged out successfully!")
             st.rerun()
+        # Call the toggle_chef_mode function
+        toggle_chef_mode()
             
-    st.title("Account Management")
+    # Assistant and other functionalities should not be shown if user is in chef mode
+    if 'current_role' in st.session_state and st.session_state['current_role'] != 'chef':
+        st.title("Account Management")
 
-    # Password Reset Form for Unauthenticated Users
-    uid = st.query_params.get("uid", [""])
-    token = st.query_params.get("token", [""])
-    action = st.query_params.get("action", [""])
+        # Password Reset Form for Unauthenticated Users
+        uid = st.query_params.get("uid", [""])
+        token = st.query_params.get("token", [""])
+        action = st.query_params.get("action", [""])
 
-    if uid and token and action == 'password_reset':
-        new_password = st.text_input("New Password", type="password")
-        confirm_password = st.text_input("Confirm New Password", type="password")
-        if st.button("Reset Password"):
-            # Check if new password and confirmation match
-            if new_password != confirm_password:
-                st.error("New password and confirmation do not match.")
-                return
+        if uid and token and action == 'password_reset':
+            new_password = st.text_input("New Password", type="password")
+            confirm_password = st.text_input("Confirm New Password", type="password")
+            if st.button("Reset Password"):
+                # Check if new password and confirmation match
+                if new_password != confirm_password:
+                    st.error("New password and confirmation do not match.")
+                    return
 
-            # Define the URL
-            url = f"{os.getenv('DJANGO_URL')}/auth/api/reset_password/"
-
-            # Define the data
-            data = {
-                'uid': uid,
-                'token': token,
-                'new_password': new_password,
-                'confirm_password': confirm_password
-            }
-            # Send the POST request
-            response = api_call_with_refresh(url, method='post', data=data)
-
-            # Check the response
-            if response.status_code == 200:
-                st.success("Password reset successfully.")
-                st.switch_page("sautai.py")
-            elif response.status_code == 400:
-                st.error(response.json()['message'])
-            elif response.status_code == 500:
-                st.error("An error occurred while resetting the password.")
-            else:
-                st.error("Failed to reset password.")
-
-    # Account Activation Logic
-    if uid and token and action == 'activate':
-        if st.button("Activate Account"):
-            with st.spinner("Activating..."):
-                response = api_call_with_refresh(
-                    f'{os.getenv("DJANGO_URL")}/auth/api/register/verify-email/',
-                    method='post',
-                    data={'uid': uid, 'token': token},
-                )
-                if response.ok:
-                    st.success(response.json()['message'])
-                    st.switch_page("sautai.py")
-                else:
-                    st.error("Account activation failed: " + response.json()['message'])
-
-    # Forgotten Password Form for Unauthenticated Users
-    if action != 'password_reset' and action != 'activate':
-        if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
-            email = st.text_input("Email Address", "")
-            if st.button("Send Reset Password Link"):
                 # Define the URL
-                url = f"{os.getenv('DJANGO_URL')}/auth/api/password_reset_request/"
+                url = f"{os.getenv('DJANGO_URL')}/auth/api/reset_password/"
 
                 # Define the data
-                data = {'email': email}
-
+                data = {
+                    'uid': uid,
+                    'token': token,
+                    'new_password': new_password,
+                    'confirm_password': confirm_password
+                }
                 # Send the POST request
                 response = api_call_with_refresh(url, method='post', data=data)
 
                 # Check the response
                 if response.status_code == 200:
-                    st.success("Reset password link sent successfully.")
+                    st.success("Password reset successfully.")
+                    st.switch_page("sautai.py")
+                elif response.status_code == 400:
+                    st.error(response.json()['message'])
+                elif response.status_code == 500:
+                    st.error("An error occurred while resetting the password.")
                 else:
-                    st.error("Failed to send reset password link.")
+                    st.error("Failed to reset password.")
 
-    # Change Password Form for Authenticated Users
-    if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
-        current_password = st.text_input("Current Password", type="password")
-        new_password = st.text_input("New Password", type="password")
-        confirm_password = st.text_input("Confirm New Password", type="password")
-        if st.button("Change Password"):
-            # Define the URL
-            url = f"{os.getenv('DJANGO_URL')}/auth/api/change_password/"
+        # Account Activation Logic
+        if uid and token and action == 'activate':
+            if st.button("Activate Account"):
+                with st.spinner("Activating..."):
+                    response = api_call_with_refresh(
+                        f'{os.getenv("DJANGO_URL")}/auth/api/register/verify-email/',
+                        method='post',
+                        data={'uid': uid, 'token': token},
+                    )
+                    if response.ok:
+                        st.success(response.json()['message'])
+                        st.switch_page("sautai.py")
+                    else:
+                        st.error("Account activation failed: " + response.json()['message'])
 
-            # Define the data
-            data = {
-                'current_password': current_password,
-                'new_password': new_password,
-                'confirm_password': confirm_password
-            }
+        # Forgotten Password Form for Unauthenticated Users
+        if action != 'password_reset' and action != 'activate':
+            if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
+                email = st.text_input("Email Address", "")
+                if st.button("Send Reset Password Link"):
+                    # Define the URL
+                    url = f"{os.getenv('DJANGO_URL')}/auth/api/password_reset_request/"
 
-            # Send the POST request
-            headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-            response = api_call_with_refresh(url, method='post', data=data, headers=headers)
+                    # Define the data
+                    data = {'email': email}
 
-            # Check the response
-            if response.status_code == 200:
-                st.success("Password changed successfully.")
-            elif response.status_code == 400:
-                st.error(response.json()['message'])
-            elif response.status_code == 500:
-                st.error("An error occurred while changing the password.")
-            else:
-                st.error("Failed to change password.")
+                    # Send the POST request
+                    response = api_call_with_refresh(url, method='post', data=data)
+
+                    # Check the response
+                    if response.status_code == 200:
+                        st.success("Reset password link sent successfully.")
+                    else:
+                        st.error("Failed to send reset password link.")
+
+        # Change Password Form for Authenticated Users
+        if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
+            current_password = st.text_input("Current Password", type="password")
+            new_password = st.text_input("New Password", type="password")
+            confirm_password = st.text_input("Confirm New Password", type="password")
+            if st.button("Change Password"):
+                # Define the URL
+                url = f"{os.getenv('DJANGO_URL')}/auth/api/change_password/"
+
+                # Define the data
+                data = {
+                    'current_password': current_password,
+                    'new_password': new_password,
+                    'confirm_password': confirm_password
+                }
+
+                # Send the POST request
+                headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                response = api_call_with_refresh(url, method='post', data=data, headers=headers)
+
+                # Check the response
+                if response.status_code == 200:
+                    st.success("Password changed successfully.")
+                elif response.status_code == 400:
+                    st.error(response.json()['message'])
+                elif response.status_code == 500:
+                    st.error("An error occurred while changing the password.")
+                else:
+                    st.error("Failed to change password.")
 
 if __name__ == "__main__":
     activate_or_reset_password()
