@@ -93,7 +93,7 @@ def toggle_chef_mode():
     if 'user_info' in st.session_state and 'is_chef' in st.session_state['user_info']:
         
         # Use the value from 'user_info' for initial toggle state
-        chef_mode = st.toggle("Switch Chef|Customer", value=st.session_state['user_info']['is_chef'], key="chef_mode_toggle")
+        chef_mode = st.toggle("Switch Chef | Customer", value=st.session_state['user_info']['is_chef'], key="chef_mode_toggle")
         print(f'chef_mode: {chef_mode}')
         
         # Check if there's a change in the toggle state compared to 'user_info'
