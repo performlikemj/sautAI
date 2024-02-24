@@ -4,7 +4,7 @@ import requests
 from dotenv import load_dotenv
 load_dotenv()
 import os
-from utils import api_call_with_refresh
+from utils import api_call_with_refresh, login_form, toggle_chef_mode
 from datetime import datetime
 import logging
 
@@ -81,47 +81,8 @@ def thread_detail(thread_id):
 def threads():
     # Login Form
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
-        with st.expander("Login", expanded=False):
-            st.write("Login to your account.")
-            with st.form(key='login_form'):
-                username = st.text_input("Username")
-                password = st.text_input("Password", type="password")
-                submit_button = st.form_submit_button(label='Login')
-                register_button = st.form_submit_button(label="Register")
+        login_form()
 
-            if submit_button:
-                # Remove guest user from session state
-                for key in list(st.session_state.keys()):
-                    del st.session_state[key]
-                # API call to get the token
-                response = requests.post(
-                    f'{os.getenv("DJANGO_URL")}/auth/api/login/',
-                    json={'username': username, 'password': password}
-                )
-                print(response)
-                if response.status_code == 200:
-                    response_data = response.json()
-                    st.success("Logged in successfully!")
-                    st.session_state['user_info'] = response_data
-                    st.session_state['user_id'] = response_data['user_id']
-                    st.session_state['email_confirmed'] = response_data['email_confirmed']
-                    # Set cookie with the access token
-                    st.session_state['access_token'] = response_data['access']
-                    # Set cookie with the refresh token
-                    st.session_state['refresh_token'] = response_data['refresh']
-                    expires_at = datetime.datetime.now() + datetime.timedelta(days=1)
-                    st.session_state['is_logged_in'] = True
-                    st.rerun()
-                else:
-                    st.error("Invalid username or password.")
-            if register_button:
-                st.switch_page("pages/5_register.py")
-                    
-
-            # Password Reset Button
-            if st.button("Forgot your password?"):
-                # Directly navigate to the activate page for password reset
-                st.switch_page("pages/4_account.py")
 
     # Logout Button
     if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
@@ -131,81 +92,85 @@ def threads():
                 del st.session_state[key]
             st.success("Logged out successfully!")
             st.rerun()
+        # Call the toggle_chef_mode function
+        toggle_chef_mode()
 
-    st.title("Chat History")
+    # Assistant and other functionalities should not be shown if user is in chef mode
+    if 'current_role' in st.session_state and st.session_state['current_role'] != 'chef':
+        st.title("Chat History")
 
-    try:
-        if 'is_logged_in' in st.session_state and st.session_state.is_logged_in:
-            # Initialize or update current page in session state
-            current_page = st.session_state.get('current_page', 1)
-        
-            # Initialize pagination variables
-            prev_page = False
-            next_page = False
-            # Fetch chat threads
-            headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-            response = api_call_with_refresh(
-                url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/thread_history/?page={current_page}',
-                method='get',
-                headers=headers
-            )
+        try:
+            if 'is_logged_in' in st.session_state and st.session_state.is_logged_in:
+                # Initialize or update current page in session state
+                current_page = st.session_state.get('current_page', 1)
+            
+                # Initialize pagination variables
+                prev_page = False
+                next_page = False
+                # Fetch chat threads
+                headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                response = api_call_with_refresh(
+                    url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/thread_history/?page={current_page}',
+                    method='get',
+                    headers=headers
+                )
 
-            if response.status_code == 200:
-                chat_threads_response = response.json()
-                chat_threads = chat_threads_response['results']
-                st.write("Your recent chat history:")
+                if response.status_code == 200:
+                    chat_threads_response = response.json()
+                    chat_threads = chat_threads_response['results']
+                    st.write("Your recent chat history:")
 
-                # Pagination buttons
-                col1, col2 = st.columns(2)
-                with col1:
-                    if chat_threads_response['previous']:
-                        prev_page = st.button('Previous page', key='previous_page')
-                with col2:
-                    if chat_threads_response['next']:
-                        next_page = st.button('Next page', key='next_page')
+                    # Pagination buttons
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if chat_threads_response['previous']:
+                            prev_page = st.button('Previous page', key='previous_page')
+                    with col2:
+                        if chat_threads_response['next']:
+                            next_page = st.button('Next page', key='next_page')
 
-                if prev_page:
-                    st.session_state.current_page = max(1, current_page - 1)
-                if next_page:
-                    st.session_state.current_page = current_page + 1
+                    if prev_page:
+                        st.session_state.current_page = max(1, current_page - 1)
+                    if next_page:
+                        st.session_state.current_page = current_page + 1
 
-                # Refresh the page after pagination button click
-                if prev_page or next_page:
-                    st.experimental_rerun()
+                    # Refresh the page after pagination button click
+                    if prev_page or next_page:
+                        st.experimental_rerun()
 
-                # Displaying each chat thread
-                for thread in chat_threads:
-                    # Parse the date string into a datetime object
-                    created_at = datetime.strptime(thread['created_at'], "%Y-%m-%dT%H:%M:%S.%fZ")
+                    # Displaying each chat thread
+                    for thread in chat_threads:
+                        # Parse the date string into a datetime object
+                        created_at = datetime.strptime(thread['created_at'], "%Y-%m-%dT%H:%M:%S.%fZ")
 
-                    # Format the datetime object into a string
-                    formatted_date = created_at.strftime("%B %d, %Y - %H:%M:%S")
+                        # Format the datetime object into a string
+                        formatted_date = created_at.strftime("%B %d, %Y - %H:%M:%S")
 
-                    st.write(formatted_date)
+                        st.write(formatted_date)
 
-                    # Toggle thread detail view
-                    if st.button(thread['title'], key=thread['id']):
+                        # Toggle thread detail view
+                        if st.button(thread['title'], key=thread['id']):
+                            if st.session_state.get('selected_thread_id') == thread['openai_thread_id']:
+                                # Toggle off if the same thread is clicked again
+                                st.session_state.selected_thread_id = None
+                            else:
+                                # Show new thread details
+                                st.session_state.selected_thread_id = thread['openai_thread_id']
+                                thread_detail(thread['openai_thread_id'])
+
+                        # Check if thread details should be displayed
                         if st.session_state.get('selected_thread_id') == thread['openai_thread_id']:
-                            # Toggle off if the same thread is clicked again
-                            st.session_state.selected_thread_id = None
-                        else:
-                            # Show new thread details
-                            st.session_state.selected_thread_id = thread['openai_thread_id']
                             thread_detail(thread['openai_thread_id'])
 
-                    # Check if thread details should be displayed
-                    if st.session_state.get('selected_thread_id') == thread['openai_thread_id']:
-                        thread_detail(thread['openai_thread_id'])
-
-                    # Add a divider after each thread
-                    st.divider()
+                        # Add a divider after each thread
+                        st.divider()
+                else:
+                    st.error("Error fetching history.")
             else:
-                st.error("Error fetching history.")
-        else:
-            st.warning("Please log in to view your history.")
-    except Exception as e:
-        st.error("An Error occurred. We are looking into it.")
-        logging.error("Error occurred", exc_info=True)
+                st.warning("Please log in to view your history.")
+        except Exception as e:
+            st.error("An Error occurred. We are looking into it.")
+            logging.error("Error occurred", exc_info=True)
 
 
 if __name__ == "__main__":
