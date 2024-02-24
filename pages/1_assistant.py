@@ -518,6 +518,7 @@ def assistant():
             st.rerun()
         # Call the toggle_chef_mode function
         toggle_chef_mode()
+        
 
     # Assistant and other functionalities should not be shown if user is in chef mode
     if 'current_role' in st.session_state and st.session_state['current_role'] != 'chef':
