@@ -544,8 +544,6 @@ def assistant():
 
 
         def process_user_input(prompt):
-            with chat_container.chat_message("user"):
-                st.markdown(prompt)
             thread_id = st.session_state.thread_id
             user_id = st.session_state.get('user_id')
             
