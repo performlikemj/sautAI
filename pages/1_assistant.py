@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 import json
 import streamlit as st
@@ -542,34 +543,44 @@ def assistant():
             process_user_input(follow_up_prompt)
 
 
-        # Function to process and display user input
         def process_user_input(prompt):
             with chat_container.chat_message("user"):
                 st.markdown(prompt)
-            thread_id = st.session_state.thread_id 
-            # Clear recommend_follow_up from session state
-            st.session_state.recommend_follow_up = []
-            # Process the question and get response
-            # full_response = handle_openai_communication(prompt, thread_id, {"user_id": st.session_state.get('user_id')})
-            # Interaction with the chat_with_gpt endpoint
-            if is_user_authenticated():
-                full_response = chat_with_gpt(prompt, thread_id, user_id=st.session_state.get('user_id'))
-            else:
-                full_response = guest_chat_with_gpt(prompt, thread_id)
-            print('full_response:', full_response)
-            if full_response:
-                st.session_state.thread_id = full_response['new_thread_id']
-                st.session_state.recommend_follow_up = full_response['recommend_follow_up']
-                print("Debug: recommend_follow_up set to:", st.session_state.recommend_follow_up)  # Debug print
-                st.session_state.chat_history.append({"role": "assistant", "content": full_response['last_assistant_message']})
-                # Dynamically update the chat container
-                with chat_container.chat_message("assistant"):
-                    st.markdown(full_response['last_assistant_message'])
-
+            thread_id = st.session_state.thread_id
+            user_id = st.session_state.get('user_id')
+            
+            # Send the prompt to the backend and get a message ID
+            response = chat_with_gpt(prompt, thread_id, user_id=user_id) if is_user_authenticated() else guest_chat_with_gpt(prompt, thread_id)
+            print('response:', response)
+            
+            if response and 'message_id' in response:
+                message_id = response['message_id']
+                st.session_state.thread_id = response['new_thread_id']
+                completed = False
+                
+                with st.spinner('Please wait for the response...'):
+                    while not completed:
+                        # Call the function to check the message status
+                        status_response = requests.get(f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/get_message_status/{message_id}', params={'user_id': user_id})
+                        
+                        if status_response.status_code == 200:
+                            status_data = status_response.json()
+                            if status_data['status'] == 'completed':
+                                completed = True
+                                st.session_state.recommend_follow_up = response['recommend_follow_up']
+                                st.session_state.chat_history.append({"role": "assistant", "content": status_data['response']})
+                                # Update the chat container
+                                with chat_container.chat_message("assistant"):
+                                    st.markdown(status_data['response'])
+                            else:
+                                # Wait for a while before checking again
+                                time.sleep(2)
+                        else:
+                            st.error("Failed to get response from the chatbot.")
+                            break
             else:
                 st.error("Could not get a response, please try again.")
-
-
+                
         if is_user_authenticated():
             # Calorie Intake Form in the Sidebar
             calorie_intake_form(datetime.date.today())
@@ -610,7 +621,13 @@ def assistant():
         prompt = st.chat_input("Enter your question:")
 
         if prompt:
+            # Update chat history immediately with the user's prompt
             st.session_state.chat_history.append({"role": "user", "content": prompt})
+            # Display chat history
+            for message in st.session_state.chat_history:
+                with chat_container.chat_message(message["role"]):
+                    st.markdown(message["content"])
+            # Process the user's prompt
             process_user_input(prompt)
             st.rerun()
 
