@@ -71,7 +71,6 @@ def login_form():
                 st.session_state['user_id'] = response_data['user_id']
                 st.session_state['email_confirmed'] = response_data['email_confirmed']
                 st.session_state['is_chef'] = response_data['is_chef']  # Include the is_chef attribute in the session state
-                print(f'is_chef: {response_data["is_chef"]}')
                 st.session_state['current_role'] = response_data['current_role']
                 st.session_state['access_token'] = response_data['access']
                 st.session_state['refresh_token'] = response_data['refresh']
@@ -88,15 +87,13 @@ def login_form():
             # Directly navigate to the activate page for password reset
             st.switch_page("pages/4_account.py")
 
-
 def toggle_chef_mode():
     # Ensure 'user_info' exists, contains 'is_chef', and user is authorized as a chef
     if 'user_info' in st.session_state and st.session_state['user_info'].get('is_chef', False):
         
         # Display the toggle only if the user is authorized to be a chef
         chef_mode = st.toggle("Switch Chef | Customer", value=st.session_state['user_info'].get('current_role') == 'chef', key="chef_mode_toggle")
-        print(f'chef_mode: {chef_mode}')  # Debugging output
-        
+            
         # Check if there's a change in the toggle state compared to 'user_info'
         if ((chef_mode and st.session_state['user_info']['current_role'] != 'chef') or
             (not chef_mode and st.session_state['user_info']['current_role'] != 'customer')):

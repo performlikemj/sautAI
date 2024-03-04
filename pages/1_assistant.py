@@ -519,10 +519,9 @@ def assistant():
             st.rerun()
         # Call the toggle_chef_mode function
         toggle_chef_mode()
-        
-
     # Assistant and other functionalities should not be shown if user is in chef mode
     if 'current_role' in st.session_state and st.session_state['current_role'] != 'chef':
+
         st.title("Dietician Assistant")
 
 
@@ -578,7 +577,7 @@ def assistant():
                             break
             else:
                 st.error("Could not get a response, please try again.")
-                
+    
         if is_user_authenticated():
             # Calorie Intake Form in the Sidebar
             calorie_intake_form(datetime.date.today())
@@ -602,6 +601,7 @@ def assistant():
 
         # Use a container to dynamically update chat messages
         chat_container = st.container(height=400)
+
 
         # Display chat history
         for message in st.session_state.chat_history:
