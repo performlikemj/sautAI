@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import os
 import datetime
 import logging
+from utils import login_form, toggle_chef_mode
 
 # Load environment variables and configure logging
 load_dotenv()
@@ -75,31 +76,29 @@ def main():
                         f'{os.getenv("DJANGO_URL")}/auth/api/login/',
                         json={'username': username, 'password': password}
                     )
-                    print(response)
                     if response.status_code == 200:
                         response_data = response.json()
                         st.success("Logged in successfully!")
+                        # Update session state with user information
                         st.session_state['user_info'] = response_data
                         st.session_state['user_id'] = response_data['user_id']
                         st.session_state['email_confirmed'] = response_data['email_confirmed']
-                        # Set cookie with the access token
+                        st.session_state['is_chef'] = response_data['is_chef']  # Include the is_chef attribute in the session state
+                        st.session_state['current_role'] = response_data['current_role']
                         st.session_state['access_token'] = response_data['access']
-                        # Set cookie with the refresh token
                         st.session_state['refresh_token'] = response_data['refresh']
-                        expires_at = datetime.datetime.now() + datetime.timedelta(days=1)
                         st.session_state['is_logged_in'] = True
-                        st.switch_page("pages/1_assistant.py")
+                        st.switch_page("pages/1_assistant.py")  # Rerun the script to reflect the login state
                     else:
                         st.error("Invalid username or password.")
+
                 if register_button:
                     st.switch_page("pages/5_register.py")
-                        
 
                 # Password Reset Button
                 if st.button("Forgot your password?"):
                     # Directly navigate to the activate page for password reset
                     st.switch_page("pages/4_account.py")
-
 
         # Logout Button
         if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
@@ -109,7 +108,9 @@ def main():
                     del st.session_state[key]
                 st.success("Logged out successfully!")
                 st.rerun()
-
+            # Call the toggle_chef_mode function
+            toggle_chef_mode()
+            
         # Hero Section
         st.markdown("""
             <div style="text-align: center;">
