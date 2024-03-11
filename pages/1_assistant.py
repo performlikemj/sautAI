@@ -519,72 +519,10 @@ def assistant():
             st.rerun()
         # Call the toggle_chef_mode function
         toggle_chef_mode()
-    # Assistant and other functionalities should not be shown if user is in chef mode
-    if 'current_role' in st.session_state and st.session_state['current_role'] != 'chef':
 
+    # Additional functionalities for authenticated users not in chef mode
+    if 'is_logged_in' in st.session_state and st.session_state['is_logged_in'] and st.session_state.get('current_role', '') != 'chef':
         st.title("Dietician Assistant")
-
-
-        # Initialize session state variables if not already initialized
-        if 'chat_history' not in st.session_state:
-            st.session_state.chat_history = []
-        if 'thread_id' not in st.session_state:
-            st.session_state.thread_id = None
-        if 'recommend_follow_up' not in st.session_state:
-            st.session_state.recommend_follow_up = []
-
-
-        def process_user_input(prompt):
-            thread_id = st.session_state.thread_id
-            user_id = st.session_state.get('user_id')
-            # Update chat history immediately with the follow-up prompt
-            st.session_state.chat_history.append({"role": "user", "content": prompt})
-
-            # Display chat history
-            for message in st.session_state.chat_history:
-                with chat_container.chat_message(message["role"]):
-                    st.markdown(message["content"])
-            # Send the prompt to the backend and get a message ID
-            response = chat_with_gpt(prompt, thread_id, user_id=user_id) if is_user_authenticated() else guest_chat_with_gpt(prompt, thread_id)
-            print('response:', response)
-
-            if response and 'message_id' in response:
-                message_id = response['message_id']
-                st.session_state.thread_id = response['new_thread_id']
-                completed = False
-
-                # Add a temporary message with the spinner to the chat history
-                spinner_message = {"role": "assistant", "content": "Please wait for the response... :spinner:"}
-                st.session_state.chat_history.append(spinner_message)
-
-                while not completed:
-                    # Call the function to check the message status
-                    status_response = requests.get(f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/get_message_status/{message_id}', params={'user_id': user_id})
-
-                    if status_response.status_code == 200:
-                        status_data = status_response.json()
-                        if status_data['status'] == 'completed':
-                            completed = True
-                            st.session_state.recommend_follow_up = response['recommend_follow_up']
-                            # Remove the temporary message from the chat history
-                            st.session_state.chat_history.remove(spinner_message)
-                            st.session_state.chat_history.append({"role": "assistant", "content": status_data['response']})
-                            # Update the chat container
-                            with chat_container.chat_message("assistant"):
-                                st.markdown(status_data['response'])
-                        else:
-                            # Wait for a while before checking again
-                            time.sleep(2)
-                    else:
-                        st.error("Failed to get response from the chatbot.")
-                        break
-            else:
-                st.error("Could not get a response, please try again.")
-
-        # Function to handle follow-up prompt click
-        def on_follow_up_click(follow_up_prompt):
-            # Process the follow-up prompt immediately
-            process_user_input(follow_up_prompt)
 
         if is_user_authenticated():
             # Calorie Intake Form in the Sidebar
@@ -607,28 +545,89 @@ def assistant():
                     metric_trends = fetch_user_metrics(user_id)
                     plot_metric_trends(metric_trends)
 
-        # Use a container to dynamically update chat messages
-        chat_container = st.container(height=400)
+    # Initialize session state variables if not already initialized
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = []
+    if 'thread_id' not in st.session_state:
+        st.session_state.thread_id = None
+    if 'recommend_follow_up' not in st.session_state:
+        st.session_state.recommend_follow_up = []
+
+    # Use a container to dynamically update chat messages
+    chat_container = st.container(height=400)
+
+    def process_user_input(prompt):
+        thread_id = st.session_state.thread_id
+        user_id = st.session_state.get('user_id')
+        # Update chat history immediately with the follow-up prompt
+        st.session_state.chat_history.append({"role": "user", "content": prompt})
+        with chat_container.chat_message("user"):
+            st.markdown(prompt)
+        # Send the prompt to the backend and get a message ID
+        response = chat_with_gpt(prompt, thread_id, user_id=user_id) if is_user_authenticated() else guest_chat_with_gpt(prompt, thread_id)
+        print('response:', response)
+
+        if response and 'message_id' in response:
+            message_id = response['message_id']
+            st.session_state.thread_id = response['new_thread_id']
+            completed = False
+
+            # Add a temporary message with the spinner to the chat history
+            spinner_message = {"role": "assistant", "content": "Please wait for the response... :spinner:"}
+            st.session_state.chat_history.append(spinner_message)
+
+            while not completed:
+                # Call the function to check the message status
+                status_response = requests.get(f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/get_message_status/{message_id}', params={'user_id': user_id})
+
+                if status_response.status_code == 200:
+                    status_data = status_response.json()
+                    if status_data['status'] == 'completed':
+                        completed = True
+                        st.session_state.recommend_follow_up = response['recommend_follow_up']
+                        # Remove the temporary message from the chat history
+                        st.session_state.chat_history.remove(spinner_message)
+                        st.session_state.chat_history.append({"role": "assistant", "content": status_data['response']})
+                        # Update the chat container
+                        with chat_container.chat_message("assistant"):
+                            st.markdown(status_data['response'])
+                    else:
+                        # Wait for a while before checking again
+                        time.sleep(2)
+                else:
+                    st.error("Failed to get response from the chatbot.")
+                    break
+        elif response and 'last_assistant_message' in response:
+            st.session_state.thread_id = response['new_thread_id']
+
+            st.session_state.recommend_follow_up = response['recommend_follow_up']
+            print('from elif response:', response['last_assistant_message'])
+            st.session_state.chat_history.append({"role": "assistant", "content": response['last_assistant_message']})
+            print('from elif st.session_state.chat_history:', st.session_state.chat_history)
+            with chat_container.chat_message("assistant"):
+                st.markdown(response['last_assistant_message'])
+                print('from elif st.session_state.chat_history:', st.session_state.chat_history)
+        else:
+            st.error("Could not get a response, please try again.")
 
 
-        # Display chat history
+
+     # Chat functionality available to unauthenticated users or authenticated non-chef users
+    if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in'] or (st.session_state.get('current_role', '') != 'chef'):
+        # Process and display chat interactions
         for message in st.session_state.chat_history:
             with chat_container.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        # Display recommended follow-up prompts
         if st.session_state.recommend_follow_up:
             with st.container():
                 st.write("Recommended Follow-Ups:")
                 for follow_up in st.session_state.recommend_follow_up:
-                    st.button(follow_up, key=follow_up, on_click=on_follow_up_click, args=(follow_up,))
+                    st.button(follow_up, key=follow_up, on_click=lambda follow_up=follow_up: process_user_input(follow_up))
 
-        # Chat input for user questions
         prompt = st.chat_input("Enter your question:")
-
         if prompt:
             process_user_input(prompt)
-            st.rerun()
 
         # Button to start a new chat
         if st.session_state.chat_history and st.button("Start New Chat"):
