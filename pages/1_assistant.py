@@ -554,6 +554,7 @@ def assistant():
         st.session_state.recommend_follow_up = []
 
     # Use a container to dynamically update chat messages
+    st.info("Response time may vary. Your patience is appreciated.")
     chat_container = st.container(height=400)
 
     def process_user_input(prompt):
@@ -609,7 +610,6 @@ def assistant():
                 print('from elif st.session_state.chat_history:', st.session_state.chat_history)
         else:
             st.error("Could not get a response, please try again.")
-
 
 
      # Chat functionality available to unauthenticated users or authenticated non-chef users
