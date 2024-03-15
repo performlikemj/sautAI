@@ -501,7 +501,7 @@ def chat_with_gpt(prompt, thread_id, user_id):
         print('response_data.json():', response_data.json())
         return response_data.json()
     else:
-        st.error("Failed to get response from the chatbot.")
+        st.error("Sorry. There was an error communicating with your assistant. Please try again.")
         return None
 
 def assistant():
