@@ -36,7 +36,6 @@ def api_call_with_refresh(url, method='get', data=None, headers=None):
 def is_user_authenticated():
     return 'user_info' in st.session_state and 'access' in st.session_state.user_info
 
-
 def switch_user_role():
     # This function will call your Django backend to switch the user's role
     api_url = f"{os.getenv('DJANGO_URL')}/auth/api/switch_role/"

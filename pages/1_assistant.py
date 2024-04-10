@@ -1,5 +1,6 @@
 import os
 import time
+from typing_extensions import override
 import requests
 import json
 import streamlit as st
@@ -8,14 +9,18 @@ import datetime
 from dotenv import load_dotenv
 import openai
 from openai import OpenAIError
+from openai import AssistantEventHandler, OpenAI
+from openai.types.beta.threads.runs import ToolCall, ToolCallDelta
+from openai.types.beta.threads import Message, MessageDelta
+from openai.types.beta.threads.runs import ToolCall, RunStep
+from openai.types.beta import AssistantStreamEvent
+from openai.types.beta.threads import Text, TextDelta
 from utils import api_call_with_refresh, is_user_authenticated, login_form, toggle_chef_mode
 import streamlit.components.v1 as components
 import numpy as np
 from streamlit_modal import Modal
 
 load_dotenv()
-
-
 
 # Retrieve the environment variable in Python
 django_url = os.getenv("DJANGO_URL")
@@ -66,6 +71,7 @@ st.set_page_config(
         """
     }
 )
+
 
 def fetch_user_metrics(user_id):
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
@@ -504,6 +510,172 @@ def chat_with_gpt(prompt, thread_id, user_id):
         st.error("Sorry. There was an error communicating with your assistant. Please try again.")
         return None
 
+class EventHandler(AssistantEventHandler):
+    def __init__(self, thread_id, chat_container, user_id=None):
+        super().__init__()
+        self.output = None
+        self.tool_id = None
+        self.function_arguments = None
+        self.thread_id = thread_id
+        self.run_id = None
+        self.run_step = None
+        self.function_name = ""
+        self.arguments = ""
+        self.tool_calls = []
+        self.user_id = user_id
+        self.chat_container = chat_container
+
+    def response_generator(self, response_text):
+        words = response_text.split(' ')
+        for word in words:
+            if word == '\n':
+                yield word
+            else:
+                yield word + ' '
+            time.sleep(0.05)
+
+
+    @override
+    def on_text_created(self, text) -> None:
+        print(f"\nassistant on_text_created > ", end="", flush=True)
+        # response_text = text.value  # Ensure this line correctly extracts the text value.
+        # print(f"Streaming response text: {response_text}")  # Debug print
+        # with self.chat_container.chat_message("assistant"):
+        #     st.write_stream(self.response_generator(response_text))
+        # st.session_state.chat_history.append({"role": "assistant", "content": response_text})
+
+
+    @override
+    def on_text_delta(self, delta, snapshot):
+        print(f"{delta.value}")
+
+    def on_text_done(self, text) -> None:
+        print('text:', text)
+        response_text = text.value
+        with self.chat_container.chat_message("assistant"):
+            st.write_stream(self.response_generator(response_text))
+        st.session_state.chat_history.append({"role": "assistant", "content": response_text})
+
+    def on_end(self):
+        print("on_end")
+        tool_outputs = []
+        if self.current_run_step_snapshot and self.current_run_step_snapshot.step_details.type == 'tool_calls':
+            print(f"\nTool Calls: {self.current_run_step_snapshot.step_details.tool_calls}")
+            for tool_call in self.current_run_step_snapshot.step_details.tool_calls:
+                tool_call_data = {
+                    "id": tool_call.id,
+                    "function": tool_call.function.name,
+                    "arguments": tool_call.function.arguments
+                }
+                if is_user_authenticated():
+                    tool_call_result = api_call_with_refresh(
+                        url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/ai_tool_call/',
+                        method='post',
+                        data={"user_id": self.user_id, "tool_call": tool_call_data} 
+                    )
+                else:
+                    tool_call_result = api_call_with_refresh(
+                        url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/guest_ai_tool_call/',
+                        method='post',
+                        data={"tool_call": tool_call_data}
+                    )                    
+                print(f"\nTool Call Result: {tool_call_result.json()}")
+                if tool_call_result.status_code == 200:
+                    # Serialize the output to JSON string if it's a dictionary/object
+                    result_data = tool_call_result.json()
+                    output_str = json.dumps(result_data['output'])
+                    tool_outputs.append({
+                        "tool_call_id": result_data['tool_call_id'],
+                        "output": output_str  # Ensure output is a JSON string
+                    })
+        if tool_outputs:
+            with client.beta.threads.runs.submit_tool_outputs_stream(
+                thread_id=self.thread_id,
+                run_id=self.run_id,
+                tool_outputs=tool_outputs,
+                event_handler=EventHandler(self.thread_id, chat_container=self.chat_container, user_id=self.user_id)
+            ) as stream:
+                stream.until_done()
+
+
+    @override
+    def on_exception(self, exception: Exception) -> None:
+        print(f"\nassistant > {exception}\n", end="", flush=True)
+
+    @override
+    def on_message_created(self, message: Message) -> None:
+        print(f"\nassistant on_message_created > {message}\n", end="", flush=True)
+
+    @override
+    def on_message_done(self, message: Message) -> None:
+        print(f"\nassistant on_message_done > {message}\n", end="", flush=True)
+
+
+    @override
+    def on_message_delta(self, delta: MessageDelta, snapshot: Message) -> None:
+        pass
+
+
+    @override
+    def on_tool_call_done(self, tool_call: ToolCall) -> None:       
+        keep_retrieving_run = client.beta.threads.runs.retrieve(
+            thread_id=self.thread_id,
+            run_id=self.run_id
+        )
+
+        print(f"\nDONE STATUS: {keep_retrieving_run.status}")
+
+        if keep_retrieving_run.status == "completed":
+            all_messages = client.beta.threads.messages.list(
+                thread_id=self.thread_id
+            )
+
+            print(all_messages.data[0].content[0].text.value, "", "")
+            return
+
+        elif keep_retrieving_run.status == "requires_action":
+            print("here you would call your function")
+            print(f'self.tool_calls: {self.tool_calls}')
+
+        else:
+            print(f"\nassistant on_tool_call_done > {tool_call}\n", end="", flush=True)
+
+    @override
+    def on_run_step_created(self, run_step: RunStep) -> None:
+        print(f"on_run_step_created")
+        self.run_id = run_step.run_id
+        self.run_step = run_step
+        print("The type of run_step run step is ", type(run_step), flush=True)
+        print(f"\n run step created assistant > {run_step}\n", flush=True)
+
+    @override
+    def on_run_step_done(self, run_step: RunStep) -> None:
+        print(f"\n run step done assistant > {run_step}\n", flush=True)
+
+    def on_tool_call_delta(self, delta, snapshot): 
+        if delta.type == 'function':
+            print(delta.function.arguments, end="", flush=True)
+            self.arguments += delta.function.arguments
+        elif delta.type == 'code_interpreter':
+            print(f"on_tool_call_delta > code_interpreter")
+            if delta.code_interpreter.input:
+                print(delta.code_interpreter.input, end="", flush=True)
+            if delta.code_interpreter.outputs:
+                print(f"\n\noutput >", flush=True)
+                for output in delta.code_interpreter.outputs:
+                    if output.type == "logs":
+                        print(f"\n{output.logs}", flush=True)
+        else:
+            print("ELSE")
+            print(delta, end="", flush=True)
+
+    @override
+    def on_event(self, event: AssistantStreamEvent) -> None:
+        if event.event == "thread.run.requires_action":
+            print("\nthread.run.requires_action > submit tool call")
+            print(f"ARGS: {self.arguments}")
+
+
 def assistant():
     # Login Form
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
@@ -519,6 +691,18 @@ def assistant():
             st.rerun()
         # Call the toggle_chef_mode function
         toggle_chef_mode()
+
+    # Initialize session state variables if not already initialized
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = []
+    if 'thread_id' not in st.session_state:
+        st.session_state.thread_id = None
+    if 'recommend_follow_up' not in st.session_state:
+        st.session_state.recommend_follow_up = []
+    if 'showed_user_summary' not in st.session_state:
+        st.session_state.showed_user_summary = False
+
+
 
     # Additional functionalities for authenticated users not in chef mode
     if 'is_logged_in' in st.session_state and st.session_state['is_logged_in'] and st.session_state.get('current_role', '') != 'chef':
@@ -545,59 +729,54 @@ def assistant():
                     metric_trends = fetch_user_metrics(user_id)
                     plot_metric_trends(metric_trends)
 
-    # Initialize session state variables if not already initialized
-    if 'chat_history' not in st.session_state:
-        st.session_state.chat_history = []
-    if 'thread_id' not in st.session_state:
-        st.session_state.thread_id = None
-    if 'recommend_follow_up' not in st.session_state:
-        st.session_state.recommend_follow_up = []
+        chat_container = st.container(height=400)
+
+
+        if not st.session_state.get('showed_user_summary', False):
+            print('st.session_state.get(user_id):', st.session_state.get('user_id'))
+            headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+            user_summary_response = api_call_with_refresh(
+                url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/user_summary/',
+                method='get',
+                headers=headers,
+                data={"user_id": st.session_state.get('user_id')}
+            )
+            if user_summary_response.status_code == 200:
+                # Extract the summary text from the response
+                data = user_summary_response.json()  # Parse the JSON response
+                user_summary = data['data'][0]['content'][0]['text']['value']
+                
+                # Append the summary to the chat history
+                st.session_state.chat_history.append({"role": "assistant", "content": user_summary})
+                
+                
+                # Set the flag to True so it doesn't show again in the same session
+                st.session_state['showed_user_summary'] = True
 
     # Use a container to dynamically update chat messages
     st.info("Response time may vary. Your patience is appreciated.")
-    chat_container = st.container(height=400)
 
     def process_user_input(prompt):
-        thread_id = st.session_state.thread_id
         user_id = st.session_state.get('user_id')
         # Update chat history immediately with the follow-up prompt
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with chat_container.chat_message("user"):
             st.markdown(prompt)
         # Send the prompt to the backend and get a message ID
-        response = chat_with_gpt(prompt, thread_id, user_id=user_id) if is_user_authenticated() else guest_chat_with_gpt(prompt, thread_id)
+        response = chat_with_gpt(prompt, st.session_state.thread_id, user_id=user_id) if is_user_authenticated() else guest_chat_with_gpt(prompt, st.session_state.thread_id)
         print('response:', response)
 
-        if response and 'message_id' in response:
-            message_id = response['message_id']
+        if response and 'new_thread_id' in response:
             st.session_state.thread_id = response['new_thread_id']
-            completed = False
-
-            # Add a temporary message with the spinner to the chat history
-            spinner_message = {"role": "assistant", "content": "Please wait for the response... :spinner:"}
-            st.session_state.chat_history.append(spinner_message)
-
-            while not completed:
-                # Call the function to check the message status
-                status_response = requests.get(f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/get_message_status/{message_id}', params={'user_id': user_id})
-
-                if status_response.status_code == 200:
-                    status_data = status_response.json()
-                    if status_data['status'] == 'completed':
-                        completed = True
-                        st.session_state.recommend_follow_up = response['recommend_follow_up']
-                        # Remove the temporary message from the chat history
-                        st.session_state.chat_history.remove(spinner_message)
-                        st.session_state.chat_history.append({"role": "assistant", "content": status_data['response']})
-                        # Update the chat container
-                        with chat_container.chat_message("assistant"):
-                            st.markdown(status_data['response'])
-                    else:
-                        # Wait for a while before checking again
-                        time.sleep(2)
-                else:
-                    st.error("Failed to get response from the chatbot.")
-                    break
+            # Start or continue streaming responses
+            print(f'from elif response thread_id:', st.session_state.thread_id)
+            with client.beta.threads.runs.create_and_stream(
+                thread_id=st.session_state.thread_id,
+                assistant_id=os.getenv("ASSISTANT_ID") if is_user_authenticated() else os.getenv("GUEST_ASSISTANT_ID"),
+                event_handler=EventHandler(st.session_state.thread_id, chat_container, user_id),
+                instructions=prompt,  # Or set general instructions for your assistant
+            ) as stream:
+                stream.until_done()
         elif response and 'last_assistant_message' in response:
             st.session_state.thread_id = response['new_thread_id']
 
