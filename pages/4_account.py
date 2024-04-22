@@ -53,21 +53,6 @@ def activate_or_reset_password():
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
         login_form()
 
-    # Logout Button
-    if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
-        if st.button("Logout", key='form_logout'):
-            # Clear session state as well
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.success("Logged out successfully!")
-            st.rerun()
-        # Call the toggle_chef_mode function
-        toggle_chef_mode()
-            
-    # Assistant and other functionalities should not be shown if user is in chef mode
-    if 'current_role' in st.session_state and st.session_state['current_role'] != 'chef':
-        st.title("Account Management")
-
         # Password Reset Form for Unauthenticated Users
         uid = st.query_params.get("uid", [""])
         token = st.query_params.get("token", [""])
@@ -141,35 +126,44 @@ def activate_or_reset_password():
                     else:
                         st.error("Failed to send reset password link.")
 
-        # Change Password Form for Authenticated Users
-        if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
-            current_password = st.text_input("Current Password", type="password")
-            new_password = st.text_input("New Password", type="password")
-            confirm_password = st.text_input("Confirm New Password", type="password")
-            if st.button("Change Password"):
-                # Define the URL
-                url = f"{os.getenv('DJANGO_URL')}/auth/api/change_password/"
+    # Logout Button
+    if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
+        if st.button("Logout", key='form_logout'):
+            # Clear session state as well
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.success("Logged out successfully!")
+            st.rerun()
+        # Call the toggle_chef_mode function
+        toggle_chef_mode()
 
-                # Define the data
-                data = {
-                    'current_password': current_password,
-                    'new_password': new_password,
-                    'confirm_password': confirm_password
-                }
+        current_password = st.text_input("Current Password", type="password")
+        new_password = st.text_input("New Password", type="password")
+        confirm_password = st.text_input("Confirm New Password", type="password")
+        if st.button("Change Password"):
+            # Define the URL
+            url = f"{os.getenv('DJANGO_URL')}/auth/api/change_password/"
 
-                # Send the POST request
-                headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-                response = api_call_with_refresh(url, method='post', data=data, headers=headers)
+            # Define the data
+            data = {
+                'current_password': current_password,
+                'new_password': new_password,
+                'confirm_password': confirm_password
+            }
 
-                # Check the response
-                if response.status_code == 200:
-                    st.success("Password changed successfully.")
-                elif response.status_code == 400:
-                    st.error(response.json()['message'])
-                elif response.status_code == 500:
-                    st.error("An error occurred while changing the password.")
-                else:
-                    st.error("Failed to change password.")
+            # Send the POST request
+            headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+            response = api_call_with_refresh(url, method='post', data=data, headers=headers)
+
+            # Check the response
+            if response.status_code == 200:
+                st.success("Password changed successfully.")
+            elif response.status_code == 400:
+                st.error(response.json()['message'])
+            elif response.status_code == 500:
+                st.error("An error occurred while changing the password.")
+            else:
+                st.error("Failed to change password.")
 
 if __name__ == "__main__":
     activate_or_reset_password()

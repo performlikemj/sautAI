@@ -82,7 +82,13 @@ def register():
             phone_number = st.text_input("Phone Number")
             dietary_preferences = [ 'Everything', 'Vegetarian', 'Pescatarian', 'Gluten-Free', 'Keto', 'Paleo', 'Halal', 'Kosher', 'Low-Calorie', 'Low-Sodium', 'High-Protein', 'Dairy-Free', 'Nut-Free', 'Raw Food', 'Whole 30', 'Low-FODMAP', 'Diabetic-Friendly', 'Vegan']
             dietary_preference = st.selectbox("Dietary Preference", dietary_preferences)
-
+            allergies = [
+                'Peanuts', 'Tree nuts', 'Milk', 'Egg', 'Wheat', 'Soy', 'Fish', 'Shellfish', 'Sesame', 'Mustard', 
+                'Celery', 'Lupin', 'Sulfites', 'Molluscs', 'Corn', 'Gluten', 'Kiwi', 'Latex', 'Pine Nuts', 
+                'Sunflower Seeds', 'Poppy Seeds', 'Fennel', 'Peach', 'Banana', 'Avocado', 'Chocolate', 
+                'Coffee', 'Cinnamon', 'Garlic', 'Chickpeas', 'Lentils'
+            ]
+            selected_allergies = st.multiselect("Allergies", allergies, default=[])          
             # Address fields
             st.subheader("Address")
             st.write("""
@@ -108,7 +114,8 @@ def register():
                         "email": email,
                         "password": password,
                         "phone_number": phone_number,
-                        "dietary_preference": dietary_preference
+                        "dietary_preference": dietary_preference,
+                        "allergies": selected_allergies,
                     },
                     "address": {
                         "street": street,
