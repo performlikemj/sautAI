@@ -43,7 +43,8 @@ st.set_page_config(
         """
     }
 )
-
+# TODO: grab the allergy info. currently it isn't populating
+# TODO: change editing to use a PUT isntead of a POST
 def profile():
     # Login Form
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
