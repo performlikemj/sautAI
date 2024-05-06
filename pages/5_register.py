@@ -135,6 +135,7 @@ def register():
                 if response.status_code == 200:
                     st.success("Registration successful!")
                     st.info("Please check your email to activate your account.")
+                    st.switch_page("sautai.py")
                 elif response.status_code == 400:
                     errors = response.json().get('errors', {})
                     if 'username' in errors:
