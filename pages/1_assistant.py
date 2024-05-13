@@ -743,10 +743,6 @@ def assistant():
         if not st.session_state.get('showed_user_summary', False):
             print('st.session_state.get(user_id):', st.session_state.get('user_id'))
             headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-            openai_headers = {
-                "Authorization": "Bearer YOUR_API_KEY",
-                "Content-Type": "application/json"
-            }
             user_summary_response = api_call_with_refresh(
                 url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/user_summary/',
                 method='get',
@@ -777,7 +773,10 @@ def assistant():
         # Send the prompt to the backend and get a message ID
         response = chat_with_gpt(prompt, st.session_state.thread_id, user_id=user_id) if is_user_authenticated() else guest_chat_with_gpt(prompt, st.session_state.thread_id)
         print('response:', response)
-
+        openai_headers = {
+            "Authorization": "Bearer YOUR_API_KEY",
+            "Content-Type": "application/json"
+        }
         if response and 'new_thread_id' in response:
             st.session_state.thread_id = response['new_thread_id']
             # Start or continue streaming responses
