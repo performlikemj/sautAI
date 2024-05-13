@@ -72,10 +72,7 @@ st.set_page_config(
     }
 )
 
-headers = {
-    "Authorization": "Bearer YOUR_API_KEY",
-    "Content-Type": "application/json"
-}
+
 
 def fetch_user_metrics(user_id):
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
@@ -528,6 +525,10 @@ class EventHandler(AssistantEventHandler):
         self.tool_calls = []
         self.user_id = user_id
         self.chat_container = chat_container
+        self.headers = {
+            "Authorization": "Bearer YOUR_API_KEY",
+            "Content-Type": "application/json"
+        }
 
     def response_generator(self, response_text):
         words = response_text.split(' ')
@@ -598,7 +599,7 @@ class EventHandler(AssistantEventHandler):
                 run_id=self.run_id,
                 tool_outputs=tool_outputs,
                 event_handler=EventHandler(self.thread_id, chat_container=self.chat_container, user_id=self.user_id),
-                extra_headers=headers
+                extra_headers=self.headers
             ) as stream:
                 stream.until_done()
 
@@ -626,7 +627,7 @@ class EventHandler(AssistantEventHandler):
         keep_retrieving_run = client.beta.threads.runs.retrieve(
             thread_id=self.thread_id,
             run_id=self.run_id,
-            extra_headers=headers
+            extra_headers=self.headers
         )
 
         print(f"\nDONE STATUS: {keep_retrieving_run.status}")
@@ -634,7 +635,7 @@ class EventHandler(AssistantEventHandler):
         if keep_retrieving_run.status == "completed":
             all_messages = client.beta.threads.messages.list(
                 thread_id=self.thread_id,
-                extra_headers=headers
+                extra_headers=self.headers
             )
 
             print(all_messages.data[0].content[0].text.value, "", "")
@@ -742,6 +743,10 @@ def assistant():
         if not st.session_state.get('showed_user_summary', False):
             print('st.session_state.get(user_id):', st.session_state.get('user_id'))
             headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+            openai_headers = {
+                "Authorization": "Bearer YOUR_API_KEY",
+                "Content-Type": "application/json"
+            }
             user_summary_response = api_call_with_refresh(
                 url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/user_summary/',
                 method='get',
@@ -782,7 +787,7 @@ def assistant():
                 assistant_id=os.getenv("ASSISTANT_ID") if is_user_authenticated() else os.getenv("GUEST_ASSISTANT_ID"),
                 event_handler=EventHandler(st.session_state.thread_id, chat_container, user_id),
                 instructions=prompt,  # Or set general instructions for your assistant
-                extra_headers=headers
+                extra_headers=openai_headers
             ) as stream:
                 stream.until_done()
         elif response and 'last_assistant_message' in response:
