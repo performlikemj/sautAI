@@ -594,7 +594,7 @@ class EventHandler(AssistantEventHandler):
                 run_id=self.run_id,
                 tool_outputs=tool_outputs,
                 event_handler=EventHandler(self.thread_id, chat_container=self.chat_container, user_id=self.user_id),
-                extra_headers={f'OpenAI-Beta: assistants=v2'}
+                extra_headers=f'OpenAI-Beta: assistants=v2'
             ) as stream:
                 stream.until_done()
 
@@ -622,7 +622,7 @@ class EventHandler(AssistantEventHandler):
         keep_retrieving_run = client.beta.threads.runs.retrieve(
             thread_id=self.thread_id,
             run_id=self.run_id,
-            extra_headers={f'OpenAI-Beta: assistants=v2'}
+            extra_headers=f'OpenAI-Beta: assistants=v2'
         )
 
         print(f"\nDONE STATUS: {keep_retrieving_run.status}")
@@ -630,7 +630,7 @@ class EventHandler(AssistantEventHandler):
         if keep_retrieving_run.status == "completed":
             all_messages = client.beta.threads.messages.list(
                 thread_id=self.thread_id,
-                extra_headers={f'OpenAI-Beta: assistants=v2'}
+                extra_headers=f'OpenAI-Beta: assistants=v2'
             )
 
             print(all_messages.data[0].content[0].text.value, "", "")
@@ -778,7 +778,7 @@ def assistant():
                 assistant_id=os.getenv("ASSISTANT_ID") if is_user_authenticated() else os.getenv("GUEST_ASSISTANT_ID"),
                 event_handler=EventHandler(st.session_state.thread_id, chat_container, user_id),
                 instructions=prompt,  # Or set general instructions for your assistant
-                extra_headers={f'OpenAI-Beta: assistants=v2'}
+                extra_headers=f'OpenAI-Beta: assistants=v2'
             ) as stream:
                 stream.until_done()
         elif response and 'last_assistant_message' in response:
