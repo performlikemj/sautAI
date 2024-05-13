@@ -773,7 +773,7 @@ def assistant():
             st.session_state.thread_id = response['new_thread_id']
             # Start or continue streaming responses
             print(f'from elif response thread_id:', st.session_state.thread_id)
-            with client.beta.threads.runs.create_and_stream(
+            with client.beta.threads.runs.stream(
                 thread_id=st.session_state.thread_id,
                 assistant_id=os.getenv("ASSISTANT_ID") if is_user_authenticated() else os.getenv("GUEST_ASSISTANT_ID"),
                 event_handler=EventHandler(st.session_state.thread_id, chat_container, user_id),
