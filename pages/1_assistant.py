@@ -526,7 +526,7 @@ class EventHandler(AssistantEventHandler):
         self.user_id = user_id
         self.chat_container = chat_container
         self.headers = {
-            "Authorization": "Bearer YOUR_API_KEY",
+            "OpenAI-Beta": "assistants=v2",
             "Content-Type": "application/json"
         }
 
@@ -774,8 +774,8 @@ def assistant():
         response = chat_with_gpt(prompt, st.session_state.thread_id, user_id=user_id) if is_user_authenticated() else guest_chat_with_gpt(prompt, st.session_state.thread_id)
         print('response:', response)
         openai_headers = {
-            "Authorization": "Bearer YOUR_API_KEY",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "OpenAI-Beta": "assistants=v2",
         }
         if response and 'new_thread_id' in response:
             st.session_state.thread_id = response['new_thread_id']
