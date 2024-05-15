@@ -699,8 +699,6 @@ def assistant():
         if 'showed_user_summary' not in st.session_state:
             st.session_state.showed_user_summary = False
 
-
-
         # Additional functionalities for authenticated users not in chef mode
         if 'is_logged_in' in st.session_state and st.session_state['is_logged_in'] and st.session_state.get('current_role', '') != 'chef':
             st.title("Dietician Assistant")
@@ -726,8 +724,7 @@ def assistant():
                         metric_trends = fetch_user_metrics(user_id)
                         plot_metric_trends(metric_trends)
 
-            chat_container = st.container(height=400)
-
+            
 
             if not st.session_state.get('showed_user_summary', False):
                 headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
@@ -745,14 +742,15 @@ def assistant():
                     # Append the summary to the chat history
                     st.session_state.chat_history.append({"role": "assistant", "content": user_summary})
                     
-                    
                     # Set the flag to True so it doesn't show again in the same session
                     st.session_state['showed_user_summary'] = True
 
+        chat_container = st.container()
+        
         # Use a container to dynamically update chat messages
         st.info("Response time may vary. Your patience is appreciated.")
 
-        def process_user_input(prompt):
+        def process_user_input(prompt, chat_container):
             user_id = st.session_state.get('user_id')
             # Update chat history immediately with the follow-up prompt
             st.session_state.chat_history.append({"role": "user", "content": prompt})
@@ -785,7 +783,6 @@ def assistant():
             else:
                 st.error("Could not get a response, please try again.")
 
-
         # Chat functionality available to unauthenticated users or authenticated non-chef users
         if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in'] or (st.session_state.get('current_role', '') != 'chef'):
             # Process and display chat interactions
@@ -797,11 +794,11 @@ def assistant():
                 with st.container():
                     st.write("Recommended Follow-Ups:")
                     for follow_up in st.session_state.recommend_follow_up:
-                        st.button(follow_up, key=follow_up, on_click=lambda follow_up=follow_up: process_user_input(follow_up))
+                        st.button(follow_up, key=follow_up, on_click=lambda follow_up=follow_up: process_user_input(follow_up, chat_container))
 
             prompt = st.chat_input("Enter your question:")
             if prompt:
-                process_user_input(prompt)
+                process_user_input(prompt, chat_container)
 
             # Button to start a new chat
             if st.session_state.chat_history and st.button("Start New Chat"):
