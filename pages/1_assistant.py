@@ -16,9 +16,7 @@ from openai.types.beta.threads.runs import ToolCall, RunStep
 from openai.types.beta import AssistantStreamEvent
 from openai.types.beta.threads import Text, TextDelta
 from utils import api_call_with_refresh, is_user_authenticated, login_form, toggle_chef_mode
-import streamlit.components.v1 as components
 import numpy as np
-from streamlit_modal import Modal
 import logging
 
 # Set up logging
@@ -79,6 +77,90 @@ st.set_page_config(
     }
 )
 
+
+
+@st.experimental_dialog("Understanding Portion Sizes")
+def show_portion_size_dialog():
+    st.markdown("""
+    ### Understanding Our Portion Sizes
+    When logging your meals, selecting the right portion size helps in accurately tracking your nutritional intake. Here's a guide to what each portion size category represents, making it easier for you to choose when logging meals:
+
+    - **Extra Small (XS):** Ideal for small snacks or condiments. Think of a tablespoon of peanut butter or a small handful of nuts. 🥜
+
+    - **Small (S):** Suitable for side dishes or smaller servings of fruits and vegetables. Imagine a single piece of fruit or half a cup of cooked vegetables. 🍏🥕
+
+    - **Medium (M):** The right size for main components of your meals, like a cup of cooked pasta, a medium-sized chicken breast, or a bowl of salad. 🍝🍗🥗
+
+    - **Large (L):** Fits larger meals and servings, such as a big dinner plate with multiple components or a large smoothie. 🍲🥤
+
+    - **Extra Large (XL):** Reserved for very large or shared meals. Think of a family-sized meal or a large pizza. 🍕👨‍👩‍👧‍👦
+
+    ### How to Use Portion Sizes for Meal Logging
+
+    Using these categories, try to estimate the portion sizes of the meals you're logging. For example:
+
+    - A sandwich with a small side salad might be a **Medium (M)** for the sandwich and **Small (S)** for the salad.
+    - A bowl of fruit salad could be **Large (L)** depending on the quantity.
+
+    Remember, these sizes are guidelines to help you in logging your meals more accurately. Depending on your dietary needs, you might adjust the portions. Our goal is to make meal tracking insightful and tailored to your health journey.
+
+    Happy meal logging!
+    """)
+
+@st.experimental_fragment
+def calorie_intake_form(selected_date):
+    with st.sidebar:
+        with st.expander("Calorie Intake", expanded=True):
+            with st.form(key='calorie_intake_form'):
+                st.date_input("Date", value=selected_date, key='calorie_date')
+                st.text_input("Meal Name", key='meal_name')
+                st.text_area("Meal Description", key='meal_description')
+
+                # Define the portion size choices to match those in your Django model
+                portion_size_options = {
+                    'XS': 'Extra Small',
+                    'S': 'Small',
+                    'M': 'Medium',
+                    'L': 'Large',
+                    'XL': 'Extra Large',
+                }
+                
+                # Use a selectbox for portion size
+                portion_size = st.selectbox("Portion Size", options=list(portion_size_options.keys()), format_func=lambda x: portion_size_options[x], key='portion_size')
+
+                submit_button = st.form_submit_button(label='Submit')
+                if submit_button:
+                    user_id = st.session_state.get('user_id')
+                    # Retrieving the values
+                    meal_name = st.session_state['meal_name']
+                    meal_description = st.session_state['meal_description']
+                    selected_date = st.session_state['calorie_date']
+                    add_calorie_intake(user_id, meal_name, meal_description, portion_size, selected_date)
+
+            open_modal_button = st.button("Understand Portion Sizes?", key="open-portion-size-info")
+            if open_modal_button:
+                show_portion_size_dialog()
+
+@st.experimental_fragment
+def visualize_calorie_data(selected_date):
+    user_id = st.session_state.get('user_id')
+    calorie_data = fetch_calorie_data(user_id, selected_date)
+
+    if calorie_data:
+        df = pd.DataFrame(calorie_data)
+        # Implement pagination if needed
+        for index, row in df.iterrows():
+            st.write(f"Date: {row['date_recorded']}, Meal Name: {row['meal_name']}, Meal Description: {row['meal_description']}, Portion Size: {row['portion_size']}")
+            edit_button, delete_button = st.columns([0.1, 1])
+            with edit_button:
+                if st.button("Edit", key=f"edit_{row['id']}"):
+                    # Call the edit function with the record ID
+                    edit_calorie_record(row['id'])
+            with delete_button:
+                if st.button("Delete", key=f"delete_{row['id']}"):
+                    delete_calorie_record(row['id'])
+    else:
+        st.info(f"No calorie data recorded for {selected_date.strftime('%Y-%m-%d')}.")
 
 
 def fetch_user_metrics(user_id):
@@ -217,111 +299,6 @@ def add_calorie_intake(user_id, meal_name, meal_description, portion_size, selec
         st.success("Calorie intake added successfully!")
     else:
         st.error(f"Failed to add calorie intake: {response.text}")
-
-
-# Define the portion size explanation modal
-portion_size_modal = Modal(
-    "Understanding Portion Sizes", 
-    key="portion-size-modal",
-    padding=20,
-    max_width=744
-)
-
-def calorie_intake_form(selected_date):
-    with st.sidebar:
-        with st.expander("Calorie Intake", expanded=True):
-            # Portion size explanation setup
-            portion_size_modal = Modal(
-                "Understanding Portion Sizes",
-                key="portion-size-modal",
-                padding=20,
-                max_width=744
-            )
-            
-
-            with st.form(key='calorie_intake_form'):
-                st.date_input("Date", value=selected_date, key='calorie_date')
-                st.text_input("Meal Name", key='meal_name')
-                st.text_area("Meal Description", key='meal_description')
-
-                # Define the portion size choices to match those in your Django model
-                portion_size_options = {
-                    'XS': 'Extra Small',
-                    'S': 'Small',
-                    'M': 'Medium',
-                    'L': 'Large',
-                    'XL': 'Extra Large',
-                }
-                
-                # Use a selectbox for portion size
-                portion_size = st.selectbox("Portion Size", options=list(portion_size_options.keys()), format_func=lambda x: portion_size_options[x], key='portion_size')
-
-                submit_button = st.form_submit_button(label='Submit')
-                if submit_button:
-                    user_id = st.session_state.get('user_id')
-                    # Retrieving the values
-                    meal_name = st.session_state['meal_name']
-                    meal_description = st.session_state['meal_description']
-                    selected_date = st.session_state['calorie_date']
-                    add_calorie_intake(user_id, meal_name, meal_description, portion_size, selected_date)
-
-            # Trigger for the portion size explanation modal
-            # Placed outside the form but within the same expander for UI consistency
-            open_modal_button = st.button("Understand Portion Sizes?", key="open-portion-size-info")
-            if open_modal_button:
-                portion_size_modal.open()
-
-
-if portion_size_modal.is_open():
-    with portion_size_modal.container():
-        with st.container():
-            st.markdown("""
-            ### Understanding Our Portion Sizes
-            When logging your meals, selecting the right portion size helps in accurately tracking your nutritional intake. Here's a guide to what each portion size category represents, making it easier for you to choose when logging meals:
-
-            - **Extra Small (XS):** Ideal for small snacks or condiments. Think of a tablespoon of peanut butter or a small handful of nuts. 🥜
-
-            - **Small (S):** Suitable for side dishes or smaller servings of fruits and vegetables. Imagine a single piece of fruit or half a cup of cooked vegetables. 🍏🥕
-
-            - **Medium (M):** The right size for main components of your meals, like a cup of cooked pasta, a medium-sized chicken breast, or a bowl of salad. 🍝🍗🥗
-
-            - **Large (L):** Fits larger meals and servings, such as a big dinner plate with multiple components or a large smoothie. 🍲🥤
-
-            - **Extra Large (XL):** Reserved for very large or shared meals. Think of a family-sized meal or a large pizza. 🍕👨‍👩‍👧‍👦
-
-            ### How to Use Portion Sizes for Meal Logging
-
-            Using these categories, try to estimate the portion sizes of the meals you're logging. For example:
-
-            - A sandwich with a small side salad might be a **Medium (M)** for the sandwich and **Small (S)** for the salad.
-            - A bowl of fruit salad could be **Large (L)** depending on the quantity.
-
-            Remember, these sizes are guidelines to help you in logging your meals more accurately. Depending on your dietary needs, you might adjust the portions. Our goal is to make meal tracking insightful and tailored to your health journey.
-
-            Happy meal logging!
-            """)
-
-
-
-def visualize_calorie_data(selected_date):
-    user_id = st.session_state.get('user_id')
-    calorie_data = fetch_calorie_data(user_id, selected_date)
-
-    if calorie_data:
-        df = pd.DataFrame(calorie_data)
-        # Implement pagination if needed
-        for index, row in df.iterrows():
-            st.write(f"Date: {row['date_recorded']}, Meal Name: {row['meal_name']}, Meal Description: {row['meal_description']}, Portion Size: {row['portion_size']}")
-            edit_button, delete_button = st.columns([0.1, 1])
-            with edit_button:
-                if st.button("Edit", key=f"edit_{row['id']}"):
-                    # Call the edit function with the record ID
-                    edit_calorie_record(row['id'])
-            with delete_button:
-                if st.button("Delete", key=f"delete_{row['id']}"):
-                    delete_calorie_record(row['id'])
-    else:
-        st.info(f"No calorie data recorded for {selected_date.strftime('%Y-%m-%d')}.")
 
 
 def save_health_metrics(date, weight, bmi, mood, energy_level):
@@ -464,7 +441,7 @@ def plot_metric_trends(metric_trends):
     else:
         st.warning("No metric trends available to display.")
 
-
+@st.experimental_fragment
 def health_metrics_form():
     # Add a session state variable for weight unit if not present
     if 'weight_unit' not in st.session_state:
@@ -671,6 +648,7 @@ class EventHandler(AssistantEventHandler):
     def on_event(self, event: AssistantStreamEvent) -> None:
         if event.event == "thread.run.requires_action":
             pass
+
 
 def assistant():
     try:
