@@ -756,6 +756,7 @@ def assistant():
                 except openai.BadRequestError as e:
                     if 'already has an active run' in str(e):
                         st.session_state.thread_id = None
+                        logging.error(e)
                         st.error("The current thread already has an active run. Please start a new chat.")
             elif response and 'last_assistant_message' in response:
                 st.session_state.thread_id = response['new_thread_id']
