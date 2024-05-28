@@ -7,7 +7,6 @@ import openai
 from openai import OpenAIError
 import requests
 import streamlit as st
-import streamlit.components.v1 as components
 
 # Define a function to get the user's access token
 def refresh_token(refresh_token):
