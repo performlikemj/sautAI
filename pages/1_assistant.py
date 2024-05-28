@@ -728,6 +728,7 @@ def assistant():
         # Use a container to dynamically update chat messages
         st.info("Response time may vary. Your patience is appreciated.")
 
+
         def process_user_input(prompt, chat_container):
             user_id = st.session_state.get('user_id')
             # Update chat history immediately with the follow-up prompt
@@ -742,15 +743,20 @@ def assistant():
             }
             if response and 'new_thread_id' in response:
                 st.session_state.thread_id = response['new_thread_id']
-                # Start or continue streaming responses
-                with client.beta.threads.runs.stream(
-                    thread_id=st.session_state.thread_id,
-                    assistant_id=os.getenv("ASSISTANT_ID") if is_user_authenticated() else os.getenv("GUEST_ASSISTANT_ID"),
-                    event_handler=EventHandler(st.session_state.thread_id, chat_container, user_id),
-                    instructions=prompt,  # Or set general instructions for your assistant
-                    extra_headers=openai_headers
-                ) as stream:
-                    stream.until_done()
+                try:
+                    # Start or continue streaming responses
+                    with client.beta.threads.runs.stream(
+                        thread_id=st.session_state.thread_id,
+                        assistant_id=os.getenv("ASSISTANT_ID") if is_user_authenticated() else os.getenv("GUEST_ASSISTANT_ID"),
+                        event_handler=EventHandler(st.session_state.thread_id, chat_container, user_id),
+                        instructions=prompt,  # Or set general instructions for your assistant
+                        extra_headers=openai_headers
+                    ) as stream:
+                        stream.until_done()
+                except openai.BadRequestError as e:
+                    if 'already has an active run' in str(e):
+                        st.session_state.thread_id = None
+                        st.error("The current thread already has an active run. Please start a new chat.")
             elif response and 'last_assistant_message' in response:
                 st.session_state.thread_id = response['new_thread_id']
 
