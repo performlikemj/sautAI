@@ -742,6 +742,7 @@ def assistant():
                 "OpenAI-Beta": "assistants=v2",
             }
             if response and 'new_thread_id' in response:
+                logging.info(f"New thread ID: {response['new_thread_id']}")
                 st.session_state.thread_id = response['new_thread_id']
                 try:
                     # Start or continue streaming responses
