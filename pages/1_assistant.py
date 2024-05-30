@@ -471,10 +471,12 @@ def health_metrics_form():
                 save_health_metrics(date, weight, bmi, mood, energy_level)
 
 def guest_chat_with_gpt(prompt, thread_id):
-    response_data = requests.post(
-        f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/guest_chat_with_gpt/', 
-        data={'question': prompt, 'thread_id': thread_id}
-    )
+    url = f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/guest_chat_with_gpt/'
+    payload = {'question': prompt, 'thread_id': thread_id}
+    headers = {'Content-Type': 'application/json'}
+
+    response_data = requests.post(url, json=payload, headers=headers)
+
     if response_data.status_code == 200:
         return response_data.json()
     if response_data.status_code == 429:  # Rate limit status code
