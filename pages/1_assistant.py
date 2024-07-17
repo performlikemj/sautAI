@@ -326,8 +326,7 @@ def save_health_metrics(date, weight, bmi, mood, energy_level):
 
     if response.status_code == 200:
         st.success("Health metrics updated!")
-    else:
-        st.error(f"Failed to save health metrics: {response.text}")
+
 
 def plot_metric_trends():
     user_id = st.session_state.get('user_id')
