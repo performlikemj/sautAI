@@ -1,3 +1,4 @@
+import pytz
 import streamlit as st
 import requests
 import os
@@ -112,6 +113,9 @@ def profile():
                     state = st.text_input("State", value=user_data.get('state', ''))
                     postalcode = st.text_input("Postal Code", value=user_data.get('postalcode', ''))
                     country = st.text_input("Country", value=user_data.get('country', ''))
+                    # Time zone selection
+                    timezones = pytz.all_timezones
+                    selected_timezone = st.selectbox('Time Zone', options=timezones, index=timezones.index(user_data.get('timezone', 'UTC')))
 
                     submitted = st.form_submit_button("Update Profile")
                     if submitted:
@@ -127,7 +131,8 @@ def profile():
                                 'state': state,
                                 'postalcode': postalcode,
                                 'country': country
-                            }
+                            },
+                            'timezone': selected_timezone
                         }
                         update_response = api_call_with_refresh(
                             url=f'{os.getenv("DJANGO_URL")}/auth/api/update_profile/',
