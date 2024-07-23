@@ -69,6 +69,7 @@ def login_form():
                 st.session_state['user_id'] = response_data['user_id']
                 st.session_state['email_confirmed'] = response_data['email_confirmed']
                 st.session_state['is_chef'] = response_data['is_chef']  # Include the is_chef attribute in the session state
+                st.session_state['timezone'] = response_data['timezone']
                 st.session_state['current_role'] = response_data['current_role']
                 st.session_state['access_token'] = response_data['access']
                 st.session_state['refresh_token'] = response_data['refresh']

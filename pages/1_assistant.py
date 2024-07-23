@@ -1,11 +1,12 @@
 import os
 import time
+import pytz
 from typing_extensions import override
 import requests
 import json
 import streamlit as st
 import pandas as pd
-import datetime
+import datetime as dt
 from dotenv import load_dotenv
 import openai
 from openai import OpenAIError
@@ -108,11 +109,25 @@ def show_portion_size_dialog():
     """)
 
 @st.experimental_fragment
-def calorie_intake_form(selected_date):
+def calorie_intake_form(selected_date=None):
+    # Fetch the user's time zone from session state
+    user_timezone = st.session_state.get('timezone', 'UTC')
+    local_tz = pytz.timezone(user_timezone)
+
+    # Get the current date and time in the user's time zone
+    local_date = dt.datetime.now(local_tz).date()
+
+    # Use selected_date if provided, else default to local_date
+    if selected_date is not None:
+        selected_date = selected_date
+    else:
+        selected_date = local_date
+
     with st.sidebar:
         with st.expander("Calorie Intake", expanded=True):
             with st.form(key='calorie_intake_form'):
-                st.date_input("Date", value=selected_date, key='calorie_date')
+                # Convert selected_date to the user's time zone
+                selected_date_input = st.date_input("Date", value=selected_date, key='calorie_date')
                 st.text_input("Meal Name", key='meal_name')
                 st.text_area("Meal Description", key='meal_description')
 
@@ -131,26 +146,34 @@ def calorie_intake_form(selected_date):
                 submit_button = st.form_submit_button(label='Submit')
                 if submit_button:
                     user_id = st.session_state.get('user_id')
-                    # Retrieving the values
                     meal_name = st.session_state['meal_name']
                     meal_description = st.session_state['meal_description']
                     selected_date = st.session_state['calorie_date']
+                    selected_date = local_tz.localize(dt.combine(selected_date_input, dt.min.time()))  # Localize to user's timezone
                     add_calorie_intake(user_id, meal_name, meal_description, portion_size, selected_date)
 
             open_modal_button = st.button("Understand Portion Sizes?", key="open-portion-size-info")
             if open_modal_button:
                 show_portion_size_dialog()
 
+
 @st.experimental_fragment
 def visualize_calorie_data(selected_date):
+    # Fetch the user's time zone from session state
+    user_timezone = st.session_state.get('timezone', 'UTC')
+    local_tz = pytz.timezone(user_timezone)
+
     user_id = st.session_state.get('user_id')
     calorie_data = fetch_calorie_data(user_id, selected_date)
 
     if calorie_data:
         df = pd.DataFrame(calorie_data)
+        # Adjust date to user's time zone
+        df['date_recorded'] = pd.to_datetime(df['date_recorded']).dt.tz_convert(local_tz)
+        
         # Implement pagination if needed
         for index, row in df.iterrows():
-            st.write(f"Date: {row['date_recorded']}, Meal Name: {row['meal_name']}, Meal Description: {row['meal_description']}, Portion Size: {row['portion_size']}")
+            st.write(f"Date: {row['date_recorded'].strftime('%Y-%m-%d %H:%M:%S')}, Meal Name: {row['meal_name']}, Meal Description: {row['meal_description']}, Portion Size: {row['portion_size']}")
             edit_button, delete_button = st.columns([0.1, 1])
             with edit_button:
                 if st.button("Edit", key=f"edit_{row['id']}"):
@@ -445,18 +468,20 @@ def health_metrics_form():
     # Add a session state variable for weight unit if not present
     if 'weight_unit' not in st.session_state:
         st.session_state['weight_unit'] = 'kg'  # default unit
+        
+    # Fetch the user's time zone from session state
+    user_timezone = st.session_state.get('timezone', 'UTC')
+    local_tz = pytz.timezone(user_timezone)
 
     with st.sidebar.expander("Health Metrics", expanded=False):  # Set expanded to False
-        # Toggle for weight unit
         weight_unit = st.radio("Weight Unit", ('kg', 'lbs'))
-
-        # Update the session state variable
         st.session_state['weight_unit'] = weight_unit
 
         with st.form(key='health_metrics_form'):
-            date = st.date_input("Date", value=datetime.date.today())
+            # Convert current date to user's time zone
+            local_date = dt.datetime.now(local_tz).date()
+            date_input = st.date_input("Date", value=local_date)
             weight_input = st.number_input(f"Weight ({st.session_state['weight_unit']})", min_value=0.0, format="%.2f")
-            # Convert lbs to kg if necessary
             weight = weight_input if st.session_state['weight_unit'] == 'kg' else np.round(weight_input / 2.20462, 2)
             bmi = st.number_input("BMI", min_value=0.0, format="%.2f")
             mood = st.selectbox("Mood", ["Happy", "Sad", "Stressed", "Relaxed", "Energetic", "Tired", "Neutral"])
@@ -464,10 +489,11 @@ def health_metrics_form():
 
             submit_button = st.form_submit_button(label='Submit')
             if submit_button:
-                # If no input is made, the value will be None
                 weight = weight if weight != 0.0 else None
                 bmi = bmi if bmi != 0.0 else None
-                save_health_metrics(date, weight, bmi, mood, energy_level)
+                date_to_save = local_tz.localize(dt.datetime.combine(date_input, dt.datetime.min.time()))  # Localize to user's timezone
+                save_health_metrics(date_to_save, weight, bmi, mood, energy_level)
+
 
 def guest_chat_with_gpt(prompt, thread_id):
     url = f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/guest_chat_with_gpt/'
@@ -684,11 +710,11 @@ def assistant():
 
             if is_user_authenticated():
                 # Calorie Intake Form in the Sidebar
-                calorie_intake_form(datetime.date.today())
+                calorie_intake_form(dt.date.today())
 
                 # Calorie Data Visualization
                 with st.expander("View Calorie Data", expanded=False):
-                    selected_date = st.date_input("Select a date", datetime.date.today())
+                    selected_date = st.date_input("Select a date", dt.date.today())
                     visualize_calorie_data(selected_date)
 
                 with st.expander("Health Metrics", expanded=False):

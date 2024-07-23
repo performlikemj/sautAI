@@ -11,6 +11,7 @@ import requests
 from openai import OpenAIError
 import pycountry
 import datetime
+import pytz
 from utils import api_call_with_refresh, login_form, toggle_chef_mode
 
 st.set_page_config(
@@ -105,6 +106,11 @@ def register():
             selected_country = st.selectbox("Country", countries)
             # Convert the selected country to its two-letter country code
             country_code = pycountry.countries.get(name=selected_country).alpha_2
+
+            # Time zone selection
+            timezones = pytz.all_timezones
+            selected_timezone = st.selectbox('Time Zone', options=timezones, index=timezones.index('UTC'))
+
             submit_button = st.form_submit_button(label='Register')
             if submit_button:
                 # Construct the data payload for the API request
@@ -116,6 +122,7 @@ def register():
                         "phone_number": phone_number,
                         "dietary_preference": dietary_preference,
                         "allergies": selected_allergies,
+                        "timezone": selected_timezone
                     },
                     "address": {
                         "street": street,
