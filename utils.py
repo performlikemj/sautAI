@@ -14,7 +14,6 @@ def refresh_token(refresh_token):
         f'{os.getenv("DJANGO_URL")}/auth/api/token/refresh/', 
         json={'refresh': refresh_token}
     )
-    print(f'refresh_response: {refresh_response}')
     return refresh_response.json() if refresh_response.status_code == 200 else None
 
 
@@ -70,6 +69,13 @@ def login_form():
                 st.session_state['email_confirmed'] = response_data['email_confirmed']
                 st.session_state['is_chef'] = response_data['is_chef']  # Include the is_chef attribute in the session state
                 st.session_state['timezone'] = response_data['timezone']
+                st.session_state['preferred_language'] = response_data['preferred_language']
+                st.session_state['dietary_preference'] = response_data['dietary_preference']
+                st.session_state['custom_dietary_preference'] = response_data['custom_dietary_preference']
+                st.session_state['allergies'] = response_data['allergies']
+                st.session_state['custom_allergies'] = response_data['custom_allergies']
+                st.session_state['goal_name'] = response_data['goal_name']
+                st.session_state['goal_description'] = response_data['goal_description']
                 st.session_state['current_role'] = response_data['current_role']
                 st.session_state['access_token'] = response_data['access']
                 st.session_state['refresh_token'] = response_data['refresh']
@@ -85,6 +91,28 @@ def login_form():
         if st.button("Forgot your password?"):
             # Directly navigate to the activate page for password reset
             st.switch_page("pages/4_account.py")
+
+def fetch_and_update_user_profile():
+    if is_user_authenticated():
+        headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+        response = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/user_details/', headers=headers)
+        if response.status_code == 200:
+            user_data = response.json()
+            st.session_state['user_id'] = user_data['id']
+            st.session_state['email_confirmed'] = user_data['email_confirmed']
+            st.session_state['is_chef'] = user_data.get('is_chef', False)
+            st.session_state['timezone'] = user_data['timezone']
+            st.session_state['preferred_language'] = user_data['preferred_language']
+            st.session_state['dietary_preference'] = user_data['dietary_preference']
+            st.session_state['custom_dietary_preference'] = user_data['custom_dietary_preference']
+            st.session_state['allergies'] = user_data['allergies']
+            st.session_state['custom_allergies'] = user_data['custom_allergies']
+            st.session_state['goal_name'] = user_data['goals']['goal_name'] if user_data.get('goals') else ""
+            st.session_state['goal_description'] = user_data['goals']['goal_description'] if user_data.get('goals') else ""
+            st.session_state['current_role'] = user_data.get('current_role', '')
+            st.session_state['address'] = user_data['address']
+        else:
+            st.error("Failed to fetch user profile.")
 
 def toggle_chef_mode():
     # Ensure 'user_info' exists, contains 'is_chef', and user is authorized as a chef

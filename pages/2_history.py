@@ -77,7 +77,6 @@ def thread_detail(thread_id):
         st.error("Error fetching thread details.")
 
 
-
 def threads():
     # Login Form
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:

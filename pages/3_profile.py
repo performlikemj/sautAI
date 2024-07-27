@@ -3,7 +3,7 @@ import streamlit as st
 import requests
 import os
 import datetime
-from utils import api_call_with_refresh, is_user_authenticated, login_form, toggle_chef_mode
+from utils import api_call_with_refresh, is_user_authenticated, login_form, toggle_chef_mode, fetch_and_update_user_profile
 
 st.set_page_config(
     page_title="sautAI - Your Diet and Nutrition Guide",
@@ -44,8 +44,25 @@ st.set_page_config(
         """
     }
 )
-# TODO: grab the allergy info. currently it isn't populating
-# TODO: change editing to use a PUT isntead of a POST
+
+# Fetch and display user goals
+def fetch_and_display_goals():
+    headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+    response = requests.get(f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/user_goal/', headers=headers)
+    if response.status_code == 200:
+        goal_data = response.json()
+        return goal_data if goal_data and goal_data.get('goal_name') and goal_data.get('goal_description') else None
+    else:
+        st.error("Failed to fetch goals.")
+        return None
+
+# Update user goals
+def update_goal(goal_name, goal_description):
+    headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+    data = {'goal_name': goal_name, 'goal_description': goal_description}
+    response = requests.post(f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/goal_management/', headers=headers, data=data)
+    return response.status_code == 200
+
 def profile():
     # Login Form
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
@@ -70,14 +87,18 @@ def profile():
         if 'user_info' in st.session_state and st.session_state.user_info:
             headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
             user_details = requests.get(f'{os.getenv("DJANGO_URL")}/auth/api/user_details/', headers=headers)
+            address_details = requests.get(f'{os.getenv("DJANGO_URL")}/auth/api/address_details/', headers=headers)
             if user_details.status_code == 200:
                 user_data = user_details.json()
-                print(f'User data: {user_data}')
                 st.session_state.user_id = user_data.get('id')  # Set user_id in session state
                 # ... rest of your code for displaying and updating profile ...
             else:
                 user_data = {}
 
+            if address_details.status_code == 200:
+                address_data = address_details.json()
+            else:
+                address_data = {}
             if is_user_authenticated():
                 # Define a container for each field
                 username_container = st.container()
@@ -87,8 +108,11 @@ def profile():
                 allergy_container = st.container()
                 goal_container = st.container()
                 address_container = st.container()
+                language_container = st.container()
+                timezone_container = st.container()
                 # Goal management section
                 with st.form("profile_update_form"):
+                    goal_data = fetch_and_display_goals()
                     username = st.text_input("Username", value=user_data.get('username', ''))
                     email = st.text_input("Email", value=user_data.get('email', ''))
                     phone_number = st.text_input("Phone Number", value=user_data.get('phone_number', ''))
@@ -99,32 +123,59 @@ def profile():
                         'Diabetic-Friendly', 'Vegan'
                     ]
                     dietary_preference = st.selectbox("Dietary Preference", dietary_preferences, index=dietary_preferences.index(user_data.get('dietary_preference', 'Everything')))
+                    custom_dietary_preference = st.text_input("Custom Dietary Preference (if not listed above)", value=user_data.get('custom_dietary_preference', ''))
                     allergies = [
                         'Peanuts', 'Tree nuts', 'Milk', 'Egg', 'Wheat', 'Soy', 'Fish', 'Shellfish', 'Sesame', 'Mustard', 
                         'Celery', 'Lupin', 'Sulfites', 'Molluscs', 'Corn', 'Gluten', 'Kiwi', 'Latex', 'Pine Nuts', 
                         'Sunflower Seeds', 'Poppy Seeds', 'Fennel', 'Peach', 'Banana', 'Avocado', 'Chocolate', 
                         'Coffee', 'Cinnamon', 'Garlic', 'Chickpeas', 'Lentils'
                     ]
+                    custom_allergies = st.text_area("Custom Allergies (comma separated)", value=user_data.get('custom_allergies', ''))
                     default_allergies = user_data.get('allergies', [])
                     valid_default_allergies = [allergy for allergy in default_allergies if allergy in allergies]
-                    selected_allergies = st.multiselect("Allergies", allergies, default=valid_default_allergies)                    
-                    street = st.text_input("Street", value=user_data.get('street', ''))
-                    city = st.text_input("City", value=user_data.get('city', ''))
-                    state = st.text_input("State", value=user_data.get('state', ''))
-                    postalcode = st.text_input("Postal Code", value=user_data.get('postalcode', ''))
-                    country = st.text_input("Country", value=user_data.get('country', ''))
+                    selected_allergies = st.multiselect("Allergies", allergies, default=valid_default_allergies)                 
+                    street = st.text_input("Street", value=address_data.get('street', ''))
+                    city = st.text_input("City", value=address_data.get('city', ''))
+                    state = st.text_input("State", value=address_data.get('state', ''))
+                    postalcode = st.text_input("Postal Code", value=address_data.get('postalcode', ''))
+                    country = st.text_input("Country", value=address_data.get('country', ''))
                     # Time zone selection
                     timezones = pytz.all_timezones
                     selected_timezone = st.selectbox('Time Zone', options=timezones, index=timezones.index(user_data.get('timezone', 'UTC')))
+                    # Define a dictionary for languages
+                    language_options = {
+                        'en': 'English',
+                        'ja': 'Japanese',
+                        'es': 'Spanish',
+                        'fr': 'French',
+                    }
+                    language_labels = list(language_options.values())
+                    language_keys = list(language_options.keys())
+                    current_language = language_options.get(user_data.get('preferred_language', 'en'))
+                    preferred_language = st.selectbox("Preferred Language", language_labels, index=language_labels.index(current_language))
+                    
+                    # Get the corresponding key for the selected value
+                    selected_language_code = language_keys[language_labels.index(preferred_language)]
 
+                    st.subheader("User Goals")
+                    if goal_data:
+                        st.write(f"**{goal_data['goal_name']}**: {goal_data['goal_description']}")
+                    else:
+                        st.info("No goals set yet. Use the form below to add your goals.")
+                    goal_name = st.text_input("Goal Name", value=goal_data['goal_name'] if goal_data else "")
+                    goal_description = st.text_area("Goal Description", value=goal_data['goal_description'] if goal_data else "")
+                  
                     submitted = st.form_submit_button("Update Profile")
+
                     if submitted:
                         profile_data = {
                             'username': username,
                             'email': email,
                             'phone_number': phone_number,
                             'dietary_preference': dietary_preference,
+                            'custom_dietary_preference': custom_dietary_preference,
                             'allergies': selected_allergies,
+                            'custom_allergies': custom_allergies,
                             'address': {
                                 'street': street,
                                 'city': city,
@@ -132,7 +183,8 @@ def profile():
                                 'postalcode': postalcode,
                                 'country': country
                             },
-                            'timezone': selected_timezone
+                            'timezone': selected_timezone,
+                            'preferred_language': selected_language_code
                         }
                         update_response = api_call_with_refresh(
                             url=f'{os.getenv("DJANGO_URL")}/auth/api/update_profile/',
@@ -142,6 +194,13 @@ def profile():
                         )
                         if update_response.status_code == 200:
                             st.success("Profile updated successfully!")
+                            if goal_name and goal_description:
+                                if update_goal(goal_name, goal_description):
+                                    st.success("Goal updated successfully!")
+                                else:
+                                    st.error("Failed to update goal.")
+                            fetch_and_update_user_profile()
+                            st.rerun()
                         else:
                             st.error(f"Failed to update profile: {update_response.text}")
         else:

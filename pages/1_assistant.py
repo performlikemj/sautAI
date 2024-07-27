@@ -124,7 +124,7 @@ def calorie_intake_form(selected_date=None):
         selected_date = local_date
 
     with st.sidebar:
-        with st.expander("Calorie Intake", expanded=True):
+        with st.expander("Calorie Intake", expanded=False):
             with st.form(key='calorie_intake_form'):
                 # Convert selected_date to the user's time zone
                 selected_date_input = st.date_input("Date", value=selected_date, key='calorie_date')
@@ -158,26 +158,29 @@ def calorie_intake_form(selected_date=None):
 
 
 @st.experimental_fragment
-def visualize_calorie_data(selected_date):
-    # Fetch the user's time zone from session state
+def visualize_calorie_data():
     user_timezone = st.session_state.get('timezone', 'UTC')
     local_tz = pytz.timezone(user_timezone)
 
     user_id = st.session_state.get('user_id')
+    selected_date = st.date_input("Select Date for Calorie Data", value=dt.datetime.now(local_tz).date())
+
+    st.write("### Select Date for Calorie Data")
+    selected_date = st.date_input("Date", value=selected_date)
+    
     calorie_data = fetch_calorie_data(user_id, selected_date)
 
     if calorie_data:
         df = pd.DataFrame(calorie_data)
-        # Adjust date to user's time zone
-        df['date_recorded'] = pd.to_datetime(df['date_recorded']).dt.tz_convert(local_tz)
+        # First localize to UTC (or the appropriate timezone), then convert to the user's timezone
+        df['date_recorded'] = pd.to_datetime(df['date_recorded']).dt.tz_localize('UTC').dt.tz_convert(local_tz)
+
         
-        # Implement pagination if needed
         for index, row in df.iterrows():
             st.write(f"Date: {row['date_recorded'].strftime('%Y-%m-%d %H:%M:%S')}, Meal Name: {row['meal_name']}, Meal Description: {row['meal_description']}, Portion Size: {row['portion_size']}")
             edit_button, delete_button = st.columns([0.1, 1])
             with edit_button:
                 if st.button("Edit", key=f"edit_{row['id']}"):
-                    # Call the edit function with the record ID
                     edit_calorie_record(row['id'])
             with delete_button:
                 if st.button("Delete", key=f"delete_{row['id']}"):
@@ -351,42 +354,6 @@ def save_health_metrics(date, weight, bmi, mood, energy_level):
         st.success("Health metrics updated!")
 
 
-def plot_metric_trends():
-    user_id = st.session_state.get('user_id')
-    metric_trends = fetch_user_metrics(user_id)
-    
-    if metric_trends:
-        # Original data
-        df = pd.DataFrame(metric_trends)
-        df['date'] = pd.to_datetime(df['date_recorded'])
-        df.set_index('date', inplace=True)
-
-        # Full range dates DataFrame
-        all_dates = pd.date_range(df.index.min(), df.index.max(), freq='D')
-        df_full = pd.DataFrame(index=all_dates)
-        
-        # Joining the full dates DataFrame with the original data
-        # Dates without data in the original DataFrame will have NaN values after the join
-        df_full = df_full.join(df, how='left')
-
-        min_date, max_date = df_full.index.min(), df_full.index.max()
-
-        # User selects a date range for visualization
-        selected_range = st.select_slider(
-            "Select Date Range", 
-            options=pd.date_range(min_date, max_date, freq='D'),
-            value=(min_date, max_date)
-        )
-
-        # Filter the DataFrame based on the selected date range
-        filtered_df = df_full.loc[selected_range[0]:selected_range[1]]
-
-        # Plotting the chart with filtered DataFrame
-        # The chart will show gaps where the data is NaN (not available for certain dates)
-        st.line_chart(filtered_df[['weight', 'bmi', 'energy_level']])
-    else:
-        st.error("No metric trends available to display.")
-
 def visualize_health_metrics_as_static_table():
     user_id = st.session_state.get('user_id')
     health_metrics = fetch_user_metrics(user_id)
@@ -428,38 +395,33 @@ def plot_metric_trend(metric_name, df, selected_range):
     # Filter the DataFrame based on the list of dates
     filtered_df = df[df.index.isin(date_list)]
 
-    # Debugging: Print the filtered DataFrame
-
     if not filtered_df.empty and not filtered_df[metric_name].isna().all():
         st.subheader(f"{metric_name.capitalize()} Trend")
         st.line_chart(filtered_df[metric_name])
     else:
         st.warning(f"No data available for {metric_name} in the selected date range. Please check if the data exists for this range.")
 
-
 def plot_metric_trends(metric_trends):
-    """
-    Plot trends for weight, BMI, and energy level.
-    """
-    # Check if metric_trends is not empty and the first item is a dictionary
     if metric_trends and isinstance(metric_trends, list) and isinstance(metric_trends[0], dict):
         df = pd.DataFrame(metric_trends)
         df['weight'] = pd.to_numeric(df['weight'], errors='coerce')
         df['bmi'] = pd.to_numeric(df['bmi'], errors='coerce')
-        df['date'] = pd.to_datetime(df['date_recorded']).dt.normalize()  # Normalize to remove time component
+        df['date'] = pd.to_datetime(df['date_recorded']).dt.normalize()
         df.set_index('date', inplace=True)
 
         min_date, max_date = df.index.min(), df.index.max()
+        
+        st.write("### Select Date Range for Visualization")
+        start_date = st.date_input("Start Date", value=min_date)
+        end_date = st.date_input("End Date", value=max_date)
 
-        selected_range = st.select_slider(
-            "Select Date Range", 
-            options=pd.date_range(min_date, max_date, freq='D'),
-            value=(min_date, max_date)
-        )
-
-        plot_metric_trend('weight', df, selected_range)
-        plot_metric_trend('bmi', df, selected_range)
-        plot_metric_trend('energy_level', df, selected_range)
+        if start_date > end_date:
+            st.error("Start Date must be before End Date")
+        else:
+            selected_range = (start_date, end_date)
+            plot_metric_trend('weight', df, selected_range)
+            plot_metric_trend('bmi', df, selected_range)
+            plot_metric_trend('energy_level', df, selected_range)
     else:
         st.warning("No metric trends available to display.")
 
@@ -676,7 +638,7 @@ class EventHandler(AssistantEventHandler):
         if event.event == "thread.run.requires_action":
             pass
 
-
+@st.experimental_fragment
 def assistant():
     try:
         # Login Form
@@ -703,6 +665,8 @@ def assistant():
             st.session_state.recommend_follow_up = []
         if 'showed_user_summary' not in st.session_state:
             st.session_state.showed_user_summary = False
+        if 'recommend_prompt' not in st.session_state:
+            st.session_state.recommend_prompt = ""
 
         # Additional functionalities for authenticated users not in chef mode
         if 'is_logged_in' in st.session_state and st.session_state['is_logged_in'] and st.session_state.get('current_role', '') != 'chef':
@@ -714,8 +678,7 @@ def assistant():
 
                 # Calorie Data Visualization
                 with st.expander("View Calorie Data", expanded=False):
-                    selected_date = st.date_input("Select a date", dt.date.today())
-                    visualize_calorie_data(selected_date)
+                    visualize_calorie_data()
 
                 with st.expander("Health Metrics", expanded=False):
                     health_metrics_form()
@@ -743,10 +706,11 @@ def assistant():
                     # Extract the summary text from the response
                     data = user_summary_response.json()  # Parse the JSON response
                     user_summary = data['data'][0]['content'][0]['text']['value']
-                    
+                    recommend_prompt = data.get('recommend_prompt', '')
+
                     # Append the summary to the chat history
                     st.session_state.chat_history.append({"role": "assistant", "content": user_summary})
-                    
+                    st.session_state.recommend_prompt = recommend_prompt
                     # Set the flag to True so it doesn't show again in the same session
                     st.session_state['showed_user_summary'] = True
 
@@ -763,7 +727,23 @@ def assistant():
             with chat_container.chat_message("user"):
                 st.markdown(prompt)
             # Send the prompt to the backend and get a message ID
-            response = chat_with_gpt(prompt, st.session_state.thread_id, user_id=user_id) if is_user_authenticated() else guest_chat_with_gpt(prompt, st.session_state.thread_id)
+            if is_user_authenticated():
+                # Determine the location detail to use (country or timezone)
+                location = st.session_state.get('country', st.session_state.get('timezone', 'UTC'))
+                # Prepare the prompt with user details
+                user_details_prompt = (
+                    f"Consider the following user details while responding:\n"
+                    f"- Dietary Preference: {st.session_state.get('dietary_preference', 'Everything')}\n"
+                    f"- Custom Dietary Preference: {st.session_state.get('custom_dietary_preference', 'None')}\n"
+                    f"- Allergies: {', '.join(st.session_state.get('allergies', [])) if st.session_state.get('allergies') else 'None'}\n"
+                    f"- Custom Allergies: {', '.join(st.session_state.get('custom_allergies', [])) if st.session_state.get('custom_allergies') else 'None'}\n"
+                    f"- Location: {location}\n"
+                    f"- Preferred Language: {st.session_state.get('preferred_language', 'English')}\n"
+                    f"- Goal: {st.session_state.get('goal_name', 'No specific goal')}: {st.session_state.get('goal_description', 'No description provided')}\n"
+                    f"Question: {prompt}\n"
+                )
+                print(f'User details prompt: {user_details_prompt}')
+            response = chat_with_gpt(user_details_prompt, st.session_state.thread_id, user_id=user_id) if is_user_authenticated() else guest_chat_with_gpt(prompt, st.session_state.thread_id)
             openai_headers = {
                 "Content-Type": "application/json",
                 "OpenAI-Beta": "assistants=v2",
@@ -777,7 +757,7 @@ def assistant():
                         thread_id=st.session_state.thread_id,
                         assistant_id=os.getenv("ASSISTANT_ID") if is_user_authenticated() else os.getenv("GUEST_ASSISTANT_ID"),
                         event_handler=EventHandler(st.session_state.thread_id, chat_container, user_id),
-                        instructions=prompt,  # Or set general instructions for your assistant
+                        instructions=user_details_prompt if is_user_authenticated() else prompt,  # Or set general instructions for your assistant
                         extra_headers=openai_headers
                     ) as stream:
                         stream.until_done()
@@ -808,6 +788,13 @@ def assistant():
                     st.write("Recommended Follow-Ups:")
                     for follow_up in st.session_state.recommend_follow_up:
                         st.button(follow_up, key=follow_up, on_click=lambda follow_up=follow_up: process_user_input(follow_up, chat_container))
+
+            if st.session_state.recommend_prompt:
+                with st.container():
+                    st.write("Recommended Follow-Ups:")
+                    for follow_up_prompt in st.session_state.recommend_prompt:
+                        st.button(follow_up_prompt, key=follow_up_prompt, on_click=lambda follow_up_prompt=follow_up_prompt: process_user_input(follow_up_prompt, chat_container))
+                    st.session_state.recommend_prompt = ""
 
             prompt = st.chat_input("Enter your question:")
             if prompt:
