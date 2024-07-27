@@ -95,9 +95,11 @@ def login_form():
 def fetch_and_update_user_profile():
     if is_user_authenticated():
         headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-        response = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/user_details/', headers=headers)
-        if response.status_code == 200:
-            user_data = response.json()
+
+        # Fetch user details
+        user_response = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/user_details/', headers=headers)
+        if user_response.status_code == 200:
+            user_data = user_response.json()
             st.session_state['user_id'] = user_data['id']
             st.session_state['email_confirmed'] = user_data['email_confirmed']
             st.session_state['is_chef'] = user_data.get('is_chef', False)
@@ -110,9 +112,22 @@ def fetch_and_update_user_profile():
             st.session_state['goal_name'] = user_data['goals']['goal_name'] if user_data.get('goals') else ""
             st.session_state['goal_description'] = user_data['goals']['goal_description'] if user_data.get('goals') else ""
             st.session_state['current_role'] = user_data.get('current_role', '')
-            st.session_state['address'] = user_data['address']
         else:
             st.error("Failed to fetch user profile.")
+
+        # Fetch address details
+        address_response = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/address_details/', headers=headers)
+        if address_response.status_code == 200:
+            address_data = address_response.json()
+            st.session_state['address'] = {
+                'street': address_data.get('street', ''),
+                'city': address_data.get('city', ''),
+                'state': address_data.get('state', ''),
+                'postalcode': address_data.get('input_postalcode', ''),
+                'country': address_data.get('country', '')
+            }
+        else:
+            st.error("Failed to fetch address details.")
 
 def toggle_chef_mode():
     # Ensure 'user_info' exists, contains 'is_chef', and user is authorized as a chef
