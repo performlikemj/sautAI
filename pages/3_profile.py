@@ -48,7 +48,7 @@ st.set_page_config(
 # Fetch and display user goals
 def fetch_and_display_goals():
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-    response = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/user_goal/', method='post', headers=headers)
+    response = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/user_goal/', method='get', headers=headers)
     if response.status_code == 200:
         goal_data = response.json()
         return goal_data if goal_data and goal_data.get('goal_name') and goal_data.get('goal_description') else None
