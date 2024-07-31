@@ -288,7 +288,7 @@ def edit_calorie_record(record_id):
                 )
                 if update_response.status_code == 200:
                     st.success("Calorie record updated successfully!")
-                    st.experimental_rerun()  # Refresh data
+                    st.rerun()  # Refresh data
                 else:
                     st.error("Failed to update calorie record")
 
@@ -714,6 +714,27 @@ def assistant():
                     # Set the flag to True so it doesn't show again in the same session
                     st.session_state['showed_user_summary'] = True
 
+        # Check if a thread was selected in history
+        if 'selected_thread_id' in st.session_state:
+            thread_id = st.session_state.selected_thread_id
+            st.session_state.thread_id = thread_id
+            st.session_state.chat_history = []
+
+            headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+            response = api_call_with_refresh(
+                url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/thread_detail/{thread_id}/',
+                method='get',
+                headers=headers
+            )
+            if response.status_code == 200:
+                chat_history = response.json().get('chat_history', [])
+                chat_history.sort(key=lambda x: x['created_at'])
+
+                for msg in chat_history:
+                    st.session_state.chat_history.append({"role": msg['role'], "content": msg['content']})
+            else:
+                st.error("Error fetching thread details.")
+
         chat_container = st.container()
         
         # Use a container to dynamically update chat messages
@@ -804,6 +825,7 @@ def assistant():
             if st.session_state.chat_history and st.button("Start New Chat"):
                 st.session_state.thread_id = None
                 st.session_state.chat_history = []
+                st.session_state.selected_thread_id = None
                 st.session_state.recommend_follow_up = []
                 chat_container.empty()
                 st.rerun()

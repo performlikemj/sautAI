@@ -135,7 +135,7 @@ def threads():
 
                     # Refresh the page after pagination button click
                     if prev_page or next_page:
-                        st.experimental_rerun()
+                        st.rerun()
 
                     # Displaying each chat thread
                     for thread in chat_threads:
@@ -147,21 +147,12 @@ def threads():
 
                         st.write(formatted_date)
 
-                        # Toggle thread detail view
+
+                        # Button to continue the conversation on the assistant page
                         if st.button(thread['title'], key=thread['id']):
-                            if st.session_state.get('selected_thread_id') == thread['openai_thread_id']:
-                                # Toggle off if the same thread is clicked again
-                                st.session_state.selected_thread_id = None
-                            else:
-                                # Show new thread details
-                                st.session_state.selected_thread_id = thread['openai_thread_id']
-                                thread_detail(thread['openai_thread_id'])
+                            st.session_state.selected_thread_id = thread['openai_thread_id']
+                            st.switch_page("pages/1_assistant.py")
 
-                        # Check if thread details should be displayed
-                        if st.session_state.get('selected_thread_id') == thread['openai_thread_id']:
-                            thread_detail(thread['openai_thread_id'])
-
-                        # Add a divider after each thread
                         st.divider()
                 else:
                     st.error("Error fetching history.")

@@ -200,7 +200,6 @@ def profile():
                                 else:
                                     st.error("Failed to update goal.")
                             fetch_and_update_user_profile()
-                            st.rerun()
                         else:
                             st.error(f"Failed to update profile: {update_response.text}")
         else:
