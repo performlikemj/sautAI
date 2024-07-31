@@ -48,7 +48,7 @@ st.set_page_config(
 # Fetch and display user goals
 def fetch_and_display_goals():
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-    response = requests.get(f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/user_goal/', headers=headers)
+    response = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/user_goal/', method='post', headers=headers)
     if response.status_code == 200:
         goal_data = response.json()
         return goal_data if goal_data and goal_data.get('goal_name') and goal_data.get('goal_description') else None
@@ -60,7 +60,7 @@ def fetch_and_display_goals():
 def update_goal(goal_name, goal_description):
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
     data = {'goal_name': goal_name, 'goal_description': goal_description}
-    response = requests.post(f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/goal_management/', headers=headers, data=data)
+    response = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/goal_management/', method='post', headers=headers, data=data)
     return response.status_code == 200
 
 def profile():
@@ -86,8 +86,8 @@ def profile():
         # Check if user is logged in
         if 'user_info' in st.session_state and st.session_state.user_info:
             headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-            user_details = requests.get(f'{os.getenv("DJANGO_URL")}/auth/api/user_details/', headers=headers)
-            address_details = requests.get(f'{os.getenv("DJANGO_URL")}/auth/api/address_details/', headers=headers)
+            user_details = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/user_details/', method='get', headers=headers)
+            address_details = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/address_details/', method='get', headers=headers)
             if user_details.status_code == 200:
                 user_data = user_details.json()
                 st.session_state.user_id = user_data.get('id')  # Set user_id in session state
