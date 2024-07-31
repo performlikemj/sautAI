@@ -715,7 +715,7 @@ def assistant():
                     st.session_state['showed_user_summary'] = True
 
         # Check if a thread was selected in history
-        if 'selected_thread_id' in st.session_state:
+        if 'selected_thread_id' in st.session_state and st.session_state.selected_thread_id not in [None, '']:
             thread_id = st.session_state.selected_thread_id
             st.session_state.thread_id = thread_id
             st.session_state.chat_history = []
@@ -763,8 +763,7 @@ def assistant():
                     f"- Goal: {st.session_state.get('goal_name', 'No specific goal')}: {st.session_state.get('goal_description', 'No description provided')}\n"
                     f"Question: {prompt}\n"
                 )
-                print(f'User details prompt: {user_details_prompt}')
-            response = chat_with_gpt(user_details_prompt, st.session_state.thread_id, user_id=user_id) if is_user_authenticated() else guest_chat_with_gpt(prompt, st.session_state.thread_id)
+            response = chat_with_gpt(prompt, st.session_state.thread_id, user_id=user_id) if is_user_authenticated() else guest_chat_with_gpt(prompt, st.session_state.thread_id)
             openai_headers = {
                 "Content-Type": "application/json",
                 "OpenAI-Beta": "assistants=v2",
