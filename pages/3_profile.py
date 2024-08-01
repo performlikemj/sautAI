@@ -108,7 +108,7 @@ def profile():
                 country_dict = {country['name']: country['code'] for country in countries_list}
                 country_names = list(country_dict.keys()) 
             else:
-                country_names = {}               
+                country_names = []               
             if is_user_authenticated():
                 # Define a container for each field
                 username_container = st.container()
