@@ -61,7 +61,7 @@ def update_goal(goal_name, goal_description):
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
     data = {'goal_name': goal_name, 'goal_description': goal_description}
     response = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/goal_management/', method='post', headers=headers, data=data)
-    return response.status_code == 200
+    return response.status_code // 100 == 2
 
 def profile():
     # Login Form
