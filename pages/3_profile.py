@@ -88,6 +88,7 @@ def profile():
             headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
             user_details = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/user_details/', method='get', headers=headers)
             address_details = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/address_details/', method='get', headers=headers)
+            countries_details = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/countries/', method='get', headers=headers)
             if user_details.status_code == 200:
                 user_data = user_details.json()
                 st.session_state.user_id = user_data.get('id')  # Set user_id in session state
@@ -99,6 +100,15 @@ def profile():
                 address_data = address_details.json()
             else:
                 address_data = {}
+
+            if countries_details.status_code == 200:
+                countries_list = countries_details.json() if countries_details.status_code == 200 else []
+
+                # Create a dictionary for easy access by country name
+                country_dict = {country['name']: country['code'] for country in countries_list}
+                country_names = list(country_dict.keys()) 
+            else:
+                country_names = {}               
             if is_user_authenticated():
                 # Define a container for each field
                 username_container = st.container()
@@ -138,7 +148,7 @@ def profile():
                     city = st.text_input("City", value=address_data.get('city', ''))
                     state = st.text_input("State", value=address_data.get('state', ''))
                     postalcode = st.text_input("Postal Code", value=address_data.get('postalcode', ''))
-                    country = st.text_input("Country", value=address_data.get('country', ''))
+                    country = st.selectbox("Country", country_names, index=country_names.index(address_data.get('country', '')))
                     # Time zone selection
                     timezones = pytz.all_timezones
                     selected_timezone = st.selectbox('Time Zone', options=timezones, index=timezones.index(user_data.get('timezone', 'UTC')))
