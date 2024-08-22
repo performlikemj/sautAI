@@ -8,46 +8,6 @@ import datetime
 
 load_dotenv()
 
-st.set_page_config(
-    page_title="sautAI - Your Diet and Nutrition Guide",
-    page_icon="🥗", 
-    initial_sidebar_state="auto",
-    menu_items={
-        'Report a bug': "mailto:support@sautai.com",
-        'About': """
-        # Welcome to sautAI 🥗
-        
-        **sautAI** is your personal diet and nutrition assistant, designed to empower you towards achieving your health and wellness goals. Here's what makes sautAI special:
-
-        - **Diverse Meal Discoveries**: Explore a vast database of dishes and meet talented chefs. Whether you're craving something specific or looking for inspiration, sautAI connects you with the perfect meal solutions.
-        
-        - **Customized Meal Planning**: Get personalized weekly meal plans that cater to your dietary preferences and nutritional needs. With sautAI, planning your meals has never been easier or more exciting.
-        
-        - **Ingredient Insights**: Navigate dietary restrictions with ease. Search for meals by ingredients or exclude specific ones to meet your dietary needs.
-        
-        - **Interactive Meal Management**: Customize your meal plans by adding, removing, or replacing meals. sautAI makes it simple to adjust your plan on the fly.
-        
-        - **Feedback & Reviews**: Share your culinary experiences and read what others have to say. Your feedback helps us refine and enhance the sautAI experience.
-        
-        - **Health & Wellness Tracking**: Monitor your health metrics, set and update goals, and receive tailored nutrition advice. sautAI is here to support your journey towards a healthier lifestyle.
-        
-        - **Local Supermarket Finder**: Discover supermarkets near you offering healthy meal options. Eating healthy is now more convenient than ever.
-        
-        - **Allergy & Dietary Alerts**: Stay informed about potential allergens in your meals. sautAI prioritizes your health and safety.
-        
-        Discover the joy of healthy eating and seamless meal planning with **sautAI**. Let's embark on this journey together.
-
-        ### Stay Connected
-        Have questions or feedback? Contact us at [support@sautai.com](mailto:support@sautai.com).
-
-        Follow us on our journey:
-        - [Instagram](@sautAI_official)
-        - [Twitter](@sautAI_official)
-        - [Report a Bug](mailto:support@sautai.com)
-        """
-    }
-)
-
 def activate_or_reset_password():
     # Login Form
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
