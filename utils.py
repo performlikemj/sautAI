@@ -149,12 +149,12 @@ def login_form():
                     logging.error(f"Unexpected error during login: {e}")
 
         if register_button:
-            st.switch_page("pages/5_register.py")
+            st.switch_page("pages/6_register.py")
 
         # Password Reset Button
         if st.button("Forgot your password?"):
             # Directly navigate to the activate page for password reset
-            st.switch_page("pages/4_account.py")
+            st.switch_page("pages/5_account.py")
 
 def fetch_and_update_user_profile():
     try:

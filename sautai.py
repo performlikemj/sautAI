@@ -56,11 +56,11 @@ st.set_page_config(
 )
 
 assistant = st.Page("pages/1_assistant.py", title="sautAI Assistant", icon="🥘")
-history = st.Page("pages/2_history.py", title="Meal History", icon="📜")
-plans = st.Page("pages/6_meal_plans.py", title="Meal Plans", icon="🍽️")
-account = st.Page("pages/4_account.py", title="My Account", icon="👤")
-register = st.Page("pages/5_register.py", title="Register", icon="📝")
-profile = st.Page("pages/3_profile.py", title="Profile", icon="📋")
+history = st.Page("pages/3_history.py", title="Meal History", icon="📜")
+plans = st.Page("pages/2_meal_plans.py", title="Meal Plans", icon="🍽️")
+account = st.Page("pages/5_account.py", title="My Account", icon="👤")
+register = st.Page("pages/6_register.py", title="Register", icon="📝")
+profile = st.Page("pages/4_profile.py", title="Profile", icon="📋")
 
 
 
@@ -109,12 +109,12 @@ def main():
                             st.error("Unable to connect to the server. Please try again later.")
                             logging.error(f"Connection error: {req_err}")
                 if register_button:
-                    st.switch_page("pages/5_register.py")
+                    st.switch_page("pages/6_register.py")
 
                 # Password Reset Button
                 if st.button("Forgot your password?"):
                     # Directly navigate to the activate page for password reset
-                    st.switch_page("pages/4_account.py")
+                    st.switch_page("pages/5_account.py")
 
         # Logout Button
         if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
@@ -185,7 +185,7 @@ def main():
             st.write("Are you ready to take control of your health? Join sautAI and start your journey towards a healthier, happier you. Whether you're preparing your own meals or connecting with local chefs for convenience, sautAI is here to support your goals.")
             if st.button("Sign Up Now"):
                 # Redirect or perform an action for registration
-                st.switch_page("pages/5_register.py")
+                st.switch_page("pages/6_register.py")
 
     except Exception as e:
         st.error("Error occurred. We're looking into it.")
