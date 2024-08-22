@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import os
 import datetime
 import logging
-from utils import login_form, toggle_chef_mode
+from utils import login_form, toggle_chef_mode, validate_input
 
 # Load environment variables and configure logging
 load_dotenv()
@@ -55,6 +55,15 @@ st.set_page_config(
     }
 )
 
+assistant = st.Page("pages/1_assistant.py", title="sautAI Assistant", icon="🥘")
+history = st.Page("pages/2_history.py", title="Meal History", icon="📜")
+plans = st.Page("pages/6_meal_plans.py", title="Meal Plans", icon="🍽️")
+account = st.Page("pages/4_account.py", title="My Account", icon="👤")
+register = st.Page("pages/5_register.py", title="Register", icon="📝")
+profile = st.Page("pages/3_profile.py", title="Profile", icon="📋")
+
+
+
 def main():
     try:
         # Login Form
@@ -68,30 +77,37 @@ def main():
                     register_button = st.form_submit_button(label="Register")
 
                 if submit_button:
-                    # Remove guest user from session state
-                    for key in list(st.session_state.keys()):
-                        del st.session_state[key]
-                    # API call to get the token
-                    response = requests.post(
-                        f'{os.getenv("DJANGO_URL")}/auth/api/login/',
-                        json={'username': username, 'password': password}
-                    )
-                    if response.status_code == 200:
-                        response_data = response.json()
-                        st.success("Logged in successfully!")
-                        # Update session state with user information
-                        st.session_state['user_info'] = response_data
-                        st.session_state['user_id'] = response_data['user_id']
-                        st.session_state['email_confirmed'] = response_data['email_confirmed']
-                        st.session_state['is_chef'] = response_data['is_chef']  # Include the is_chef attribute in the session state
-                        st.session_state['current_role'] = response_data['current_role']
-                        st.session_state['access_token'] = response_data['access']
-                        st.session_state['refresh_token'] = response_data['refresh']
-                        st.session_state['is_logged_in'] = True
-                        st.switch_page("pages/1_assistant.py")  # Rerun the script to reflect the login state
-                    else:
-                        st.error("Invalid username or password.")
-
+                    if validate_input(username, 'username') and validate_input(password, 'password'):
+                        try:
+                            # Remove guest user from session state
+                            for key in list(st.session_state.keys()):
+                                del st.session_state[key]
+                            # API call to get the token
+                            response = requests.post(
+                                f'{os.getenv("DJANGO_URL")}/auth/api/login/',
+                                json={'username': username, 'password': password}
+                            )
+                            if response.status_code == 200:
+                                response_data = response.json()
+                                st.success("Logged in successfully!")
+                                # Update session state with user information
+                                st.session_state['user_info'] = response_data
+                                st.session_state['user_id'] = response_data['user_id']
+                                st.session_state['email_confirmed'] = response_data['email_confirmed']
+                                st.session_state['is_chef'] = response_data['is_chef']  # Include the is_chef attribute in the session state
+                                st.session_state['current_role'] = response_data['current_role']
+                                st.session_state['access_token'] = response_data['access']
+                                st.session_state['refresh_token'] = response_data['refresh']
+                                st.session_state['is_logged_in'] = True
+                                st.switch_page("pages/1_assistant.py")  # Rerun the script to reflect the login state
+                            else:
+                                st.error("Invalid username or password.")
+                        except requests.exceptions.HTTPError as http_err:
+                            st.error("Invalid username or password.")
+                            logging.warning(f"Login failed: {http_err}")
+                        except requests.exceptions.RequestException as req_err:
+                            st.error("Unable to connect to the server. Please try again later.")
+                            logging.error(f"Connection error: {req_err}")
                 if register_button:
                     st.switch_page("pages/5_register.py")
 
@@ -110,7 +126,6 @@ def main():
                 st.rerun()
             # Call the toggle_chef_mode function
             toggle_chef_mode()
-            
         # Hero Section
         st.markdown("""
             <div style="text-align: center;">
@@ -124,10 +139,21 @@ def main():
             st.write("## Discover sautAI")
             st.write(
                 """
-                sautAI is designed to empower you on your journey towards achieving your health and wellness goals. 
-                Through a comprehensive suite of features, sautAI helps you explore nutritious meal options, 
-                connect with expert chefs, and manage your dietary needs effectively. Let's dive into how sautAI 
-                can enhance your lifestyle.
+                At sautAI, we believe that the key to a healthier life lies in preparation. Our app is designed to remove 
+                the friction from healthy eating by providing you with the tools and resources needed to plan, prepare, and 
+                enjoy nutritious meals effortlessly.
+                
+                sautAI is your companion in the journey towards a healthier lifestyle. Whether you're looking to maintain a 
+                balanced diet, meet specific dietary needs, or simply explore new and nutritious meal options, sautAI has you covered. 
+                We offer:
+                """
+            )
+            st.write(
+                """
+                - **Personalized Meal Planning:** Get tailored meal plans based on your dietary preferences and health goals. 
+                  With sautAI, planning your meals is both simple and enjoyable.
+                - **Health and Wellness Tracking:** Monitor your progress with tools that help you stay on track with your nutrition and fitness goals.
+                - **Dietary Management:** Easily manage dietary restrictions and preferences. sautAI makes it easy to navigate your needs, ensuring you always have the best meal options available.
                 """
             )
         
@@ -153,26 +179,17 @@ def main():
                 """
             )
         
-        # # Testimonials Section
-        # with st.container():
-        #     st.write("## What Our Users Say")
-        #     tab1, tab2 = st.tabs(["User 1", "User 2"])
-        #     with tab1:
-        #         st.write("sautAI has transformed the way I approach meal planning and nutrition.")
-        #     with tab2:
-        #         st.write("Thanks to sautAI, I'm eating healthier, feeling better, and enjoying delicious meals.")
-        
         # Call to Action Section
         with st.container():
-            st.write("## Ready to Start?")
-            st.write("Join sautAI today and take the first step towards a healthier, happier you.")
+            st.write("## Join sautAI Today")
+            st.write("Are you ready to take control of your health? Join sautAI and start your journey towards a healthier, happier you. Whether you're preparing your own meals or connecting with local chefs for convenience, sautAI is here to support your goals.")
             if st.button("Sign Up Now"):
                 # Redirect or perform an action for registration
                 st.switch_page("pages/5_register.py")
 
     except Exception as e:
         st.error("Error occurred. We're looking into it.")
-        logging.error("Error occurred", exc_info=True)  # Logs the error with traceback
+        logging.error("Error occurred", exc_info=True) 
 
 if __name__ == "__main__":
     main()
