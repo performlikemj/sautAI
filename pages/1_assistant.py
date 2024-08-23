@@ -141,7 +141,6 @@ def fetch_user_metrics(user_id):
             headers=headers,
             data={"user_id": user_id}
         )
-        response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
         st.error("Failed to fetch health metrics")
@@ -181,7 +180,6 @@ def fetch_calorie_data(user_id, selected_date):
             headers=headers,
             data={"user_id": user_id, "date": selected_date.strftime('%Y-%m-%d')}
         )
-        response.raise_for_status()
         if response.status_code == 200:
             calorie_data = response.json()
             if calorie_data:  # Check if data is not empty
@@ -249,7 +247,6 @@ def delete_calorie_record(record_id):
             f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/delete_calorie_intake/{record_id}/',
             headers=headers
         )
-        response.raise_for_status()
         st.success("Calorie record deleted successfully")
         st.rerun()
     except requests.exceptions.RequestException as e:
@@ -273,7 +270,6 @@ def add_calorie_intake(user_id, meal_name, meal_description, portion_size, selec
             data=payload,
             headers=headers
         )
-        response.raise_for_status()
         st.success("Calorie intake added successfully!")
         if response.status_code == 201:
             st.success("Calorie intake added successfully!")
@@ -308,7 +304,6 @@ def save_health_metrics(date, weight, bmi, mood, energy_level):
             data=payload,
             headers=headers
         )
-        response.raise_for_status()
         if response.status_code == 200:
             st.success("Health metrics updated!")
     except requests.exceptions.RequestException as e:
