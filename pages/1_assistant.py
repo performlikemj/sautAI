@@ -564,32 +564,43 @@ def assistant():
                 logging.info(f"New thread ID: {response['new_thread_id']}")
                 st.session_state.thread_id = response['new_thread_id']
                 start_or_continue_streaming(client, user_id, openai_headers, chat_container, user_details_prompt, prompt)
+                
                 # Fetch new follow-up recommendations from the backend
-                # headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-                # try:
-                #     follow_up_response = api_call_with_refresh(
-                #         url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/recommend_follow_up/',
-                #         method='post',
-                #         headers=headers,
-                #         data={"user_id": user_id, "context": prompt}
-                #     )
-                #     logging.info(f"Follow-up response status: {follow_up_response.status_code}")
-                #     logging.info(f"Follow-up response content: {follow_up_response.content}")
-                # except requests.exceptions.RequestException as e:
-                #     logging.error(f"Error fetching follow-up recommendations: {e}")
-                #     follow_up_response = None
+                headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                try:
+                    follow_up_response = api_call_with_refresh(
+                        url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/recommend_follow_up/',
+                        method='post',
+                        headers=headers,
+                        data={"user_id": user_id, "context": prompt}
+                    )
+                    logging.info(f"Follow-up response status: {follow_up_response.status_code}")
+                    logging.info(f"Follow-up response content: {follow_up_response.content}")
+                except requests.exceptions.RequestException as e:
+                    logging.error(f"Error fetching follow-up recommendations: {e}")
+                    follow_up_response = None
 
-                # # Parse the JSON string into a dictionary
-                # if follow_up_response and follow_up_response.status_code == 200:
-                #     follow_up_data = follow_up_response.json()
-                #     logging.info(f"Follow-up data: {follow_up_data}")
-                #     if isinstance(follow_up_data, list) and len(follow_up_data) > 0:
-                #         recommend_prompt_json = follow_up_data[0]
-                #         st.session_state.recommend_follow_up = json.loads(recommend_prompt_json)
-                #     else:
-                #         logging.error("No valid follow-up data received.")
-                # else:
-                #     logging.error(f"Failed to fetch follow-up recommendations, response: {follow_up_response}")
+                # Parse the JSON string into a dictionary
+                if follow_up_response and follow_up_response.status_code == 200:
+                    follow_up_data = follow_up_response.json()
+                    logging.info(f"Follow-up data: {follow_up_data}")
+                    
+                    # Ensure the follow-up data is not empty and contains valid recommendations
+                    if isinstance(follow_up_data, list) and len(follow_up_data) > 0:
+                        recommend_prompt_json = follow_up_data[0]
+                        recommend_follow_up = json.loads(recommend_prompt_json)
+                        # Check if the follow-up contains items
+                        if 'items' in recommend_follow_up and len(recommend_follow_up['items']) > 0:
+                            st.session_state.recommend_follow_up = recommend_follow_up
+                        else:
+                            st.session_state.recommend_follow_up = []
+                            logging.info("Follow-up data is empty or has no valid items.")
+                    else:
+                        st.session_state.recommend_follow_up = []
+                        logging.error("No valid follow-up data received.")
+                else:
+                    st.session_state.recommend_follow_up = []
+                    logging.error(f"Failed to fetch follow-up recommendations, response: {follow_up_response}")
 
             elif response and 'last_assistant_message' in response:
                 st.session_state.thread_id = response['new_thread_id']
@@ -611,17 +622,15 @@ def assistant():
 
 
 
-            if st.session_state.recommend_follow_up:
-                print(f'Recommend Follow-Up: {st.session_state.recommend_follow_up}')
+            # Later, when displaying the recommendations
+            if st.session_state.recommend_follow_up and 'items' in st.session_state.recommend_follow_up and len(st.session_state.recommend_follow_up['items']) > 0:
                 with st.container():
                     st.write("Recommended Follow-Ups:")
                     for index, item in enumerate(st.session_state.recommend_follow_up['items']):
-                        # Combine title and recommendation
                         follow_up_text = f"{item.get('recommendation', '')}"
-                        # Ensure a unique key for each button
                         st.button(follow_up_text, key=f"{follow_up_text}_{index}", on_click=lambda follow_up_text=follow_up_text: process_user_input(follow_up_text, chat_container))
             else:
-                logging.error("No 'items' found in the recommend_follow_up data.")
+                logging.info("No follow-up recommendations to display.")
 
             # if st.session_state.recommend_prompt:
             #     with st.container():
