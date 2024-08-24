@@ -141,7 +141,8 @@ def fetch_user_metrics(user_id):
             headers=headers,
             data={"user_id": user_id}
         )
-        return response.json()
+        if response and response.status_code == 200:
+            return response.json()
     except requests.exceptions.RequestException as e:
         st.error("Failed to fetch health metrics")
         logging.error(f"Error fetching health metrics: {e}")
@@ -180,7 +181,7 @@ def fetch_calorie_data(user_id, selected_date):
             headers=headers,
             data={"user_id": user_id, "date": selected_date.strftime('%Y-%m-%d')}
         )
-        if response.status_code == 200:
+        if response and response.status_code == 200:
             calorie_data = response.json()
             if calorie_data:  # Check if data is not empty
                 return calorie_data
@@ -247,7 +248,8 @@ def delete_calorie_record(record_id):
             f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/delete_calorie_intake/{record_id}/',
             headers=headers
         )
-        st.success("Calorie record deleted successfully")
+        if response and response.status_code == 204:
+            st.success("Calorie record deleted successfully")
         st.rerun()
     except requests.exceptions.RequestException as e:
         st.error("Failed to delete calorie record")
@@ -271,7 +273,7 @@ def add_calorie_intake(user_id, meal_name, meal_description, portion_size, selec
             headers=headers
         )
         st.success("Calorie intake added successfully!")
-        if response.status_code == 201:
+        if response and response.status_code == 201:
             st.success("Calorie intake added successfully!")
         else:
             st.error(f"Failed to add calorie intake: {response.text}")
@@ -304,7 +306,7 @@ def save_health_metrics(date, weight, bmi, mood, energy_level):
             data=payload,
             headers=headers
         )
-        if response.status_code == 200:
+        if response and response.status_code == 200:
             st.success("Health metrics updated!")
     except requests.exceptions.RequestException as e:
         st.error("Failed to update health metrics")
