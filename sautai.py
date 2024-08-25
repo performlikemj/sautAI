@@ -62,7 +62,11 @@ account = st.Page("pages/5_account.py", title="My Account", icon="👤")
 register = st.Page("pages/6_register.py", title="Register", icon="📝")
 profile = st.Page("pages/4_profile.py", title="Profile", icon="📋")
 
-
+st.logo(
+    "images/sautai_logo.png",
+    link="https://sautai.com",
+    icon_image="images/sautai_icon.png",
+)
 
 def main():
     try:
