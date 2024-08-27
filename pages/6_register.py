@@ -127,19 +127,20 @@ def register():
                     with st.spinner("Registering your account..."):
                         api_url = f"{os.getenv('DJANGO_URL')}/auth/api/register/"
                         response = requests.post(api_url, json=user_data, timeout=10)
-                                        
+                    print(response.status_code)                    
                     if response.status_code == 200:
                         st.success("Registration successful!")
                         st.info("Please check your email to activate your account.")
-                        st.experimental_rerun()  # Reset the page
-                    elif response.status_code == 400:
+                        st.rerun()  # Reset the page
+                    if response.status_code == 400:
                         errors = response.json().get('errors', {})
-                        if 'username' in errors:
-                            st.error(errors['username'][0])
-                        elif 'email' in errors:
-                            st.error("A user with that information already exists.")
-                    else:
-                        st.error("Registration failed. Please try again.")
+                        if isinstance(errors, dict):
+                            for field, messages in errors.items():
+                                # Display the actual error message received from the backend
+                                st.error(f"{field}: {', '.join(messages)}")
+                        else:
+                            # Check for specific known issues before falling back to a generic error
+                            st.error("An error occurred during registration. Please check your input and try again.")
                 except requests.exceptions.RequestException as e:
                     st.error("Failed to register due to a network issue. Please try again later.")
                     logging.error(f"Registration network error: {e}")
