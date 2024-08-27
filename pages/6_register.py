@@ -127,11 +127,10 @@ def register():
                     with st.spinner("Registering your account..."):
                         api_url = f"{os.getenv('DJANGO_URL')}/auth/api/register/"
                         response = requests.post(api_url, json=user_data, timeout=10)
-                    print(response.status_code)                    
                     if response.status_code == 200:
                         st.success("Registration successful!")
                         st.info("Please check your email to activate your account.")
-                        st.rerun()  # Reset the page
+                        st.switch_page("sautai.py")
                     if response.status_code == 400:
                         errors = response.json().get('errors', {})
                         if isinstance(errors, dict):
