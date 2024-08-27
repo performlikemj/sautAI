@@ -92,11 +92,17 @@ def calorie_intake_form(selected_date=None):
 
         submit_button = st.form_submit_button(label='Submit')
         if submit_button:
-            user_id = st.session_state.get('user_id')
-            meal_name = st.session_state['meal_name']
-            meal_description = st.session_state['meal_description']
-            selected_date_combined = local_tz.localize(dt.datetime.combine(selected_date_input, dt.datetime.min.time()))
-            add_calorie_intake(user_id, meal_name, meal_description, portion_size, selected_date_combined)
+            try:
+                user_id = st.session_state.get('user_id')
+                meal_name = st.session_state['meal_name']
+                meal_description = st.session_state['meal_description']
+                selected_date_combined = local_tz.localize(dt.datetime.combine(selected_date_input, dt.datetime.min.time()))
+                add_calorie_intake(user_id, meal_name, meal_description, portion_size, selected_date_combined)
+            except requests.exceptions.RequestException:
+                st.error("Failed to connect to the server. Please try again later.")
+            except Exception as e:
+                logging.error(f"Error adding calorie intake: {e}")
+                st.error("An unexpected error occurred. Please check your inputs and try again.")            
 
     open_modal_button = st.button("Understand Portion Sizes?", key="open-portion-size-info")
     if open_modal_button:
@@ -276,7 +282,6 @@ def add_calorie_intake(user_id, meal_name, meal_description, portion_size, selec
             data=payload,
             headers=headers
         )
-        st.success("Calorie intake added successfully!")
         if response and response.status_code == 201:
             st.success("Calorie intake added successfully!")
         else:
@@ -415,11 +420,16 @@ def health_metrics_form():
 
         submit_button = st.form_submit_button(label='Submit')
         if submit_button:
-            weight = weight if weight != 0.0 else None
-            bmi = bmi if bmi != 0.0 else None
-            date_to_save = local_tz.localize(dt.datetime.combine(date_input, dt.datetime.min.time()))  # Localize to user's timezone
-            save_health_metrics(date_to_save, weight, bmi, mood, energy_level)
-
+            try: 
+                weight = weight if weight != 0.0 else None
+                bmi = bmi if bmi != 0.0 else None
+                date_to_save = local_tz.localize(dt.datetime.combine(date_input, dt.datetime.min.time()))  # Localize to user's timezone
+                save_health_metrics(date_to_save, weight, bmi, mood, energy_level)
+            except requests.exceptions.RequestException:
+                st.error("Failed to connect to the server. Please try again later.")
+            except Exception as e:
+                logging.error(f"Error adding calorie intake: {e}")
+                st.error("An unexpected error occurred. Please check your inputs and try again.")
 
 @st.fragment
 def assistant():
