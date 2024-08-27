@@ -63,16 +63,13 @@ def calorie_intake_form(selected_date=None):
     # Get the current date and time in the user's time zone
     local_date = dt.datetime.now(local_tz).date()
 
-    # Use selected_date if provided, else default to local_date
-    if selected_date is not None:
-        selected_date = selected_date
-    else:
+    # Use the provided selected_date or fall back to local_date
+    if selected_date is None:
         selected_date = local_date
 
-
     with st.form(key='calorie_intake_form'):
-        # Convert selected_date to the user's time zone
-        selected_date_input = st.date_input("Date", value=selected_date, key='calorie_date')
+        # Date input for the form
+        selected_date_input = st.date_input("Date", value=selected_date)
         st.text_input("Meal Name", key='meal_name')
         st.text_area("Meal Description", key='meal_description')
 
@@ -86,20 +83,25 @@ def calorie_intake_form(selected_date=None):
         }
         
         # Use a selectbox for portion size
-        portion_size = st.selectbox("Portion Size", options=list(portion_size_options.keys()), format_func=lambda x: portion_size_options[x], key='portion_size')
+        portion_size = st.selectbox(
+            "Portion Size", 
+            options=list(portion_size_options.keys()), 
+            format_func=lambda x: portion_size_options[x], 
+            key='portion_size'
+        )
 
         submit_button = st.form_submit_button(label='Submit')
         if submit_button:
             user_id = st.session_state.get('user_id')
             meal_name = st.session_state['meal_name']
             meal_description = st.session_state['meal_description']
-            selected_date = st.session_state['calorie_date']
-            selected_date = local_tz.localize(dt.combine(selected_date_input, dt.min.time()))  # Localize to user's timezone
-            add_calorie_intake(user_id, meal_name, meal_description, portion_size, selected_date)
+            selected_date_combined = local_tz.localize(dt.datetime.combine(selected_date_input, dt.datetime.min.time()))
+            add_calorie_intake(user_id, meal_name, meal_description, portion_size, selected_date_combined)
 
     open_modal_button = st.button("Understand Portion Sizes?", key="open-portion-size-info")
     if open_modal_button:
         show_portion_size_dialog()
+
 
 
 @st.fragment
@@ -257,12 +259,14 @@ def delete_calorie_record(record_id):
 
 def add_calorie_intake(user_id, meal_name, meal_description, portion_size, selected_date):
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+    # Format the date as a string
+    formatted_date = selected_date.strftime('%Y-%m-%d')
     payload = {
         "user_id": user_id,
         "meal_name": meal_name,
         "meal_description": meal_description,
         "portion_size": portion_size,
-        "date_recorded": selected_date.strftime('%Y-%m-%d'),
+        "date_recorded": formatted_date ,
     }
 
     try:
