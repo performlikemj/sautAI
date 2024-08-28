@@ -174,7 +174,6 @@ def show_latest_metrics():
     if latest_metrics:
         weight_display = float(latest_metrics['weight']) if st.session_state['weight_unit'] == 'kg' else np.round(float(latest_metrics['weight']) * 2.20462, 2)
         st.markdown(f"**Latest Weight:** {weight_display} {st.session_state['weight_unit']}")
-        st.markdown(f"**Latest BMI:** {latest_metrics['bmi']}")
         st.markdown(f"**Current Mood:** {latest_metrics['mood']}")
         st.markdown(f"**Energy Level:** {latest_metrics['energy_level']}")
     else:
@@ -293,7 +292,7 @@ def add_calorie_intake(user_id, meal_name, meal_description, portion_size, selec
 
 
 
-def save_health_metrics(date, weight, bmi, mood, energy_level):
+def save_health_metrics(date, weight, mood, energy_level):
     user_id = st.session_state.get('user_id')
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
 
@@ -304,7 +303,6 @@ def save_health_metrics(date, weight, bmi, mood, energy_level):
         "id": user_id,
         "date_recorded": formatted_date,  # Use the formatted string
         "weight": weight,
-        "bmi": bmi,
         "mood": mood,
         "energy_level": energy_level
     }
@@ -322,14 +320,26 @@ def save_health_metrics(date, weight, bmi, mood, energy_level):
         logging.error(f"Error updating health metrics: {e}")
 
 
-
-
+@st.fragment
 def visualize_health_metrics_as_static_table():
+    # Allow users to select their preferred weight unit
+    weight_unit = st.radio("Select Weight Unit", ('kg', 'lbs'))
+    st.session_state['weight_unit'] = weight_unit
+
     user_id = st.session_state.get('user_id')
     health_metrics = fetch_user_metrics(user_id)
 
     if isinstance(health_metrics, list) and health_metrics:
         df = pd.DataFrame(health_metrics)
+
+        # Ensure the weight column is numeric, converting if necessary
+        df['weight'] = pd.to_numeric(df['weight'], errors='coerce')
+
+        # Convert the weight to the selected unit and format to two decimal places
+        if st.session_state['weight_unit'] == 'lbs':
+            df['weight'] = df['weight'].apply(lambda x: f"{x * 2.20462:.2f}")
+        else:
+            df['weight'] = df['weight'].apply(lambda x: f"{x:.2f}")
 
         # Pagination
         items_per_page = 10  # You can adjust this value
@@ -340,7 +350,7 @@ def visualize_health_metrics_as_static_table():
         end_index = start_index + items_per_page
         paginated_df = df.iloc[start_index:end_index]
 
-        st.table(paginated_df[['date_recorded', 'weight', 'bmi', 'mood', 'energy_level']])
+        st.table(paginated_df[['date_recorded', 'weight', 'mood', 'energy_level']])
 
         # Page navigation
         col1, col2 = st.columns(2)
@@ -354,6 +364,8 @@ def visualize_health_metrics_as_static_table():
                     st.session_state.page_number += 1
     else:
         st.info("No health metrics data available to display.")
+
+
 
 def plot_metric_trend(metric_name, df, selected_range):
     """
@@ -375,7 +387,6 @@ def plot_metric_trends(metric_trends):
     if metric_trends and isinstance(metric_trends, list) and isinstance(metric_trends[0], dict):
         df = pd.DataFrame(metric_trends)
         df['weight'] = pd.to_numeric(df['weight'], errors='coerce')
-        df['bmi'] = pd.to_numeric(df['bmi'], errors='coerce')
         df['date'] = pd.to_datetime(df['date_recorded']).dt.normalize()
         df.set_index('date', inplace=True)
 
@@ -390,7 +401,6 @@ def plot_metric_trends(metric_trends):
         else:
             selected_range = (start_date, end_date)
             plot_metric_trend('weight', df, selected_range)
-            plot_metric_trend('bmi', df, selected_range)
             plot_metric_trend('energy_level', df, selected_range)
     else:
         st.warning("No metric trends available to display.")
@@ -414,7 +424,6 @@ def health_metrics_form():
         date_input = st.date_input("Date", value=local_date)
         weight_input = st.number_input(f"Weight ({st.session_state['weight_unit']})", min_value=0.0, format="%.2f")
         weight = weight_input if st.session_state['weight_unit'] == 'kg' else np.round(weight_input / 2.20462, 2)
-        bmi = st.number_input("BMI", min_value=0.0, format="%.2f")
         mood = st.selectbox("Mood", ["Happy", "Sad", "Stressed", "Relaxed", "Energetic", "Tired", "Neutral"])
         energy_level = st.slider("Energy Level", 1, 10, 5)
 
@@ -422,9 +431,8 @@ def health_metrics_form():
         if submit_button:
             try: 
                 weight = weight if weight != 0.0 else None
-                bmi = bmi if bmi != 0.0 else None
                 date_to_save = local_tz.localize(dt.datetime.combine(date_input, dt.datetime.min.time()))  # Localize to user's timezone
-                save_health_metrics(date_to_save, weight, bmi, mood, energy_level)
+                save_health_metrics(date_to_save, weight, mood, energy_level)
             except requests.exceptions.RequestException:
                 st.error("Failed to connect to the server. Please try again later.")
             except Exception as e:
