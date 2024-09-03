@@ -82,6 +82,63 @@ def api_call_with_refresh(url, method='get', data=None, headers=None):
 def is_user_authenticated():
     return 'user_info' in st.session_state and 'access' in st.session_state.user_info
 
+
+# Function to check summary status
+def check_summary_status(user_id, headers, max_attempts=10):
+    attempts = 0
+    try:
+        while attempts < max_attempts:
+            response = api_call_with_refresh(
+                url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/user_summary_status/',
+                method='get',
+                headers=headers,
+                data={"user_id": user_id}
+            )
+            if response.status_code == 200:
+                data = response.json()
+                status = data.get('status', 'error')
+                if status == 'completed':
+                    return 'completed'
+                elif status == 'error':
+                    return 'error'
+            attempts += 1
+            time.sleep(5)  # Wait before retrying
+        return 'timeout'
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Request error in check_summary_status: {e}")
+        st.error("A network error occurred. Please check your connection and try again.")
+        return 'error'
+    except Exception as e:
+        logging.error(f"Exception in check_summary_status: {e}")
+        st.error("An unexpected error occurred. Please try again later.")
+        return 'error'
+
+def get_user_summary(user_id, headers):
+    try:
+        status = check_summary_status(user_id, headers)
+        if status == 'completed':
+            response = api_call_with_refresh(
+                url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/user_summary/',
+                method='get',
+                headers=headers,
+                data={"user_id": user_id}
+            )
+            if response.status_code == 200:
+                return response.json()  # Return the summary data
+        elif status == 'error':
+            st.error("An error occurred while generating the summary.")
+        elif status == 'timeout':
+            st.warning("Summary generation is taking longer than expected. Please try again later.")
+        return None
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Request error in get_user_summary: {e}")
+        st.error("A network error occurred. Please check your connection and try again.")
+        return None
+    except Exception as e:
+        logging.error(f"Exception in get_user_summary: {e}")
+        st.error("An unexpected error occurred. Please try again later.")
+        return None
+
 def switch_user_role():
     try:
         # This function will call your Django backend to switch the user's role
@@ -154,6 +211,22 @@ def login_form():
         if st.button("Forgot your password?"):
             # Directly navigate to the activate page for password reset
             st.switch_page("pages/5_account.py")
+
+def resend_activation_link(user_id):
+    try:
+        headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+        response = api_call_with_refresh(
+            method='post', 
+            url = f'{os.getenv("DJANGO_URL")}/auth/api/resend-activation-link/',
+            data ={'user_id': user_id},
+            headers=headers
+        )
+        response.raise_for_status()
+        if response.status_code == 200:
+            st.success("A new activation link has been sent to your email.")
+    except requests.exceptions.RequestException as e:
+        st.error("Failed to resend activation link. Please try again later.")
+        logging.error(f"Error resending activation link: {e}")
 
 def fetch_and_update_user_profile():
     try:

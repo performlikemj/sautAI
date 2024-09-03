@@ -10,8 +10,9 @@ import openai
 from openai import OpenAIError
 from utils import (api_call_with_refresh, is_user_authenticated, login_form, 
                    toggle_chef_mode, guest_chat_with_gpt, chat_with_gpt, EventHandler, start_or_continue_streaming,
-                   openai_headers, client)
+                   openai_headers, client, get_user_summary, resend_activation_link)
 import numpy as np
+import time
 import logging
 
 # Set up logging
@@ -469,10 +470,11 @@ def assistant():
         if 'recommend_prompt' not in st.session_state:
             st.session_state.recommend_prompt = ""
 
-        # Additional functionalities for authenticated users not in chef mode
-        if 'is_logged_in' in st.session_state and st.session_state['is_logged_in'] and st.session_state.get('current_role', '') != 'chef':
 
-            if is_user_authenticated():
+        # Check if the user is authenticated and email is confirmed
+        if is_user_authenticated() and st.session_state.get('email_confirmed', False):
+            # Additional functionalities for authenticated users not in chef mode
+            if st.session_state.get('current_role', '') != 'chef':
                 with st.expander("Calorie Intake and Data", expanded=False):
                     # Row 1: Calorie Intake Form
                     st.subheader("Calorie Intake")
@@ -501,30 +503,28 @@ def assistant():
                         metric_trends = fetch_user_metrics(user_id)
                         plot_metric_trends(metric_trends)
 
-
             if not st.session_state.get('showed_user_summary', False):
-                headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-                user_summary_response = api_call_with_refresh(
-                    url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/user_summary/',
-                    method='get',
-                    headers=headers,
-                    data={"user_id": st.session_state.get('user_id')}
-                )
-                if user_summary_response.status_code == 200:
-                    # Extract the summary text from the response
-                    data = user_summary_response.json()  # Parse the JSON response
-                    user_summary = data['data'][0]['content'][0]['text']['value']
-                    recommend_prompt = data.get('recommend_prompt', '')
-                    # Debugging: Print out the data types and content
+                with st.spinner("Grabbing your health summary..."):
+                    headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                    summary_data = get_user_summary(st.session_state.get('user_id'), headers)
 
-                    # Append the summary to the chat history
-                    st.session_state.chat_history.append({"role": "assistant", "content": user_summary})
-                    if isinstance(recommend_prompt, list) and len(recommend_prompt) > 0:
-                        # Parse the JSON string into a dictionary
-                        recommend_prompt_json = recommend_prompt[0]
-                        st.session_state.recommend_follow_up = json.loads(recommend_prompt_json)
-                    # Set the flag to True so it doesn't show again in the same session
-                    st.session_state['showed_user_summary'] = True
+                    if summary_data:
+                        user_summary = summary_data['data'][0]['content'][0]['text']['value']
+                        recommend_prompt = summary_data.get('recommend_prompt', '')
+
+                        st.session_state.chat_history.append({"role": "assistant", "content": user_summary})
+                        if isinstance(recommend_prompt, list) and len(recommend_prompt) > 0:
+                            recommend_prompt_json = recommend_prompt[0]
+                            st.session_state.recommend_follow_up = json.loads(recommend_prompt_json)
+                        st.session_state['showed_user_summary'] = True
+
+        # If email is not confirmed, restrict access and prompt to resend activation link
+        elif is_user_authenticated() and not st.session_state.get('email_confirmed', False):
+            st.warning("Your email address is not confirmed. Please confirm your email to access all features.")
+            if st.button("Resend Activation Link"):
+                resend_activation_link(st.session_state['user_id'])
+                st.rerun()
+
 
         # Check if a thread was selected in history
         if 'selected_thread_id' in st.session_state and st.session_state.selected_thread_id not in [None, '']:
@@ -577,7 +577,7 @@ def assistant():
                     f"- Goal: {st.session_state.get('goal_name', 'No specific goal')}: {st.session_state.get('goal_description', 'No description provided')}\n"
                     f"Question: {prompt}\n"
                 )
-            response = chat_with_gpt(prompt, st.session_state.thread_id, user_id=user_id) if is_user_authenticated() else guest_chat_with_gpt(prompt, st.session_state.thread_id)
+            response = chat_with_gpt(user_details_prompt, st.session_state.thread_id, user_id=user_id) if is_user_authenticated() else guest_chat_with_gpt(prompt, st.session_state.thread_id)
         
             if response and 'new_thread_id' in response:
                 logging.info(f"New thread ID: {response['new_thread_id']}")
