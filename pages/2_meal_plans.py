@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from utils import (api_call_with_refresh, login_form, toggle_chef_mode, 
-                   start_or_continue_streaming, client, openai_headers, guest_chat_with_gpt, chat_with_gpt, is_user_authenticated)
+                   start_or_continue_streaming, client, openai_headers, guest_chat_with_gpt, chat_with_gpt, is_user_authenticated, resend_activation_link)
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
@@ -15,12 +15,25 @@ logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %
 load_dotenv()
 
 def meal_plans():
+
+    # Logout Button
+    if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
+        if st.button("Logout", key='form_logout'):
+            # Clear session state as well
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.success("Logged out successfully!")
+            st.rerun()
+        # Call the toggle_chef_mode function
+        toggle_chef_mode()
     try:    
         if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
             login_form()
 
-        if 'current_role' in st.session_state and st.session_state['current_role'] != 'chef':
-            st.title("Your Meal Plans")
+        # Check if the user is logged in and their email is confirmed
+        if is_user_authenticated() and st.session_state.get('email_confirmed', False):
+            if 'current_role' in st.session_state and st.session_state['current_role'] != 'chef':
+                st.title("Your Meal Plans")
             
             if 'selected_week_start' not in st.session_state:
                 st.session_state.selected_week_start = datetime.now().date() - timedelta(days=datetime.now().date().weekday())
@@ -278,6 +291,12 @@ def meal_plans():
             else:
                 logging.error(f"Failed to fetch meal plans. Status code: {response.status_code}, Response: {response.text}")
                 st.error("Error fetching meal plans.")
+
+        # If the email is not confirmed, restrict access and prompt to resend activation link
+        elif is_user_authenticated() and not st.session_state.get('email_confirmed', False):
+            st.warning("Your email address is not confirmed. Please confirm your email to access all features.")
+            if st.button("Resend Activation Link"):
+                resend_activation_link(st.session_state['user_id'])
 
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")

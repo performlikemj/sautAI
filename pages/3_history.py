@@ -4,7 +4,7 @@ import requests
 from dotenv import load_dotenv
 load_dotenv()
 import os
-from utils import api_call_with_refresh, login_form, toggle_chef_mode
+from utils import api_call_with_refresh, login_form, toggle_chef_mode, resend_activation_link
 from datetime import datetime
 import logging
 
@@ -58,6 +58,12 @@ def threads():
 
         try:
             if 'is_logged_in' in st.session_state and st.session_state.is_logged_in:
+                # Check if the user's email is confirmed
+                if not st.session_state.get('email_confirmed', False):
+                    st.warning("Your email address is not confirmed. Please confirm your email to access your chat history.")
+                    if st.button("Resend Activation Link"):
+                        resend_activation_link(st.session_state['user_id'])
+                    return
                 # Initialize or update current page in session state
                 current_page = st.session_state.get('current_page', 1)
             
