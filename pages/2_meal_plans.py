@@ -6,6 +6,8 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import logging
+import math
+import json
 
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[
     logging.FileHandler("error.log"),
@@ -161,10 +163,11 @@ def meal_plans():
                     old_meal_ids = selected_data['meal_id'].tolist()                    
                     days_of_meal = selected_data['Day'].tolist()
                     meal_types = selected_data['Meal Type'].tolist()
-
+                    preferred_language = st.session_state.user_info.get('preferred_language', 'English')
                     # Formatting the user details prompt
                     user_details_prompt = (
                         f"Consider the following user details when changing the user's meals:\n"
+                        f"- Answering in the user's preferred language: {preferred_language}\n"
                         f"- The meal plan id: {meal_plan_id}\n"
                         f"- The current/old meal id(s): {', '.join(map(str, old_meal_ids))}\n"  # Convert meal IDs to string and join
                         f"- The day(s) of the meal: {', '.join(days_of_meal)}\n"
@@ -184,66 +187,60 @@ def meal_plans():
                     start_or_continue_streaming(client, user_id=st.session_state.user_info['user_id'], openai_headers=openai_headers, chat_container=None, user_details_prompt=user_details_prompt, prompt=prompt, change_meals=True) 
                     st.rerun()
 
+
+
                 if st.button('Generate Cooking Instructions'):
                     selected_meals = selected_rows[selected_rows['Select']]
-                    # Drop the 'Select' column from the result
-                    selected_data = selected_meals.drop('Select', axis=1)  # Removes the 'Select' column from the selected rows
-                    # Extracting relevant information
-                    meal_plan_meal_ids = selected_data['Meal Plan Meal ID'].tolist()  # Assuming you have the correct ID
+                    selected_data = selected_meals.drop('Select', axis=1)
+
+                    # Extract meal_plan_meal_ids
+                    meal_plan_meal_ids = selected_data['Meal Plan Meal ID'].tolist()
+
+                    # Ensure that meal_plan_meal_ids is not empty before making the API call
+                    if not meal_plan_meal_ids:
+                        st.error("No meals selected. Please select meals before generating instructions.")
+                        return
 
                     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
                     payload = {'meal_plan_meal_ids': meal_plan_meal_ids}
 
-
                     try:
+                        # First, initiate the cooking instruction generation
                         with st.spinner("Generating cooking instructions..."):
-                            response = api_call_with_refresh(
+                            generation_response = api_call_with_refresh(
                                 url=f'{os.getenv("DJANGO_URL")}/meals/api/generate_cooking_instructions/',
                                 method='post',
                                 headers=headers,
-                                data=payload, 
-                            )
-                    except Exception as e:
-                        logging.error(f"Failed to generate cooking instructions: {e}")
-                        st.error("Failed to generate cooking instructions. Please try again.")
-                        return
-                    
-                    if response.status_code == 200:
-                        st.success("Cooking instructions generation initiated successfully.")
-                        
-                        # Fetch and display the instructions
-                        response = api_call_with_refresh(
-                            url=f'{os.getenv("DJANGO_URL")}/meals/api/fetch_instructions/?meal_plan_meal_ids=' + ','.join(map(str, meal_plan_meal_ids)),
-                            method='get',
-                            headers=headers,
-                        )
-
-                        if response.status_code == 200:                            
-                            # Fetch and display the instructions
-                            response = api_call_with_refresh(
-                                url=f'{os.getenv("DJANGO_URL")}/meals/api/fetch_instructions/?meal_plan_meal_ids=' + ','.join(map(str, meal_plan_meal_ids)),
-                                method='get',
-                                headers=headers,
+                                data=payload
                             )
 
-                            if response.status_code == 200:
-                                instructions = response.json().get('instructions', [])
-                                instructions_available = False
-                                
-                                for instruction in instructions:
-                                    if instruction['instructions']:
-                                        instructions_available = True
-                                        st.text(f"Instructions for MealPlanMeal ID {instruction['meal_plan_meal_id']}:")
-                                        st.text(instruction['instructions'])
-                                    else:
-                                        st.text(f"No instructions available yet for MealPlanMeal ID {instruction['meal_plan_meal_id']}.")
+                        # Check if response is valid
+                        if generation_response.status_code == 200:
+                            st.success("Cooking instructions generation initiated successfully.")
 
-                                if not instructions_available:
-                                    st.info("Instructions are being generated and will be emailed to you once ready.")
+                            # Fetch the generated instructions
+                            with st.spinner("Fetching cooking instructions..."):
+                                fetch_response = api_call_with_refresh(
+                                    url=f'{os.getenv("DJANGO_URL")}/meals/api/fetch_instructions/?meal_plan_meal_ids=' + ','.join(map(str, meal_plan_meal_ids)),
+                                    method='get',
+                                    headers=headers,
+                                )
+
+                            if fetch_response.status_code == 200:
+                                st.session_state['instructions'] = fetch_response.json().get('instructions', [])
+
+                                if not st.session_state['instructions']:
+                                    st.info("No instructions available yet. Please check back later.")
+                                else:
+                                    display_instructions_pagination()
                             else:
-                                st.error(f"Error: {response.json().get('error', 'Unknown error occurred.')}")
+                                st.error(f"Error fetching instructions: {fetch_response.json().get('error', 'Unknown error occurred.')}")
                         else:
-                            st.error(f"Error: {response.json().get('error', 'Unknown error occurred.')}")
+                            st.error(f"Error generating instructions: {generation_response.json().get('error', 'Unknown error occurred.')}")
+                    except Exception as e:
+                        logging.error(f"Failed to generate or fetch cooking instructions: {e}")
+                        st.error("Failed to generate or fetch cooking instructions. Please try again.")
+
 
                 # Approve Meal Plan Button
                 if st.button('Approve Meal Plan', disabled=is_past_week):
@@ -301,6 +298,50 @@ def meal_plans():
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
         st.error("An unexpected error occurred. Please try again later.")
+
+# Fragment to handle instructions display and pagination
+@st.fragment
+def display_instructions_pagination():
+    instructions = st.session_state.get('instructions', [])
+    
+    if not instructions:
+        st.error("No instructions available.")
+        return
+    
+    # Total number of meals for pagination
+    num_meals = len(instructions)
+
+    # Add a pagination control for meals
+    current_meal_idx = st.selectbox(f"Select Meal", range(num_meals), format_func=lambda i: f"Meal Plan Meal ID {instructions[i]['meal_plan_meal_id']}")
+
+    # Display only the selected meal's instructions
+    selected_meal_instructions = instructions[current_meal_idx]
+    meal_plan_meal_id = selected_meal_instructions.get('meal_plan_meal_id')
+    instructions_json_str = selected_meal_instructions.get('instructions')
+
+    if instructions_json_str:
+        try:
+            # Deserialize the JSON string into a dictionary
+            instructions_data = json.loads(instructions_json_str)
+            steps = instructions_data.get('steps')
+
+            if steps:
+                # Display the selected meal's instructions
+                st.subheader(f"Instructions for Meal Plan Meal ID {meal_plan_meal_id}")
+                for step in steps:
+                    step_number = step.get('step_number', 'Unknown')
+                    description = step.get('description', 'No description available')
+                    duration = step.get('duration', 'No duration')
+
+                    # Display each step with markdown
+                    st.markdown(f"**Step {step_number}:** {description}")
+                    st.markdown(f"**Duration:** {duration}")
+
+        except json.JSONDecodeError as e:
+            st.error(f"Failed to parse instructions for MealPlanMeal ID {meal_plan_meal_id}.")
+            logging.error(f"JSONDecodeError: {str(e)}")
+    else:
+        st.warning(f"Instructions not yet available for Meal Plan Meal ID {meal_plan_meal_id}.")
 
 if __name__ == "__main__":
     meal_plans()
