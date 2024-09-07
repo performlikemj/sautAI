@@ -557,41 +557,39 @@ def assistant():
             user_id = st.session_state.get('user_id')
             if st.session_state.recommend_follow_up: 
                 st.session_state.recommend_follow_up = []
+            
             # Update chat history immediately with the follow-up prompt
             st.session_state.chat_history.append({"role": "user", "content": prompt})
             with chat_container.chat_message("user"):
                 st.markdown(prompt)
+            
             # Send the prompt to the backend and get a message ID
             if is_user_authenticated():
                 # Determine the location detail to use (country or timezone)
                 location = st.session_state.get('country', st.session_state.get('timezone', 'UTC'))
-                # Ensure proper formatting for list-based session state values
-                custom_allergies = st.session_state.get('custom_allergies', [])
-                formatted_custom_allergies = ', '.join(custom_allergies) if custom_allergies else 'None'
 
-                allergies = st.session_state.get('allergies', [])
-                formatted_allergies = ', '.join(allergies) if allergies else 'None'
-
-                custom_dietary_preference = st.session_state.get('custom_dietary_preference', [])
-                formatted_custom_dietary_preference = ', '.join(custom_dietary_preference) if custom_dietary_preference else 'None'
                 # Construct the user_details_prompt with proper formatting
                 user_details_prompt = (
                     f"Consider the following user details while responding:\n"
                     f"- Dietary Preference: {st.session_state.get('dietary_preference', 'Everything')}\n"
-                    f"- Custom Dietary Preference: {formatted_custom_dietary_preference}\n"
-                    f"- Allergies: {formatted_allergies}\n"
-                    f"- Custom Allergies: {formatted_custom_allergies}\n"
+                    f"- Custom Dietary Preference: {st.session_state.get('custom_dietary_preference', 'None')}\n"
+                    f"- Allergies: {st.session_state.get('allergies', 'None')}\n"
+                    f"- Custom Allergies: {st.session_state.get('custom_allergies', 'None')}\n"
                     f"- Location: {location}\n"
                     f"- Preferred Language: {st.session_state.get('preferred_language', 'English')}\n"
                     f"- Goal: {st.session_state.get('goal_name', 'No specific goal')}: {st.session_state.get('goal_description', 'No description provided')}\n"
                     f"Question: {prompt}\n"
                 )
+                print(f"User Details Prompt: {user_details_prompt}")
+            
             response = chat_with_gpt(prompt, st.session_state.thread_id, user_id=user_id) if is_user_authenticated() else guest_chat_with_gpt(prompt, st.session_state.thread_id)
-        
+
             if response and 'new_thread_id' in response:
                 logging.info(f"New thread ID: {response['new_thread_id']}")
                 st.session_state.thread_id = response['new_thread_id']
                 start_or_continue_streaming(client, user_id, openai_headers, chat_container, user_details_prompt, prompt)
+
+
                 
                 # Fetch new follow-up recommendations from the backend
                 headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}

@@ -192,6 +192,7 @@ def login_form():
                         st.session_state['access_token'] = response_data['access']
                         st.session_state['refresh_token'] = response_data['refresh']
                         st.session_state['is_logged_in'] = True
+                        print(f'From login_form, user_info: {response_data}')
                         st.rerun()  # Rerun the script to reflect the login state
                 except requests.exceptions.HTTPError as http_err:
                     st.error("Invalid username or password.")
@@ -542,8 +543,9 @@ def validate_input(input_value, input_type):
             if len(input_value) < 8 or not re.search(r"[A-Za-z]", input_value) or not re.search(r"[0-9]", input_value) or not re.search(r"[!@#$%^&*(),.?\":{}|<>]", input_value):
                 return False, "Password must be at least 8 characters long, include a number, a letter, and a special character."
         elif input_type == 'phone_number':
-            if input_value and not re.match(r"^\+?[1-9]\d{1,14}$", input_value):  # Simple international format validation
-                return False, "Invalid phone number format. Ensure it includes the country code, e.g., +1234567890."
+            # Corrected regex for phone number formats
+            if input_value and not re.match(r"^\+?(\d[\d().\s-]{7,}\d)$", input_value):
+                return False, "Invalid phone number format. Accepts formats like +1234567890, (123) 456-7890, or 123-456-7890."
         elif input_type == 'postal_code':
             if input_value and len(input_value) < 3:  # Example validation, you may want to tailor this to specific country formats
                 return False, "Postal code is too short."
