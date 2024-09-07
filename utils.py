@@ -172,7 +172,6 @@ def login_form():
                         f'{os.getenv("DJANGO_URL")}/auth/api/login/',
                         json={'username': username, 'password': password}
                     )
-                    response.raise_for_status()  # Raises HTTPError for bad responses                  
                     if response.status_code == 200:
                         response_data = response.json()
                         st.success("Logged in successfully!")
