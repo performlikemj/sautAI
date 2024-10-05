@@ -9,7 +9,8 @@ import requests
 import pycountry
 import datetime
 import pytz
-from utils import api_call_with_refresh, login_form, toggle_chef_mode, fetch_and_update_user_profile, validate_input
+from utils import (api_call_with_refresh, login_form, toggle_chef_mode, 
+                   fetch_and_update_user_profile, validate_input, parse_comma_separated_input)
 import logging
 
 # Configure logging
@@ -30,8 +31,12 @@ def register():
             password = st.text_input("Password", type="password")
             phone_number = st.text_input("Phone Number")
             dietary_preferences = [ 'Everything', 'Vegetarian', 'Pescatarian', 'Gluten-Free', 'Keto', 'Paleo', 'Halal', 'Kosher', 'Low-Calorie', 'Low-Sodium', 'High-Protein', 'Dairy-Free', 'Nut-Free', 'Raw Food', 'Whole 30', 'Low-FODMAP', 'Diabetic-Friendly', 'Vegan']
-            dietary_preference = st.selectbox("Dietary Preference", dietary_preferences)
-            custom_dietary_preference = st.text_input("Custom Dietary Preference (if not listed above)", "")
+            selected_dietary_preferences = st.multiselect("Dietary Preferences", dietary_preferences, default=[])
+            custom_dietary_preferences_input = st.text_area(
+                "Custom Dietary Preferences (comma separated)", 
+                value='',
+                help="Enter multiple custom dietary preferences separated by commas. Example: Paleo, Keto, Mediterranean"
+            )            
             allergies = [
                 'Peanuts', 'Tree nuts', 'Milk', 'Egg', 'Wheat', 'Soy', 'Fish', 'Shellfish', 'Sesame', 'Mustard', 
                 'Celery', 'Lupin', 'Sulfites', 'Molluscs', 'Corn', 'Gluten', 'Kiwi', 'Latex', 'Pine Nuts', 
@@ -98,14 +103,17 @@ def register():
                 elif not valid_postal:
                     st.error(postal_msg)
                 else:
+                    # Parse custom dietary preferences
+                    custom_dietary_preferences = parse_comma_separated_input(custom_dietary_preferences_input)
+
                     user_data = {
                         "user": {
                             "username": username,
                             "email": email,
                             "password": password,
                             "phone_number": phone_number,
-                            "dietary_preference": dietary_preference,
-                            "custom_dietary_preference": custom_dietary_preference,
+                            "dietary_preferences": selected_dietary_preferences,
+                            "custom_dietary_preferences": custom_dietary_preferences,
                             "allergies": selected_allergies,
                             "custom_allergies": custom_allergies,
                             "timezone": selected_timezone,

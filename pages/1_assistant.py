@@ -555,14 +555,16 @@ def assistant():
 
         def process_user_input(prompt, chat_container):
             user_id = st.session_state.get('user_id')
+            user_details_prompt = ""  # Initialize with an empty string to ensure it's always defined
+
             if st.session_state.recommend_follow_up: 
                 st.session_state.recommend_follow_up = []
-            
+
             # Update chat history immediately with the follow-up prompt
             st.session_state.chat_history.append({"role": "user", "content": prompt})
             with chat_container.chat_message("user"):
                 st.markdown(prompt)
-            
+
             # Send the prompt to the backend and get a message ID
             if is_user_authenticated():
                 # Determine the location detail to use (country or timezone)
@@ -571,8 +573,8 @@ def assistant():
                 # Construct the user_details_prompt with proper formatting
                 user_details_prompt = (
                     f"Consider the following user details while responding:\n"
-                    f"- Dietary Preference: {st.session_state.get('dietary_preference', 'Everything')}\n"
-                    f"- Custom Dietary Preference: {st.session_state.get('custom_dietary_preference', 'None')}\n"
+                    f"- Dietary Preference: {st.session_state.get('dietary_preferences', 'Everything')}\n"
+                    f"- Custom Dietary Preference: {st.session_state.get('custom_dietary_preferences', 'None')}\n"
                     f"- Allergies: {st.session_state.get('allergies', 'None')}\n"
                     f"- Custom Allergies: {st.session_state.get('custom_allergies', 'None')}\n"
                     f"- Location: {location}\n"
@@ -581,89 +583,141 @@ def assistant():
                     f"Question: {prompt}\n"
                 )
                 print(f"User Details Prompt: {user_details_prompt}")
-            
+
+            # Choose the appropriate chat function based on whether the user is authenticated
             response = chat_with_gpt(prompt, st.session_state.thread_id, user_id=user_id) if is_user_authenticated() else guest_chat_with_gpt(prompt, st.session_state.thread_id)
 
             if response and 'new_thread_id' in response:
                 logging.info(f"New thread ID: {response['new_thread_id']}")
                 st.session_state.thread_id = response['new_thread_id']
-                start_or_continue_streaming(client, user_id, openai_headers, chat_container, user_details_prompt, prompt)
-
-
                 
-                # Fetch new follow-up recommendations from the backend
-                headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-                try:
-                    follow_up_response = api_call_with_refresh(
-                        url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/recommend_follow_up/',
-                        method='post',
-                        headers=headers,
-                        data={"user_id": user_id, "context": prompt}
-                    )
-                    logging.info(f"Follow-up response status: {follow_up_response.status_code}")
-                    logging.info(f"Follow-up response content: {follow_up_response.content}")
-                except requests.exceptions.RequestException as e:
-                    logging.error(f"Error fetching follow-up recommendations: {e}")
-                    follow_up_response = None
-
-                # Parse the JSON string into a dictionary
-                if follow_up_response and follow_up_response.status_code == 200:
-                    follow_up_data = follow_up_response.json()
-                    logging.info(f"Follow-up data: {follow_up_data}")
-                    
-                    # Ensure the follow-up data is not empty and contains valid recommendations
-                    if isinstance(follow_up_data, list) and len(follow_up_data) > 0:
-                        recommend_prompt_json = follow_up_data[0]
-                        recommend_follow_up = json.loads(recommend_prompt_json)
-                        # Check if the follow-up contains items
-                        if 'items' in recommend_follow_up and len(recommend_follow_up['items']) > 0:
-                            st.session_state.recommend_follow_up = recommend_follow_up
-                        else:
-                            st.session_state.recommend_follow_up = []
-                            logging.info("Follow-up data is empty or has no valid items.")
-                    else:
-                        st.session_state.recommend_follow_up = []
-                        logging.error("No valid follow-up data received.")
+                # Use user_details_prompt only if the user is authenticated
+                if is_user_authenticated():
+                    start_or_continue_streaming(client, user_id, openai_headers, chat_container, user_details_prompt, prompt)
                 else:
-                    st.session_state.recommend_follow_up = []
-                    logging.error(f"Failed to fetch follow-up recommendations, response: {follow_up_response}")
+                    start_or_continue_streaming(client, user_id, openai_headers, chat_container, prompt)
+
+                # Fetch new follow-up recommendations from the backend (only if authenticated)
+
+                if is_user_authenticated():
+
+                    headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+
+                    try:
+
+                        follow_up_response = api_call_with_refresh(
+
+                            url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/recommend_follow_up/',
+
+                            method='post',
+
+                            headers=headers,
+
+                            data={"user_id": user_id, "context": prompt}
+
+                        )
+
+                        logging.info(f"Follow-up response status: {follow_up_response.status_code}")
+
+                        logging.info(f"Follow-up response content: {follow_up_response.content}")
+
+                    except requests.exceptions.RequestException as e:
+
+                        logging.error(f"Error fetching follow-up recommendations: {e}")
+
+                        follow_up_response = None
+
+                    # Parse the JSON string into a dictionary
+
+                    if follow_up_response and follow_up_response.status_code == 200:
+
+                        follow_up_data = follow_up_response.json()
+
+                        logging.info(f"Follow-up data: {follow_up_data}")
+
+
+
+                        # Ensure the follow-up data is not empty and contains valid recommendations
+
+                        if isinstance(follow_up_data, list) and len(follow_up_data) > 0:
+
+                            recommend_prompt_json = follow_up_data[0]
+
+                            recommend_follow_up = json.loads(recommend_prompt_json)
+
+                            # Check if the follow-up contains items
+
+                            if 'items' in recommend_follow_up and len(recommend_follow_up['items']) > 0:
+
+                                st.session_state.recommend_follow_up = recommend_follow_up
+
+                            else:
+
+                                st.session_state.recommend_follow_up = []
+
+                                logging.info("Follow-up data is empty or has no valid items.")
+
+                        else:
+
+                            st.session_state.recommend_follow_up = []
+
+                            logging.error("No valid follow-up data received.")
+
+                    else:
+
+                        st.session_state.recommend_follow_up = []
+
+                        logging.error(f"Failed to fetch follow-up recommendations, response: {follow_up_response}")
+
+
 
             elif response and 'last_assistant_message' in response:
+
                 st.session_state.thread_id = response['new_thread_id']
 
-
                 st.session_state.chat_history.append({"role": "assistant", "content": response['last_assistant_message']})
+
                 with chat_container.chat_message("assistant"):
+
                     st.markdown(response['last_assistant_message'])
+
             else:
+
                 st.error("Could not get a response, please try again.")
 
 
+
         # Chat functionality available to unauthenticated users or authenticated non-chef users
+
         if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in'] or (st.session_state.get('current_role', '') != 'chef'):
+
             # Process and display chat interactions
+
             for message in st.session_state.chat_history:
+
                 with chat_container.chat_message(message["role"]):
+
                     st.markdown(message["content"])
 
 
 
             # Later, when displaying the recommendations
-            if st.session_state.recommend_follow_up and 'items' in st.session_state.recommend_follow_up and len(st.session_state.recommend_follow_up['items']) > 0:
-                with st.container():
-                    st.write("Recommended Follow-Ups:")
-                    for index, item in enumerate(st.session_state.recommend_follow_up['items']):
-                        follow_up_text = f"{item.get('recommendation', '')}"
-                        st.button(follow_up_text, key=f"{follow_up_text}_{index}", on_click=lambda follow_up_text=follow_up_text: process_user_input(follow_up_text, chat_container))
-            else:
-                logging.info("No follow-up recommendations to display.")
 
-            # if st.session_state.recommend_prompt:
-            #     with st.container():
-            #         st.write("Recommended Follow-Ups:")
-            #         for follow_up_prompt in st.session_state.recommend_prompt:
-            #             st.button(follow_up_prompt, key=follow_up_prompt, on_click=lambda follow_up_prompt=follow_up_prompt: process_user_input(follow_up_prompt, chat_container))
-            #         st.session_state.recommend_prompt = ""
+            if st.session_state.recommend_follow_up and 'items' in st.session_state.recommend_follow_up and len(st.session_state.recommend_follow_up['items']) > 0:
+
+                with st.container():
+
+                    st.write("Recommended Follow-Ups:")
+
+                    for index, item in enumerate(st.session_state.recommend_follow_up['items']):
+
+                        follow_up_text = f"{item.get('recommendation', '')}"
+
+                        st.button(follow_up_text, key=f"{follow_up_text}_{index}", on_click=lambda follow_up_text=follow_up_text: process_user_input(follow_up_text, chat_container))
+
+            else:
+
+                logging.info("No follow-up recommendations to display.")
 
             prompt = st.chat_input("Enter your question:")
             if prompt:
