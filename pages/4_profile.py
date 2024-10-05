@@ -60,7 +60,8 @@ def profile():
                     if user_details.status_code == 200:
                         user_data = user_details.json()
                         st.session_state.user_id = user_data.get('id')  # Set user_id in session state
-                        # ... rest of your code for displaying and updating profile ...
+                        if not isinstance(user_data.get('custom_dietary_preferences'), list):
+                            user_data['custom_dietary_preferences'] = []
                     else:
                         user_data = {}
 
@@ -116,8 +117,20 @@ def profile():
                                     'Dairy-Free', 'Nut-Free', 'Raw Food', 'Whole 30', 'Low-FODMAP', 
                                     'Diabetic-Friendly', 'Vegan'
                                 ]
-                                dietary_preference = st.selectbox("Dietary Preference", dietary_preferences, index=dietary_preferences.index(user_data.get('dietary_preference', 'Everything')))
-                                custom_dietary_preference = st.text_input("Custom Dietary Preference (if not listed above)", value=user_data.get('custom_dietary_preference', ''))
+
+                                # Get the user's dietary preferences (this could be a list of preferences if you're using ManyToMany)
+                                user_dietary_preference = user_data.get('dietary_preferences', ['Everything'])
+
+                                # Use the default argument to select the user's current preferences
+                                selected_dietary_preference = st.multiselect(
+                                    "Dietary Preference", dietary_preferences, default=user_dietary_preference
+                                )
+
+                                custom_dietary_preferences_input = st.text_area(
+                                    "Custom Dietary Preferences (comma separated)", 
+                                    value=', '.join(user_data.get('custom_dietary_preferences', [])) if user_data.get('custom_dietary_preferences') else ''
+                                )
+
                                 allergies = [
                                     'Peanuts', 'Tree nuts', 'Milk', 'Egg', 'Wheat', 'Soy', 'Fish', 'Shellfish', 'Sesame', 'Mustard', 
                                     'Celery', 'Lupin', 'Sulfites', 'Molluscs', 'Corn', 'Gluten', 'Kiwi', 'Latex', 'Pine Nuts', 
@@ -188,12 +201,15 @@ def profile():
                                 submitted = st.form_submit_button("Update Profile")
 
                                 if submitted:
+                                    custom_dietary_preferences = [
+                                        pref.strip() for pref in custom_dietary_preferences_input.split(',') if pref.strip()
+                                    ]
                                     profile_data = {
                                         'username': username,
                                         'email': email,
                                         'phone_number': phone_number,
-                                        'dietary_preference': dietary_preference,
-                                        'custom_dietary_preference': custom_dietary_preference,
+                                        'dietary_preferences': selected_dietary_preference,
+                                        'custom_dietary_preferences': custom_dietary_preferences,
                                         'allergies': selected_allergies,
                                         'custom_allergies': custom_allergies,
                                         'address': {
