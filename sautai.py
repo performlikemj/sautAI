@@ -113,7 +113,7 @@ def main():
                             st.error("Unable to connect to the server. Please try again later.")
                             logging.error(f"Connection error: {req_err}")
                 if register_button:
-                    st.switch_page("pages/6_register.py")
+                    st.switch_page("pages/7_register.py")
 
                 # Password Reset Button
                 if st.button("Forgot your password?"):
@@ -189,7 +189,7 @@ def main():
             st.write("Are you ready to take control of your health? Join sautAI and start your journey towards a healthier, happier you. Whether you're preparing your own meals or connecting with local chefs for convenience, sautAI is here to support your goals.")
             if st.button("Sign Up Now"):
                 # Redirect or perform an action for registration
-                st.switch_page("pages/6_register.py")
+                st.switch_page("pages/7_register.py")
 
     except Exception as e:
         st.error("Error occurred. We're looking into it.")
