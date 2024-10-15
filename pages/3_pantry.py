@@ -156,6 +156,37 @@ def pantry_page():
                 st.error("Error fetching pantry items.")
                 logging.error(f"Failed to fetch pantry items. Status code: {response.status_code if response else 'No Response'}, Response: {response.text if response else 'No Response'}")
 
+            # Show add pantry item form
+            if not pantry_records or st.button("Add New Pantry Item", key='show_add_pantry_item_form'):
+                st.session_state.show_add_form = True
+
+            if st.session_state.show_add_form:
+                with st.form(key='add_pantry_item_form'):
+                    item_name = st.text_input("Item Name")
+                    quantity = st.number_input("Quantity", min_value=1, value=1, step=1)
+                    expiration_date = st.date_input("Expiration Date", value=date.today())
+                    item_type = st.selectbox("Item Type", options=['Canned', 'Dry'])
+                    notes = st.text_area("Notes")
+
+                    add_item_submit = st.form_submit_button("Add Item")
+                    if add_item_submit:
+                        # Prepare the new item data
+                        new_item = {
+                            'Item Name': item_name,
+                            'Quantity': quantity,
+                            'Expiration Date': expiration_date,
+                            'Item Type': item_type,
+                            'Notes': notes
+                        }
+
+                        if validate_new_row(new_item):
+                            add_pantry_item(pd.Series(new_item))
+                            st.success(f"'{item_name}' has been added to your pantry.")
+                            st.session_state.show_add_form = False
+                            st.rerun()
+                        else:
+                            st.error("Please complete all fields before adding the item.")
+
         # If the email is not confirmed
         elif is_user_authenticated() and not st.session_state.get('email_confirmed', False):
             st.warning("Your email address is not confirmed. Please confirm your email to access all features.")
