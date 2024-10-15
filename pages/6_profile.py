@@ -177,7 +177,7 @@ def profile():
                                 )
 
                                 email_meal_plan_saved = st.radio(
-                                    "Receive an email when your meal plan is saved or updated?",
+                                    "Receive a shopping list when your meal plan is saved or updated?",
                                     ('Yes', 'No'),
                                     index=0 if user_data.get('email_meal_plan_saved', True) else 1
                                 )
