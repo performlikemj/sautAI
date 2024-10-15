@@ -204,7 +204,7 @@ def login_form():
                     logging.error(f"Unexpected error during login: {e}")
 
         if register_button:
-            st.switch_page("pages/6_register.py")
+            st.switch_page("pages/7_register.py")
 
         # Password Reset Button
         if st.button("Forgot your password?"):
