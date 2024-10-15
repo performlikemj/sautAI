@@ -192,7 +192,6 @@ def login_form():
                         st.session_state['access_token'] = response_data['access']
                         st.session_state['refresh_token'] = response_data['refresh']
                         st.session_state['is_logged_in'] = True
-                        print(f'From login_form, user_info: {response_data}')
                         st.rerun()  # Rerun the script to reflect the login state
                 except requests.exceptions.HTTPError as http_err:
                     st.error("Invalid username or password.")

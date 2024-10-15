@@ -7,4 +7,6 @@ get-pip.py
 .sautai*
 app.log
 *.log
+*.rdb
 ```
+dump.rdb
