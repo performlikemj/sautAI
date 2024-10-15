@@ -56,11 +56,12 @@ st.set_page_config(
 )
 
 assistant = st.Page("pages/1_assistant.py", title="sautAI Assistant", icon="🥘")
-history = st.Page("pages/3_history.py", title="Meal History", icon="📜")
 plans = st.Page("pages/2_meal_plans.py", title="Meal Plans", icon="🍽️")
+pantry = st.Page("pages/3_pantry.py", title="My Pantry", icon="🍅")
+history = st.Page("pages/4_history.py", title="Meal History", icon="📜")
 account = st.Page("pages/5_account.py", title="My Account", icon="👤")
-register = st.Page("pages/6_register.py", title="Register", icon="📝")
-profile = st.Page("pages/4_profile.py", title="Profile", icon="📋")
+profile = st.Page("pages/6_profile.py", title="Profile", icon="📋")
+register = st.Page("pages/7_register.py", title="Register", icon="📝")
 
 st.logo(
     "images/sautai_logo.PNG",
