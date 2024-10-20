@@ -241,6 +241,39 @@ def profile():
                                         fetch_and_update_user_profile()
                                     else:
                                         st.error(f"Failed to update profile: {update_response.text}")
+
+                # Account Deletion Section
+                st.subheader("Delete Account")
+                st.warning("**This action cannot be undone.** All your data will be permanently deleted.")
+
+                # Confirmation inputs
+                confirmation_input = st.text_input('Type "done eating" to confirm account deletion.')
+                password_input = st.text_input("Enter your password", type="password")
+
+                if st.button("Delete My Account"):
+                    if confirmation_input == 'done eating':
+                        if password_input:
+                            # Make API call to delete account
+                            headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                            response = api_call_with_refresh(
+                                url=f'{os.getenv("DJANGO_URL")}/auth/api/delete_account/',
+                                headers=headers,
+                                method='delete',
+                                data={'confirmation': confirmation_input, 'password': password_input}
+                            )
+                            if response.status_code == 200:
+                                st.success("Your account has been deleted successfully.")
+                                # Clear session state and redirect or refresh the page
+                                for key in list(st.session_state.keys()):
+                                    del st.session_state[key]
+                                st.rerun()
+                            else:
+                                error_message = response.json().get('message', 'Unknown error')
+                                st.error(f"Failed to delete account: {error_message}")
+                        else:
+                            st.error('Please enter your password to confirm account deletion.')
+                    else:
+                        st.error('You must type "done eating" exactly to confirm account deletion.')
                 else:
                     # User is not logged in, display a message or redirect
                     st.warning("Please log in to view and update your profile.")
@@ -250,6 +283,39 @@ def profile():
             st.warning("Your email address is not confirmed. Please confirm your email to access all features.")
             if st.button("Resend Activation Link"):
                 resend_activation_link(st.session_state['user_id'])
+
+            # Account Deletion Section
+            st.subheader("Delete Account")
+            st.warning("**This action cannot be undone.** All your data will be permanently deleted.")
+
+            # Confirmation inputs
+            confirmation_input = st.text_input('Type "done eating" to confirm account deletion.')
+            password_input = st.text_input("Enter your password", type="password")
+
+            if st.button("Delete My Account"):
+                if confirmation_input == 'done eating':
+                    if password_input:
+                        # Make API call to delete account
+                        headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                        response = api_call_with_refresh(
+                            url=f'{os.getenv("DJANGO_URL")}/auth/api/delete_account/',
+                            headers=headers,
+                            method='delete',
+                            data={'confirmation': confirmation_input, 'password': password_input}
+                        )
+                        if response.status_code == 200:
+                            st.success("Your account has been deleted successfully.")
+                            # Clear session state and redirect or refresh the page
+                            for key in list(st.session_state.keys()):
+                                del st.session_state[key]
+                            st.rerun()
+                        else:
+                            error_message = response.json().get('message', 'Unknown error')
+                            st.error(f"Failed to delete account: {error_message}")
+                    else:
+                        st.error('Please enter your password to confirm account deletion.')
+                else:
+                    st.error('You must type "done eating" exactly to confirm account deletion.')
 
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
