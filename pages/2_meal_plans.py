@@ -343,5 +343,14 @@ def display_instructions_pagination():
     else:
         st.warning(f"Instructions not yet available for Meal Plan Meal ID {meal_plan_meal_id}.")
 
+    st.markdown(
+        """
+        <a href="https://www.buymeacoffee.com/sautai" target="_blank">
+            <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px; width: 217px;" >
+        </a>
+        """,
+        unsafe_allow_html=True
+    )
+    
 if __name__ == "__main__":
     meal_plans()
