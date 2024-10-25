@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import logging
 import math
 import json
+import requests
 
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[
     logging.FileHandler("error.log"),
@@ -18,6 +19,26 @@ load_dotenv()
 
 def meal_plans():
 
+    # Check for approval_token in query parameters
+    approval_token = st.query_params.get('approval_token')
+
+    if approval_token:
+        # Call the backend API to approve the meal plan using the approval_token
+        try:
+            response = requests.post(
+                f'{os.getenv("DJANGO_URL")}/meals/api/email_approved_meal_plan/',
+                data={'approval_token': approval_token}
+            )
+            if response.status_code == 200:
+                st.success('Your meal plan has been approved!')
+                # Optionally, you can redirect the user or provide additional info here
+            else:
+                st.error('Invalid or expired approval token.')
+        except Exception as e:
+            st.error(f"An error occurred: {str(e)}")
+        # Stop further execution
+        return
+    
     # Logout Button
     if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
         if st.button("Logout", key='form_logout'):
