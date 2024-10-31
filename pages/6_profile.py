@@ -205,6 +205,7 @@ def profile():
                                         pref.strip() for pref in custom_dietary_preferences_input.split(',') if pref.strip()
                                     ]
                                     profile_data = {
+                                        # User fields
                                         'username': username,
                                         'email': email,
                                         'phone_number': phone_number,
@@ -212,18 +213,19 @@ def profile():
                                         'custom_dietary_preferences': custom_dietary_preferences,
                                         'allergies': selected_allergies,
                                         'custom_allergies': custom_allergies,
+                                        'timezone': selected_timezone,
+                                        'preferred_language': selected_language_code,
+                                        'email_daily_instructions': email_daily_instructions == 'Yes',
+                                        'email_meal_plan_saved': email_meal_plan_saved == 'Yes',
+                                        'email_instruction_generation': email_instruction_generation == 'Yes',
+                                        # Address data
                                         'address': {
                                             'street': street,
                                             'city': city,
                                             'state': state,
                                             'postalcode': postalcode,
                                             'country': country
-                                        },
-                                        'timezone': selected_timezone,
-                                        'preferred_language': selected_language_code,
-                                        'email_daily_instructions': email_daily_instructions == 'Yes',
-                                        'email_meal_plan_saved': email_meal_plan_saved == 'Yes',
-                                        'email_instruction_generation': email_instruction_generation == 'Yes'
+                                        }
                                     }
                                     update_response = api_call_with_refresh(
                                         url=f'{os.getenv("DJANGO_URL")}/auth/api/update_profile/',
