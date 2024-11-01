@@ -100,9 +100,23 @@ def profile():
                             email = st.text_input("Email", value=user_data.get('email', ''))
                             phone_number = st.text_input("Phone Number", value=user_data.get('phone_number', ''))
 
-                            valid_username, username_msg = validate_input(username, 'username')
-                            valid_email, email_msg = validate_input(email, 'email')
-                            valid_phone, phone_msg = validate_input(phone_number, 'phone_number')
+                            # Validate username if it has a value
+                            if username:
+                                valid_username, username_msg = validate_input(username, 'username')
+                            else:
+                                valid_username, username_msg = True, ""
+
+                            # Validate email if it has a value
+                            if email:
+                                valid_email, email_msg = validate_input(email, 'email')
+                            else:
+                                valid_email, email_msg = True, ""
+
+                            # Validate phone number if it has a value
+                            if phone_number:
+                                valid_phone, phone_msg = validate_input(phone_number, 'phone_number')
+                            else:
+                                valid_phone, phone_msg = True, ""
 
                             if not valid_username:
                                 st.error(username_msg)
