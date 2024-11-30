@@ -582,7 +582,6 @@ def assistant():
                     f"- Goal: {st.session_state.get('goal_name', 'No specific goal')}: {st.session_state.get('goal_description', 'No description provided')}\n"
                     f"Question: {prompt}\n"
                 )
-                print(f"User Details Prompt: {user_details_prompt}")
 
             # Choose the appropriate chat function based on whether the user is authenticated
             response = chat_with_gpt(prompt, st.session_state.thread_id, user_id=user_id) if is_user_authenticated() else guest_chat_with_gpt(prompt, st.session_state.thread_id)

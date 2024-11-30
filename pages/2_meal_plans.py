@@ -21,13 +21,16 @@ def meal_plans():
 
     # Check for approval_token in query parameters
     approval_token = st.query_params.get('approval_token')
+    meal_prep_preference = st.query_params.get('meal_prep_preference')
 
     if approval_token:
         # Call the backend API to approve the meal plan using the approval_token
         try:
             response = requests.post(
                 f'{os.getenv("DJANGO_URL")}/meals/api/email_approved_meal_plan/',
-                data={'approval_token': approval_token}
+                data={'approval_token': approval_token,
+                      'meal_prep_preference': meal_prep_preference}
+                
             )
             if response.status_code == 200:
                 st.success('Your meal plan has been approved!')
@@ -57,7 +60,12 @@ def meal_plans():
         if is_user_authenticated() and st.session_state.get('email_confirmed', False):
             if 'current_role' in st.session_state and st.session_state['current_role'] != 'chef':
                 st.title("Your Meal Plans")
-            
+                st.markdown("""
+                Welcome to your personalized meal planning dashboard! Here, you can view, edit, and optimize your weekly meal plans to suit your dietary preferences and lifestyle.
+
+                If you encounter any issues or need assistance, feel free to contact support@sautai.com.
+                """)            
+
             if 'selected_week_start' not in st.session_state:
                 st.session_state.selected_week_start = datetime.now().date() - timedelta(days=datetime.now().date().weekday())
 
@@ -119,7 +127,13 @@ def meal_plans():
                     meal_plan_id = meal_plan['id']  # Extract meal_plan_id
                     if not meal_plan['meals']:
                         continue
-                    
+
+                    # Get meal_prep_preference
+                    meal_prep_preference = meal_plan['meal_prep_preference']
+
+                    # Store it in session state or variable
+                    st.session_state['meal_prep_preference'] = meal_prep_preference           
+
                     day_offset = {
                         'Monday': 0,
                         'Tuesday': 1,
@@ -210,45 +224,79 @@ def meal_plans():
 
 
 
-                if st.button('Generate Cooking Instructions'):
-                    selected_meals = selected_rows[selected_rows['Select']]
-                    selected_data = selected_meals.drop('Select', axis=1)
+                meal_prep_preference = st.session_state.get('meal_prep_preference', 'daily')
 
-                    # Extract meal_plan_meal_ids
-                    meal_plan_meal_ids = selected_data['Meal Plan Meal ID'].tolist()
+                if meal_prep_preference == 'daily':        
+                    if st.button('Generate Cooking Instructions'):
+                        selected_meals = selected_rows[selected_rows['Select']]
+                        selected_data = selected_meals.drop('Select', axis=1)
 
-                    # Ensure that meal_plan_meal_ids is not empty before making the API call
-                    if not meal_plan_meal_ids:
-                        st.error("No meals selected. Please select meals before generating instructions.")
-                        return
+                        # Extract meal_plan_meal_ids
+                        meal_plan_meal_ids = selected_data['Meal Plan Meal ID'].tolist()
 
-                    headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-                    payload = {'meal_plan_meal_ids': meal_plan_meal_ids}
+                        # Ensure that meal_plan_meal_ids is not empty before making the API call
+                        if not meal_plan_meal_ids:
+                            st.error("No meals selected. Please select meals before generating instructions.")
+                            return
 
-                    try:
-                        # First, initiate the cooking instruction generation
-                        with st.spinner("Generating cooking instructions..."):
-                            generation_response = api_call_with_refresh(
-                                url=f'{os.getenv("DJANGO_URL")}/meals/api/generate_cooking_instructions/',
-                                method='post',
-                                headers=headers,
-                                data=payload
-                            )
+                        headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                        payload = {'meal_plan_meal_ids': meal_plan_meal_ids}
 
-                        # Check if response is valid
-                        if generation_response.status_code == 200:
-                            st.success("Cooking instructions generation initiated successfully.")
+                        try:
+                            # First, initiate the cooking instruction generation
+                            with st.spinner("Generating cooking instructions..."):
+                                generation_response = api_call_with_refresh(
+                                    url=f'{os.getenv("DJANGO_URL")}/meals/api/generate_cooking_instructions/',
+                                    method='post',
+                                    headers=headers,
+                                    data=payload
+                                )
 
-                            # Fetch the generated instructions
-                            with st.spinner("Fetching cooking instructions..."):
+                            # Check if response is valid
+                            if generation_response.status_code == 200:
+                                st.success("Cooking instructions generation initiated successfully.")
+
+                                # Fetch the generated instructions
+                                with st.spinner("Fetching cooking instructions..."):
+                                    fetch_response = api_call_with_refresh(
+                                        url=f'{os.getenv("DJANGO_URL")}/meals/api/fetch_instructions/?meal_plan_meal_ids=' + ','.join(map(str, meal_plan_meal_ids)),
+                                        method='get',
+                                        headers=headers,
+                                    )
+
+                                if fetch_response.status_code == 200:
+                                    st.session_state['instructions'] = fetch_response.json().get('instructions', [])
+
+                                    if not st.session_state['instructions']:
+                                        st.info("No instructions available yet. Please check back later.")
+                                    else:
+                                        display_instructions_pagination()
+                                else:
+                                    st.error(f"Error fetching instructions: {fetch_response.json().get('error', 'Unknown error occurred.')}")
+                            else:
+                                st.error(f"Error generating instructions: {generation_response.json().get('error', 'Unknown error occurred.')}")
+                        except Exception as e:
+                            logging.error(f"Failed to generate or fetch cooking instructions: {e}")
+                            st.error("Failed to generate or fetch cooking instructions. Please try again.")
+
+                elif meal_prep_preference == 'one_day_prep':
+                    # Button for bulk prep instructions
+                    if st.button('View Bulk Prep Instructions'):
+                        meal_plan_id = int(meal_plan_df['Meal Plan ID'].iloc[0])  # Get the meal_plan_id
+                        headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+
+                        try:
+                            with st.spinner("Fetching bulk prep instructions..."):
                                 fetch_response = api_call_with_refresh(
-                                    url=f'{os.getenv("DJANGO_URL")}/meals/api/fetch_instructions/?meal_plan_meal_ids=' + ','.join(map(str, meal_plan_meal_ids)),
+                                    url=f'{os.getenv("DJANGO_URL")}/meals/api/fetch_instructions/?meal_plan_id={meal_plan_id}',
                                     method='get',
                                     headers=headers,
                                 )
 
                             if fetch_response.status_code == 200:
-                                st.session_state['instructions'] = fetch_response.json().get('instructions', [])
+                                response_data = fetch_response.json()
+                                st.session_state['instructions'] = response_data.get('instructions', [])
+                                st.session_state['meal_prep_preference'] = response_data.get('meal_prep_preference', 'one_day_prep')
 
                                 if not st.session_state['instructions']:
                                     st.info("No instructions available yet. Please check back later.")
@@ -256,12 +304,9 @@ def meal_plans():
                                     display_instructions_pagination()
                             else:
                                 st.error(f"Error fetching instructions: {fetch_response.json().get('error', 'Unknown error occurred.')}")
-                        else:
-                            st.error(f"Error generating instructions: {generation_response.json().get('error', 'Unknown error occurred.')}")
-                    except Exception as e:
-                        logging.error(f"Failed to generate or fetch cooking instructions: {e}")
-                        st.error("Failed to generate or fetch cooking instructions. Please try again.")
-
+                        except Exception as e:
+                            logging.error(f"Failed to fetch bulk prep instructions: {e}")
+                            st.error("Failed to fetch bulk prep instructions. Please try again.")
 
                 # Approve Meal Plan Button
                 if st.button('Approve Meal Plan', disabled=is_past_week):
@@ -305,6 +350,41 @@ def meal_plans():
                     else:
                         st.error("No meal plans found for approval.")
 
+                # TODO: Add a button to approve with daily meal plan or one day prep meal plan
+                
+                # Add a button to delete selected meals
+                if st.button('Delete Selected Meals'):
+                    selected_meals = selected_rows[selected_rows['Select']]
+                    selected_data = selected_meals.drop('Select', axis=1)
+
+                    # Extract meal_plan_meal_ids
+                    meal_plan_meal_ids = selected_data['Meal Plan Meal ID'].tolist()
+
+                    # Ensure that meal_plan_meal_ids is not empty before making the API call
+                    if not meal_plan_meal_ids:
+                        st.error("No meals selected. Please select meals before deleting.")
+                        return
+
+                    headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                    payload = {'meal_plan_meal_ids': meal_plan_meal_ids}
+
+                    try:
+                        with st.spinner("Deleting selected meals..."):
+                            response = api_call_with_refresh(
+                                url=f'{os.getenv("DJANGO_URL")}/meals/api/remove_meal_from_plan/',
+                                method='delete',
+                                headers=headers,
+                                data=payload
+                            )
+
+                        if response.status_code == 200:
+                            st.success("Selected meals deleted successfully.")
+                            st.rerun()
+                        else:
+                            st.error(f"Failed to delete selected meals: {response.json().get('error', 'Unknown error occurred.')}")
+                    except Exception as e:
+                        logging.error(f"Failed to delete selected meals: {e}")
+                        st.error("Failed to delete selected meals. Please try again.")
 
             else:
                 logging.error(f"Failed to fetch meal plans. Status code: {response.status_code}, Response: {response.text}")
@@ -324,31 +404,98 @@ def meal_plans():
 @st.fragment
 def display_instructions_pagination():
     instructions = st.session_state.get('instructions', [])
-    
+    meal_prep_preference = st.session_state.get('meal_prep_preference', 'daily')
+
     if not instructions:
         st.error("No instructions available.")
         return
-    
-    # Total number of meals for pagination
-    num_meals = len(instructions)
 
-    # Add a pagination control for meals
-    current_meal_idx = st.selectbox(f"Select Meal", range(num_meals), format_func=lambda i: f"Meal Plan Meal ID {instructions[i]['meal_plan_meal_id']}")
+    # Build options for selectbox
+    instruction_options = []
+    for idx, instruction_item in enumerate(instructions):
+        instruction_type = instruction_item.get('instruction_type', 'Unknown')
+        date = instruction_item.get('date', 'No Date')
+        if instruction_type == 'bulk_prep':
+            option_label = f"Bulk Prep Instructions"
+        elif instruction_type == 'follow_up':
+            option_label = f"Follow-Up Instructions for {date}"
+        elif instruction_type == 'daily':
+            meal_name = instruction_item.get('meal_name', 'Unknown Meal')
+            option_label = f"{meal_name} - {date}"
+        else:
+            option_label = f"Instructions {idx}"
+        instruction_options.append((idx, option_label))
 
-    # Display only the selected meal's instructions
-    selected_meal_instructions = instructions[current_meal_idx]
-    meal_plan_meal_id = selected_meal_instructions.get('meal_plan_meal_id')
-    instructions_json_str = selected_meal_instructions.get('instructions')
+    # Create selectbox
+    selected_instruction_idx = st.selectbox(
+        "Select Instructions",
+        options=[idx for idx, label in instruction_options],
+        format_func=lambda idx: instruction_options[idx][1]
+    )
+
+    # Get selected instruction
+    selected_instruction = instructions[selected_instruction_idx]
+    instructions_json_str = selected_instruction.get('instructions')
+
+    # Display instructions based on type
+    instruction_type = selected_instruction.get('instruction_type', 'Unknown')
 
     if instructions_json_str:
         try:
-            # Deserialize the JSON string into a dictionary
             instructions_data = json.loads(instructions_json_str)
-            steps = instructions_data.get('steps')
+            if instruction_type == 'bulk_prep':
+                # Handle both dict and list
+                if isinstance(instructions_data, dict):
+                    bulk_prep_steps = instructions_data.get('bulk_prep_steps', [])
+                elif isinstance(instructions_data, list):
+                    bulk_prep_steps = instructions_data
+                else:
+                    st.error("Unexpected format of bulk prep instructions.")
+                    return
 
-            if steps:
-                # Display the selected meal's instructions
-                st.subheader(f"Instructions for Meal Plan Meal ID {meal_plan_meal_id}")
+                st.subheader("Bulk Meal Prep Instructions")
+                for step in bulk_prep_steps:
+                    step_number = step.get('step_number', 'N/A')
+                    description = step.get('description', 'No description provided.')
+                    duration = step.get('duration', 'N/A')
+                    ingredients_list = step.get('ingredients', [])
+                    ingredients = ', '.join(ingredients_list) if ingredients_list else 'N/A'
+
+                    st.markdown(f"**Step {step_number}:** {description}")
+                    st.markdown(f"**Duration:** {duration}")
+                    st.markdown(f"**Ingredients:** {ingredients}")
+                    st.markdown("---")
+
+            elif instruction_type == 'follow_up':
+                if isinstance(instructions_data, dict):
+                    tasks = instructions_data.get('tasks', [])
+                    day = instructions_data.get('day', selected_instruction.get('date', 'Unknown Day'))
+                    total_estimated_time = instructions_data.get('total_estimated_time', 'N/A')
+                elif isinstance(instructions_data, list):
+                    tasks = instructions_data
+                    # Retrieve 'day' and 'total_estimated_time' from 'selected_instruction' or set defaults
+                    day = selected_instruction.get('date', 'Unknown Day')
+                    total_estimated_time = 'N/A'
+                else:
+                    st.error("Unexpected format of follow-up instructions.")
+                    return
+
+                st.subheader(f"Follow-Up Instructions for {day}")
+                st.markdown(f"**Total Estimated Time:** {total_estimated_time}")
+                st.markdown("---")
+                for task in tasks:
+                    step_number = task.get('step_number', 'N/A')
+                    description = task.get('description', 'No description provided.')
+                    duration = task.get('duration', 'N/A')
+
+                    st.markdown(f"**Step {step_number}:** {description}")
+                    st.markdown(f"**Duration:** {duration}")
+                    st.markdown("---")
+
+            elif instruction_type == 'daily':
+                steps = instructions_data.get('steps', [])
+                meal_name = selected_instruction.get('meal_name', 'Unknown Meal')
+                st.subheader(f"Instructions for {meal_name} on {selected_instruction.get('date', 'Unknown Date')}")
                 for step in steps:
                     step_number = step.get('step_number', 'Unknown')
                     description = step.get('description', 'No description available')
@@ -357,12 +504,14 @@ def display_instructions_pagination():
                     # Display each step with markdown
                     st.markdown(f"**Step {step_number}:** {description}")
                     st.markdown(f"**Duration:** {duration}")
-
-        except json.JSONDecodeError as e:
-            st.error(f"Failed to parse instructions for MealPlanMeal ID {meal_plan_meal_id}.")
-            logging.error(f"JSONDecodeError: {str(e)}")
+                    st.markdown("---")
+            else:
+                st.error("Unknown instruction type.")
+        except Exception as e:
+            st.error("Failed to parse instructions.")
+            logging.error(f"Parsing error: {e}")
     else:
-        st.warning(f"Instructions not yet available for Meal Plan Meal ID {meal_plan_meal_id}.")
+        st.warning("Instructions not yet available.")
 
     st.markdown(
         """
