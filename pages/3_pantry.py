@@ -58,6 +58,17 @@ def pantry_page():
         if is_user_authenticated() and st.session_state.get('email_confirmed', False):
             if 'current_role' in st.session_state and st.session_state['current_role'] != 'chef':
                 st.title("Your Pantry")
+                st.markdown("""
+                ### Welcome to Your Pantry
+                Keep track of your pantry items to minimize waste and maximize value. The **sautAI Pantry** helps you:
+
+                - **Track Items**: Add items to your pantry and monitor their quantities and expiration dates.
+                - **Reduce Waste**: Receive alerts for items approaching their expiration date, so you can use them before they go bad.
+                - **Plan Meals Efficiently**: Enjoy meal recommendations tailored to use your pantry items before they expire.
+                - **Stay Organized**: Easily manage your stock of canned and dry goods, along with custom notes for each item.
+
+                By keeping your pantry updated, sautAI helps to align your meal plans with what you already have on hand, saving time and reducing food waste.
+                """)
 
             # Initialize page number
             if 'pantry_page_number' not in st.session_state:
