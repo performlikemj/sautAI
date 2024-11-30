@@ -9,6 +9,7 @@ import logging
 import math
 import json
 import requests
+import traceback
 
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[
     logging.FileHandler("error.log"),
@@ -39,6 +40,7 @@ def meal_plans():
                 st.error('Invalid or expired approval token.')
         except Exception as e:
             st.error(f"An error occurred: {str(e)}")
+            logging.error(f"traceback: {traceback.format_exc()}")
         # Stop further execution
         return
     
@@ -351,7 +353,7 @@ def meal_plans():
                         st.error("No meal plans found for approval.")
 
                 # TODO: Add a button to approve with daily meal plan or one day prep meal plan
-                
+
                 # Add a button to delete selected meals
                 if st.button('Delete Selected Meals'):
                     selected_meals = selected_rows[selected_rows['Select']]
@@ -398,6 +400,7 @@ def meal_plans():
 
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
+        logging.error(f"traceback: {traceback.format_exc()}")
         st.error("An unexpected error occurred. Please try again later.")
 
 # Fragment to handle instructions display and pagination
