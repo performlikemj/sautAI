@@ -10,7 +10,7 @@ import openai
 from openai import OpenAIError
 from utils import (api_call_with_refresh, is_user_authenticated, login_form, 
                    toggle_chef_mode, guest_chat_with_gpt, chat_with_gpt, EventHandler, start_or_continue_streaming,
-                   openai_headers, client, get_user_summary, resend_activation_link)
+                   openai_headers, client, get_user_summary, resend_activation_link, footer)
 import numpy as np
 import time
 import logging
@@ -742,6 +742,8 @@ def assistant():
         """,
         unsafe_allow_html=True
     )
+
+    footer()
 
 if __name__ == "__main__":
     assistant()

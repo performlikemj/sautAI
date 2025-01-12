@@ -10,7 +10,7 @@ import pycountry
 import datetime
 import pytz
 from utils import (api_call_with_refresh, login_form, toggle_chef_mode, 
-                   fetch_and_update_user_profile, validate_input, parse_comma_separated_input)
+                   fetch_and_update_user_profile, validate_input, parse_comma_separated_input, footer)
 import logging
 
 # Configure logging
@@ -35,7 +35,7 @@ def register():
             custom_dietary_preferences_input = st.text_area(
                 "Custom Dietary Preferences (comma separated)", 
                 value='',
-                help="Enter multiple custom dietary preferences separated by commas. Example: Paleo, Keto, Mediterranean"
+                help="Enter multiple custom dietary preferences separated by commas. Example: Carnivore, Lacto-Vegan, Flexitarian"
             )            
             allergies = [
                 'Peanuts', 'Tree nuts', 'Milk', 'Egg', 'Wheat', 'Soy', 'Fish', 'Shellfish', 'Sesame', 'Mustard', 
@@ -44,7 +44,12 @@ def register():
                 'Coffee', 'Cinnamon', 'Garlic', 'Chickpeas', 'Lentils'
             ]
             selected_allergies = st.multiselect("Allergies", allergies, default=[]) 
-            custom_allergies = st.text_area("Custom Allergies (comma separated)", "")
+            custom_allergies = st.text_area("Custom Allergies (comma separated)", "", help="Enter multiple custom allergies separated by commas. Example: Peanuts, Shellfish, Kiwi")
+            custom_allergies_list = [a.strip() for a in custom_allergies.split(',') if a.strip()]
+            preferred_servings = st.number_input("Preferred Servings", min_value=1, value=1, help="How many people do you typically cook for or want your meals scaled to?")
+            emergency_supply_goal = st.number_input("Emergency Supply Goal (days)", min_value=0, value=0,
+                help="How many days of emergency supplies do you want to keep in your pantry?")
+            
             # Address fields
             st.subheader("Address")
             st.write("""
@@ -115,9 +120,11 @@ def register():
                             "dietary_preferences": selected_dietary_preferences,
                             "custom_dietary_preferences": custom_dietary_preferences,
                             "allergies": selected_allergies,
-                            "custom_allergies": custom_allergies,
+                            "custom_allergies": custom_allergies_list,
                             "timezone": selected_timezone,
-                            "preferred_language": selected_language_code
+                            "preferred_language": selected_language_code,
+                            "preferred_servings": preferred_servings,
+                            "emergency_supply_goal": emergency_supply_goal  
                         },
                         "address": {
                             "street": street,
@@ -156,6 +163,16 @@ def register():
                         st.error("An unexpected error occurred during registration.")
                         logging.error(f"Unexpected error during registration: {e}")
 
+            st.markdown(
+                """
+                <a href="https://www.buymeacoffee.com/sautai" target="_blank">
+                    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px; width: 217px;" >
+                </a>
+                """,
+                unsafe_allow_html=True
+            )
+
+            footer()
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
         st.error("An unexpected error occurred. Please try again later.")
