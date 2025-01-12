@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import os
 import datetime
 import logging
-from utils import login_form, toggle_chef_mode, validate_input
+from utils import login_form, toggle_chef_mode, validate_input, footer
 
 # Load environment variables and configure logging
 load_dotenv()
@@ -203,5 +203,8 @@ def main():
         """,
         unsafe_allow_html=True
     )
+
+    footer()
+    
 if __name__ == "__main__":
     main()

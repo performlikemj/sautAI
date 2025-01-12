@@ -11,7 +11,6 @@ logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %
     logging.StreamHandler()
 ])
 
-# Fetch and display user goals
 def fetch_and_display_goals():
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
     response = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/user_goal/', method='get', headers=headers)
@@ -22,7 +21,6 @@ def fetch_and_display_goals():
         st.error("Failed to fetch goals.")
         return None
 
-# Update user goals
 def update_goal(goal_name, goal_description):
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
     data = {'goal_name': goal_name, 'goal_description': goal_description}
@@ -30,312 +28,282 @@ def update_goal(goal_name, goal_description):
     return response.status_code // 100 == 2
 
 def profile():
-    # Login Form
-    try:
-        if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
-            login_form()
+    # If not logged in, show login form
+    if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
+        login_form()
+        st.stop()
 
-        # Logout Button
-        if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
-            if st.button("Logout", key='form_logout'):
-                # Clear session state as well
-                for key in list(st.session_state.keys()):
-                    del st.session_state[key]
-                st.success("Logged out successfully!")
-                st.rerun()
-            # Call the toggle_chef_mode function
-            toggle_chef_mode()
-                
-        # Assistant and other functionalities should not be shown if user is in chef mode
-        if is_user_authenticated() and st.session_state.get('email_confirmed', False):
-            if 'current_role' in st.session_state and st.session_state['current_role'] != 'chef':
-                st.title("Profile")
+    # If logged in, show logout button
+    if st.button("Logout", key='form_logout'):
+        # Clear session state
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        st.success("Logged out successfully!")
+        st.rerun()
 
-                # Check if user is logged in
-                if 'user_info' in st.session_state and st.session_state.user_info:
-                    headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-                    user_details = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/user_details/', method='get', headers=headers)
-                    address_details = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/address_details/', method='get', headers=headers)
-                    countries_details = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/countries/', method='get', headers=headers)
-                    if user_details.status_code == 200:
-                        user_data = user_details.json()
-                        st.session_state.user_id = user_data.get('id')  # Set user_id in session state
-                        if not isinstance(user_data.get('custom_dietary_preferences'), list):
-                            user_data['custom_dietary_preferences'] = []
-                    else:
-                        user_data = {}
+    # Toggle chef mode
+    toggle_chef_mode()
 
-                    if address_details and address_details.status_code == 200:
-                        address_data = address_details.json()
-                    else:
-                        address_data = {}
+    # Check email confirmation
+    if is_user_authenticated() and not st.session_state.get('email_confirmed', False):
+        st.warning("Your email address is not confirmed. Please confirm your email to access all features.")
+        if st.button("Resend Activation Link"):
+            resend_activation_link(st.session_state['user_id'])
 
-                    if countries_details and countries_details.status_code == 200:
-                        countries_list = countries_details.json() if countries_details.status_code == 200 else []
+        # Account deletion option
+        st.subheader("Delete Account")
+        st.warning("**This action cannot be undone.**")
+        confirmation_input = st.text_input('Type "done eating" to confirm account deletion.')
+        password_input = st.text_input("Enter your password", type="password")
 
-                        # Create a dictionary for easy access by country name
-                        country_dict = {country['name']: country['code'] for country in countries_list}
-                        country_names = list(country_dict.keys()) 
-                    else:
-                        country_names = []               
-                    if is_user_authenticated():
-                        # Define a container for each field
-                        username_container = st.container()
-                        email_container = st.container()
-                        phone_container = st.container()
-                        diet_container = st.container()
-                        allergy_container = st.container()
-                        goal_container = st.container()
-                        address_container = st.container()
-                        language_container = st.container()
-                        timezone_container = st.container()
-                        email_daily_instructions = st.container()
-                        email_meal_plan_saved = st.container()
-                        email_instruction_generation = st.container()            
-                        # Goal management section
-                        with st.form("profile_update_form"):
-                            goal_data = fetch_and_display_goals()
-
-                            username = st.text_input("Username", value=user_data.get('username', ''))
-                            email = st.text_input("Email", value=user_data.get('email', ''))
-                            phone_number = st.text_input("Phone Number", value=user_data.get('phone_number', ''))
-
-                            # Validate username if it has a value
-                            if username:
-                                valid_username, username_msg = validate_input(username, 'username')
-                            else:
-                                valid_username, username_msg = True, ""
-
-                            # Validate email if it has a value
-                            if email:
-                                valid_email, email_msg = validate_input(email, 'email')
-                            else:
-                                valid_email, email_msg = True, ""
-
-                            # Validate phone number if it has a value
-                            if phone_number:
-                                valid_phone, phone_msg = validate_input(phone_number, 'phone_number')
-                            else:
-                                valid_phone, phone_msg = True, ""
-
-                            if not valid_username:
-                                st.error(username_msg)
-                            elif not valid_email:
-                                st.error(email_msg)
-                            elif not valid_phone:
-                                st.error(phone_msg)
-                            else:
-                                dietary_preferences = [
-                                    'Everything', 'Vegetarian', 'Pescatarian', 'Gluten-Free', 'Keto', 
-                                    'Paleo', 'Halal', 'Kosher', 'Low-Calorie', 'Low-Sodium', 'High-Protein', 
-                                    'Dairy-Free', 'Nut-Free', 'Raw Food', 'Whole 30', 'Low-FODMAP', 
-                                    'Diabetic-Friendly', 'Vegan'
-                                ]
-
-                                # Get the user's dietary preferences (this could be a list of preferences if you're using ManyToMany)
-                                user_dietary_preference = user_data.get('dietary_preferences', ['Everything'])
-
-                                # Use the default argument to select the user's current preferences
-                                selected_dietary_preference = st.multiselect(
-                                    "Dietary Preference", dietary_preferences, default=user_dietary_preference
-                                )
-
-                                custom_dietary_preferences_input = st.text_area(
-                                    "Custom Dietary Preferences (comma separated)", 
-                                    value=', '.join(user_data.get('custom_dietary_preferences', [])) if user_data.get('custom_dietary_preferences') else ''
-                                )
-
-                                allergies = [
-                                    'Peanuts', 'Tree nuts', 'Milk', 'Egg', 'Wheat', 'Soy', 'Fish', 'Shellfish', 'Sesame', 'Mustard', 
-                                    'Celery', 'Lupin', 'Sulfites', 'Molluscs', 'Corn', 'Gluten', 'Kiwi', 'Latex', 'Pine Nuts', 
-                                    'Sunflower Seeds', 'Poppy Seeds', 'Fennel', 'Peach', 'Banana', 'Avocado', 'Chocolate', 
-                                    'Coffee', 'Cinnamon', 'Garlic', 'Chickpeas', 'Lentils'
-                                ]
-                                custom_allergies = st.text_area("Custom Allergies (comma separated)", value=user_data.get('custom_allergies', ''))
-                                default_allergies = user_data.get('allergies', [])
-                                valid_default_allergies = [allergy for allergy in default_allergies if allergy in allergies]
-                                selected_allergies = st.multiselect("Allergies", allergies, default=valid_default_allergies)                 
-                                street = st.text_input("Street", value=address_data.get('street', ''))
-                                city = st.text_input("City", value=address_data.get('city', ''))
-                                state = st.text_input("State", value=address_data.get('state', ''))
-                                postalcode = st.text_input("Postal Code", value=address_data.get('postalcode', ''))
-                                # Fetch the country from address_data
-                                user_country = address_data.get('country', '')
-
-                                # Check if the fetched country is in the list of country names
-                                if user_country in country_names:
-                                    country_index = country_names.index(user_country)
-                                else:
-                                    country_index = 0  # Default to the first country in the list
-
-                                # Create the selectbox with the calculated index
-                                country = st.selectbox("Country", country_names, index=country_index)
-                                # Time zone selection
-                                timezones = pytz.all_timezones
-                                selected_timezone = st.selectbox('Time Zone', options=timezones, index=timezones.index(user_data.get('timezone', 'UTC')))
-                                # Define a dictionary for languages
-                                language_options = {
-                                    'en': 'English',
-                                    'ja': 'Japanese',
-                                    'es': 'Spanish',
-                                    'fr': 'French',
-                                }
-                                language_labels = list(language_options.values())
-                                language_keys = list(language_options.keys())
-                                current_language = language_options.get(user_data.get('preferred_language', 'en'))
-                                preferred_language = st.selectbox("Preferred Language", language_labels, index=language_labels.index(current_language))
-                                email_daily_instructions = st.radio(
-                                    "Receive daily emails with that day's cooking instructions?",
-                                    ('Yes', 'No'),
-                                    index=0 if user_data.get('email_daily_instructions', True) else 1
-                                )
-
-                                email_meal_plan_saved = st.radio(
-                                    "Receive a shopping list when your meal plan is saved or updated?",
-                                    ('Yes', 'No'),
-                                    index=0 if user_data.get('email_meal_plan_saved', True) else 1
-                                )
-
-                                email_instruction_generation = st.radio(
-                                    "Receive an email when you request cooking instructions?",
-                                    ('Yes', 'No'),
-                                    index=0 if user_data.get('email_instruction_generation', True) else 1
-                                )                   
-                                # Get the corresponding key for the selected value
-                                selected_language_code = language_keys[language_labels.index(preferred_language)]
-
-                                st.subheader("User Goals")
-                                if goal_data:
-                                    st.write(f"**{goal_data['goal_name']}**: {goal_data['goal_description']}")
-                                else:
-                                    st.info("No goals set yet. Use the form below to add your goals.")
-                                goal_name = st.text_input("Goal Name", value=goal_data['goal_name'] if goal_data else "")
-                                goal_description = st.text_area("Goal Description", value=goal_data['goal_description'] if goal_data else "")
-                            
-                                submitted = st.form_submit_button("Update Profile")
-
-                                if submitted:
-                                    custom_dietary_preferences = [
-                                        pref.strip() for pref in custom_dietary_preferences_input.split(',') if pref.strip()
-                                    ]
-                                    profile_data = {
-                                        # User fields
-                                        'username': username,
-                                        'email': email,
-                                        'phone_number': phone_number,
-                                        'dietary_preferences': selected_dietary_preference,
-                                        'custom_dietary_preferences': custom_dietary_preferences,
-                                        'allergies': selected_allergies,
-                                        'custom_allergies': custom_allergies,
-                                        'timezone': selected_timezone,
-                                        'preferred_language': selected_language_code,
-                                        'email_daily_instructions': email_daily_instructions == 'Yes',
-                                        'email_meal_plan_saved': email_meal_plan_saved == 'Yes',
-                                        'email_instruction_generation': email_instruction_generation == 'Yes',
-                                        # Address data
-                                        'address': {
-                                            'street': street,
-                                            'city': city,
-                                            'state': state,
-                                            'postalcode': postalcode,
-                                            'country': country
-                                        }
-                                    }
-                                    update_response = api_call_with_refresh(
-                                        url=f'{os.getenv("DJANGO_URL")}/auth/api/update_profile/',
-                                        method='post',
-                                        data=profile_data,
-                                        headers={'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-                                    )
-                                    if update_response.status_code == 200:
-                                        st.success("Profile updated successfully!")
-                                        if goal_name and goal_description:
-                                            if update_goal(goal_name, goal_description):
-                                                st.success("Goal updated successfully!")
-                                            else:
-                                                st.error("Failed to update goal.")
-                                        fetch_and_update_user_profile()
-                                    else:
-                                        st.error(f"Failed to update profile: {update_response.text}")
-
-                # Account Deletion Section
-                st.subheader("Delete Account")
-                st.warning("**This action cannot be undone.** All your data will be permanently deleted.")
-
-                # Confirmation inputs
-                confirmation_input = st.text_input('Type "done eating" to confirm account deletion.')
-                password_input = st.text_input("Enter your password", type="password")
-
-                if st.button("Delete My Account"):
-                    if confirmation_input == 'done eating':
-                        if password_input:
-                            # Make API call to delete account
-                            headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-                            response = api_call_with_refresh(
-                                url=f'{os.getenv("DJANGO_URL")}/auth/api/delete_account/',
-                                headers=headers,
-                                method='delete',
-                                data={'confirmation': confirmation_input, 'password': password_input}
-                            )
-                            if response.status_code == 200:
-                                st.success("Your account has been deleted successfully.")
-                                # Clear session state and redirect or refresh the page
-                                for key in list(st.session_state.keys()):
-                                    del st.session_state[key]
-                                st.rerun()
-                            else:
-                                error_message = response.json().get('message', 'Unknown error')
-                                st.error(f"Failed to delete account: {error_message}")
-                        else:
-                            st.error('Please enter your password to confirm account deletion.')
-                    else:
-                        st.error('You must type "done eating" exactly to confirm account deletion.')
+        if st.button("Delete My Account"):
+            if confirmation_input == 'done eating' and password_input:
+                headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                response = api_call_with_refresh(
+                    url=f'{os.getenv("DJANGO_URL")}/auth/api/delete_account/',
+                    headers=headers,
+                    method='delete',
+                    data={'confirmation': confirmation_input, 'password': password_input}
+                )
+                if response.status_code == 200:
+                    st.success("Your account has been deleted successfully.")
+                    for key in list(st.session_state.keys()):
+                        del st.session_state[key]
+                    st.rerun()
                 else:
-                    # User is not logged in, display a message or redirect
-                    st.warning("Please log in to view and update your profile.")
+                    error_msg = response.json().get('message', 'Unknown error')
+                    st.error(f"Failed to delete account: {error_msg}")
+            else:
+                st.error('You must type "done eating" exactly and provide your password.')
+        return
 
-        # If the email is not confirmed, restrict access and prompt to resend activation link
-        elif is_user_authenticated() and not st.session_state.get('email_confirmed', False):
-            st.warning("Your email address is not confirmed. Please confirm your email to access all features.")
-            if st.button("Resend Activation Link"):
-                resend_activation_link(st.session_state['user_id'])
+    # If user is authenticated and email is confirmed
+    if is_user_authenticated() and st.session_state.get('email_confirmed', False):
+        if 'current_role' in st.session_state and st.session_state['current_role'] != 'chef':
+            st.title("Profile")
+
+            # Fetch user details
+            headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+            user_details = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/user_details/', method='get', headers=headers)
+            address_details = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/address_details/', method='get', headers=headers)
+            countries_details = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/countries/', method='get', headers=headers)
+
+            if user_details.status_code == 200:
+                user_data = user_details.json()
+                st.session_state.user_id = user_data.get('id')
+                if not isinstance(user_data.get('custom_dietary_preferences'), list):
+                    user_data['custom_dietary_preferences'] = []
+            else:
+                user_data = {}
+
+            address_data = address_details.json() if address_details and address_details.status_code == 200 else {}
+
+            countries_list = countries_details.json() if countries_details and countries_details.status_code == 200 else []
+            country_dict = {country['name']: country['code'] for country in countries_list}
+            country_names = list(country_dict.keys())
+
+            # Default values for fields
+            username_val = user_data.get('username', '')
+            email_val = user_data.get('email', '')
+            phone_val = user_data.get('phone_number', '')
+            timezone_val = user_data.get('timezone', 'UTC')
+            preferred_language_val = user_data.get('preferred_language', 'en')
+            dietary_prefs_val = user_data.get('dietary_preferences', ['Everything'])
+            custom_prefs_val = ', '.join(user_data.get('custom_dietary_preferences', []))
+            allergies_val = user_data.get('allergies', [])
+            custom_allergies_val = ', '.join(user_data.get('custom_allergies', []))
+            email_daily_inst_val = user_data.get('email_daily_instructions', True)
+            email_meal_plan_saved_val = user_data.get('email_meal_plan_saved', True)
+            email_instr_gen_val = user_data.get('email_instruction_generation', True)
+            preferred_servings_val = user_data.get('preferred_servings', 1)
+            emergency_supply_goal_val = user_data.get('emergency_supply_goal', st.session_state.get('emergency_supply_goal', 0))
+
+            street_val = address_data.get('street', '')
+            city_val = address_data.get('city', '')
+            state_val = address_data.get('state', '')
+            postal_val = address_data.get('postalcode', '')
+            user_country = address_data.get('country', '')
+            country_index = country_names.index(user_country) if user_country in country_names else 0
+
+            dietary_preferences = [
+                'Everything', 'Vegetarian', 'Pescatarian', 'Gluten-Free', 'Keto', 
+                'Paleo', 'Halal', 'Kosher', 'Low-Calorie', 'Low-Sodium', 'High-Protein', 
+                'Dairy-Free', 'Nut-Free', 'Raw Food', 'Whole 30', 'Low-FODMAP', 
+                'Diabetic-Friendly', 'Vegan'
+            ]
+
+            all_allergies = [
+                'Peanuts', 'Tree nuts', 'Milk', 'Egg', 'Wheat', 'Soy', 'Fish', 'Shellfish', 'Sesame', 'Mustard', 
+                'Celery', 'Lupin', 'Sulfites', 'Molluscs', 'Corn', 'Gluten', 'Kiwi', 'Latex', 'Pine Nuts', 
+                'Sunflower Seeds', 'Poppy Seeds', 'Fennel', 'Peach', 'Banana', 'Avocado', 'Chocolate', 
+                'Coffee', 'Cinnamon', 'Garlic', 'Chickpeas', 'Lentils'
+            ]
+
+            # Languages
+            language_options = {'en': 'English', 'ja': 'Japanese', 'es': 'Spanish', 'fr': 'French'}
+            language_labels = list(language_options.values())
+            language_keys = list(language_options.keys())
+            current_language_label = language_options.get(preferred_language_val, 'English')
+
+            # Timezone options
+            timezones = pytz.all_timezones
+
+            goal_data = fetch_and_display_goals()
+
+            with st.form("profile_update_form"):
+                st.subheader("User Information")
+                username_input = st.text_input("Username", value=username_val)
+                email_input = st.text_input("Email", value=email_val)
+                phone_input = st.text_input("Phone Number", value=phone_val)
+
+                # Validate user inputs if needed
+                # Only show errors if fields are not empty
+                if username_input:
+                    valid_username, username_msg = validate_input(username_input, 'username')
+                    if not valid_username:
+                        st.error(username_msg)
+
+                if email_input:
+                    valid_email, email_msg = validate_input(email_input, 'email')
+                    if not valid_email:
+                        st.error(email_msg)
+
+                if phone_input:
+                    valid_phone, phone_msg = validate_input(phone_input, 'phone_number')
+                    if not valid_phone:
+                        st.error(phone_msg)
+
+                # Dietary Preferences
+                st.subheader("Dietary and Allergies")
+                selected_diet_prefs = st.multiselect("Dietary Preferences", dietary_preferences, default=dietary_prefs_val)
+                custom_diet_prefs_input = st.text_area("Custom Dietary Preferences (comma separated)", value=custom_prefs_val, help="Enter multiple custom dietary preferences separated by commas. Example: Carnivore, Lacto-Vegan, Flexitarian")
+                selected_allergies = st.multiselect("Allergies", all_allergies, default=[a for a in allergies_val if a in all_allergies])
+                custom_allergies_input = st.text_area("Custom Allergies (comma separated)", value=custom_allergies_val, help="Enter multiple custom allergies separated by commas. Example: Peanuts, Shellfish, Kiwi")
+
+                # Preferred Servings
+                preferred_servings_input = st.number_input("Preferred Servings", min_value=1, value=preferred_servings_val, help="How many people you typically cook for or want meals scaled to.")
+
+                # Emergency Supply Goal
+                emergency_supply_goal_input = st.number_input(
+                    "Emergency Supply Goal (days)",
+                    min_value=0,
+                    value=emergency_supply_goal_val,
+                    help="How many days of emergency supplies you want to keep?"
+                )
+
+                # Address
+                st.subheader("Address")
+                street_input = st.text_input("Street", value=street_val)
+                city_input = st.text_input("City", value=city_val)
+                state_input = st.text_input("State", value=state_val)
+                postal_input = st.text_input("Postal Code", value=postal_val)
+                country_selected = st.selectbox("Country", country_names, index=country_index)
+
+                # Language and Timezone
+                st.subheader("Preferences")
+                preferred_lang = st.selectbox("Preferred Language", language_labels, index=language_labels.index(current_language_label))
+                selected_language_code = language_keys[language_labels.index(preferred_lang)]
+                selected_timezone = st.selectbox('Time Zone', options=timezones, index=timezones.index(timezone_val))
+
+                # Email Settings
+                email_daily_choice = st.radio("Receive daily cooking instructions?", ('Yes', 'No'),
+                                              index=0 if email_daily_inst_val else 1)
+                email_plan_saved_choice = st.radio("Receive a shopping list when your meal plan is saved or updated?", ('Yes', 'No'),
+                                                   index=0 if email_meal_plan_saved_val else 1)
+                email_instr_gen_choice = st.radio("Receive an email when you request cooking instructions?", ('Yes', 'No'),
+                                                  index=0 if email_instr_gen_val else 1)
+
+                # Goals
+                st.subheader("User Goals")
+                if goal_data:
+                    st.write(f"**{goal_data['goal_name']}**: {goal_data['goal_description']}")
+                else:
+                    st.info("No goals set yet.")
+
+                goal_name = st.text_input("Goal Name", value=goal_data['goal_name'] if goal_data else "")
+                goal_description = st.text_area("Goal Description", value=goal_data['goal_description'] if goal_data else "")
+
+                submitted = st.form_submit_button("Update Profile")
+
+                if submitted:
+                    if (valid_username if username_input else True) and (valid_email if email_input else True) and (valid_phone if phone_input else True):
+                        # Parse custom preferences
+                        custom_prefs_list = [p.strip() for p in custom_diet_prefs_input.split(',') if p.strip()]
+                        custom_allergies_list = [a.strip() for a in custom_allergies_input.split(',') if a.strip()]
+
+                        profile_data = {
+                            'username': username_input,
+                            'email': email_input,
+                            'phone_number': phone_input,
+                            'dietary_preferences': selected_diet_prefs,
+                            'custom_dietary_preferences': custom_prefs_list,
+                            'allergies': selected_allergies,
+                            'custom_allergies': custom_allergies_list,
+                            'timezone': selected_timezone,
+                            'preferred_language': selected_language_code,
+                            'email_daily_instructions': (email_daily_choice == 'Yes'),
+                            'email_meal_plan_saved': (email_plan_saved_choice == 'Yes'),
+                            'email_instruction_generation': (email_instr_gen_choice == 'Yes'),
+                            'preferred_servings': preferred_servings_input,
+                            'emergency_supply_goal': emergency_supply_goal_input,
+                            'address': {
+                                'street': street_input,
+                                'city': city_input,
+                                'state': state_input,
+                                'postalcode': postal_input,
+                                'country': country_selected
+                            }
+                        }
+
+                        # Update the profile via API
+                        update_response = api_call_with_refresh(
+                            url=f'{os.getenv("DJANGO_URL")}/auth/api/update_profile/',
+                            method='post',
+                            data=profile_data,
+                            headers={'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                        )
+                        if update_response.status_code == 200:
+                            st.success("Profile updated successfully!")
+                            if goal_name and goal_description:
+                                if update_goal(goal_name, goal_description):
+                                    st.success("Goal updated successfully!")
+                                else:
+                                    st.error("Failed to update goal.")
+                            # Refresh session state user info after update
+                            fetch_and_update_user_profile()
+                        else:
+                            st.error(f"Failed to update profile: {update_response.text}")
 
             # Account Deletion Section
             st.subheader("Delete Account")
             st.warning("**This action cannot be undone.** All your data will be permanently deleted.")
-
-            # Confirmation inputs
             confirmation_input = st.text_input('Type "done eating" to confirm account deletion.')
             password_input = st.text_input("Enter your password", type="password")
 
             if st.button("Delete My Account"):
-                if confirmation_input == 'done eating':
-                    if password_input:
-                        # Make API call to delete account
-                        headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-                        response = api_call_with_refresh(
-                            url=f'{os.getenv("DJANGO_URL")}/auth/api/delete_account/',
-                            headers=headers,
-                            method='delete',
-                            data={'confirmation': confirmation_input, 'password': password_input}
-                        )
-                        if response.status_code == 200:
-                            st.success("Your account has been deleted successfully.")
-                            # Clear session state and redirect or refresh the page
-                            for key in list(st.session_state.keys()):
-                                del st.session_state[key]
-                            st.rerun()
-                        else:
-                            error_message = response.json().get('message', 'Unknown error')
-                            st.error(f"Failed to delete account: {error_message}")
+                if confirmation_input == 'done eating' and password_input:
+                    headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                    response = api_call_with_refresh(
+                        url=f'{os.getenv("DJANGO_URL")}/auth/api/delete_account/',
+                        headers=headers,
+                        method='delete',
+                        data={'confirmation': confirmation_input, 'password': password_input}
+                    )
+                    if response.status_code == 200:
+                        st.success("Your account has been deleted successfully.")
+                        # Clear session state and rerun
+                        for key in list(st.session_state.keys()):
+                            del st.session_state[key]
+                        st.rerun()
                     else:
-                        st.error('Please enter your password to confirm account deletion.')
+                        error_message = response.json().get('message', 'Unknown error')
+                        st.error(f"Failed to delete account: {error_message}")
                 else:
-                    st.error('You must type "done eating" exactly to confirm account deletion.')
+                    st.error('You must type "done eating" exactly and provide your password.')
 
-    except Exception as e:
-        logging.error(f"An error occurred: {str(e)}")
-        st.error("An unexpected error occurred. Please try again later.")
+    else:
+        # If the user somehow is authenticated but no role, just show an error or handle gracefully
+        st.error("User authentication or role state unclear. Please re-login.")
 
 if __name__ == "__main__":
     profile()

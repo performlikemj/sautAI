@@ -39,22 +39,20 @@ def pantry_page():
     if 'show_add_form' not in st.session_state:
         st.session_state.show_add_form = False
 
-    # Logout Button
+    # Logout button
     if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
         if st.button("Logout", key='pantry_logout'):
-            # Clear session state
+            # Clear relevant session keys
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.success("Logged out successfully!")
             st.rerun()
-        # Toggle chef mode if needed
         toggle_chef_mode()
 
     try:
         if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
             login_form()
 
-        # Check if the user is authenticated and email is confirmed
         if is_user_authenticated() and st.session_state.get('email_confirmed', False):
             if 'current_role' in st.session_state and st.session_state['current_role'] != 'chef':
                 st.title("Your Pantry")
@@ -66,15 +64,16 @@ def pantry_page():
                 - **Reduce Waste**: Receive alerts for items approaching their expiration date, so you can use them before they go bad.
                 - **Plan Meals Efficiently**: Enjoy meal recommendations tailored to use your pantry items before they expire.
                 - **Stay Organized**: Easily manage your stock of canned and dry goods, along with custom notes for each item.
-
+                
                 By keeping your pantry updated, sautAI helps to align your meal plans with what you already have on hand, saving time and reducing food waste.
+                
+                **Editing Tags:** Enter tags as a comma-separated list. For example: `Gluten-Free, High-Protein`.
                 """)
 
-            # Initialize page number
+            # Initialize pagination
             if 'pantry_page_number' not in st.session_state:
                 st.session_state.pantry_page_number = 1
 
-            # Fetch pantry items with pagination
             headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
             response = api_call_with_refresh(
                 url=f'{os.getenv("DJANGO_URL")}/meals/api/pantry-items/?page={st.session_state.pantry_page_number}',
@@ -88,46 +87,67 @@ def pantry_page():
                 pantry_records = []
 
                 for item in pantry_items:
+                    # Build each row with the fields you want to display/edit
                     pantry_records.append({
-                        'ID': item['id'],
+                        'ID': int(item['id']),
                         'Item Name': item['item_name'],
                         'Quantity': item['quantity'],
+                        'Weight Per Unit': item.get('weight_per_unit', None),
+                        'Weight Unit': item.get('weight_unit', ''),
                         'Expiration Date': parse_expiration_date(item['expiration_date']),
                         'Item Type': item['item_type'],
                         'Notes': item['notes'],
+                        'Tags': ', '.join(item.get('tags', [])),
                     })
 
                 if not pantry_records:
                     st.info("No pantry items found.")
                 else:
                     pantry_df = pd.DataFrame(pantry_records)
-
-                    # Add a 'Delete' column with default False
                     pantry_df['Delete'] = False
 
-                    # Store the original DataFrame in session state
+                    # Store original for comparison later
                     st.session_state['original_pantry_df'] = pantry_df.copy()
 
-                    # Display the editable pantry items
+                    # Hide the ID column from display
+                    display_df = pantry_df.drop(columns=['ID'])
+
+                    # Show data_editor with custom columns
                     edited_df = st.data_editor(
-                        pantry_df,
+                        display_df,
                         use_container_width=True,
                         hide_index=True,
                         column_config={
-                            'Quantity': st.column_config.NumberColumn('Quantity', min_value=0, step=1),
+                            'Quantity': st.column_config.NumberColumn(
+                                'Quantity',
+                                min_value=0,
+                                step=1
+                            ),
+                            'Weight Per Unit': st.column_config.NumberColumn(
+                                'Weight Per Unit',
+                                help="How many ounces or grams per can/bag?"
+                            ),
+                            'Weight Unit': st.column_config.SelectboxColumn(
+                                'Weight Unit',
+                                options=["", "oz", "lb", "g", "kg"],
+                                help="The unit for weight_per_unit"
+                            ),
                             'Expiration Date': st.column_config.DateColumn('Expiration Date'),
-                            'Item Type': st.column_config.SelectboxColumn('Item Type', options=['Canned', 'Dry']),
+                            'Item Type': st.column_config.SelectboxColumn(
+                                'Item Type',
+                                options=['Canned', 'Dry']
+                            ),
                             'Notes': st.column_config.TextColumn('Notes'),
-                            'Delete': st.column_config.CheckboxColumn('Delete', default=False)  # Add Delete checkbox
+                            'Tags': st.column_config.TextColumn('Tags'),
+                            'Delete': st.column_config.CheckboxColumn('Delete', default=False),
                         },
-                        num_rows="dynamic",  # Allow adding/deleting rows
+                        num_rows="dynamic",
                         key='pantry_data_editor',
                     )
 
-                    # Store the edited DataFrame in session state
                     st.session_state['edited_pantry_df'] = edited_df
 
-                    # Add Submit and Cancel buttons
+                    # Buttons for submission & cancellation
                     col1, col2 = st.columns(2)
                     with col1:
                         if st.button('Submit Changes', key='submit_changes_button'):
@@ -135,12 +155,10 @@ def pantry_page():
                                 original_df=st.session_state['original_pantry_df'],
                                 edited_df=st.session_state['edited_pantry_df']
                             )
-                            # After processing changes, reload the page to fetch updated data
                             st.success("Changes submitted successfully!")
                             st.rerun()
                     with col2:
                         if st.button('Cancel Changes', key='cancel_changes_button'):
-                            # Discard changes and reload the original data
                             st.session_state['edited_pantry_df'] = st.session_state['original_pantry_df']
                             st.warning("Changes have been discarded.")
                             st.rerun()
@@ -162,34 +180,42 @@ def pantry_page():
 
             elif response and response.status_code == 401:
                 st.error("Unauthorized access. Please log in again.")
-                logging.error(f"Failed to fetch pantry items. Status code: {response.status_code}, Response: {response.text}")
+                logging.error(f"Status code: {response.status_code}, Response: {response.text}")
             else:
                 st.error("Error fetching pantry items.")
-                logging.error(f"Failed to fetch pantry items. Status code: {response.status_code if response else 'No Response'}, Response: {response.text if response else 'No Response'}")
+                if response:
+                    logging.error(f"Status code: {response.status_code}, Response: {response.text}")
+                else:
+                    logging.error("No response from server.")
 
-            # Show add pantry item form
-            if not pantry_records or st.button("Add New Pantry Item", key='show_add_pantry_item_form'):
+            # Add New Pantry Item form
+            if not pantry_items or st.button("Add New Pantry Item", key='show_add_pantry_item_form'):
                 st.session_state.show_add_form = True
+            UNIT_OPTIONS = ['oz', 'lb', 'g', 'kg']
 
             if st.session_state.show_add_form:
                 with st.form(key='add_pantry_item_form'):
                     item_name = st.text_input("Item Name")
                     quantity = st.number_input("Quantity", min_value=1, value=1, step=1)
+                    weight_val = st.number_input("Weight Per Unit", min_value=0.0, value=0.0, step=0.1)
+                    selected_unit = st.selectbox("Weight Unit", options=[""] + UNIT_OPTIONS, index=0, help="(Leave blank if not applicable)")
                     expiration_date = st.date_input("Expiration Date", value=date.today())
                     item_type = st.selectbox("Item Type", options=['Canned', 'Dry'])
                     notes = st.text_area("Notes")
-
+                    tags_str = st.text_input("Tags (comma-separated)")
                     add_item_submit = st.form_submit_button("Add Item")
+
                     if add_item_submit:
-                        # Prepare the new item data
                         new_item = {
                             'Item Name': item_name,
                             'Quantity': quantity,
+                            'Weight Per Unit': weight_val,
+                            'Weight Unit': None if selected_unit == "" else selected_unit,
                             'Expiration Date': expiration_date,
                             'Item Type': item_type,
-                            'Notes': notes
+                            'Notes': notes,
+                            'Tags': tags_str,
                         }
-
                         if validate_new_row(new_item):
                             add_pantry_item(pd.Series(new_item))
                             st.success(f"'{item_name}' has been added to your pantry.")
@@ -198,7 +224,6 @@ def pantry_page():
                         else:
                             st.error("Please complete all fields before adding the item.")
 
-        # If the email is not confirmed
         elif is_user_authenticated() and not st.session_state.get('email_confirmed', False):
             st.warning("Your email address is not confirmed. Please confirm your email to access all features.")
             if st.button("Resend Activation Link", key='resend_activation_link_button'):
@@ -210,44 +235,55 @@ def pantry_page():
 
 def process_changes(original_df, edited_df):
     """
-    Compare original and edited DataFrames and process additions, updates, and deletions.
+    Merge 'ID' from original_df onto edited_df by matching row index,
+    then handle updates & deletions.
+
+    original_df:  columns ['ID', 'Item Name', ..., 'Delete']
+    edited_df:    columns ['Item Name', ..., 'Delete'] (missing ID)
     """
-    original_ids = set(original_df['ID'])
-    edited_ids = set(edited_df['ID'].dropna())
+    # 1) Reattach ID
+    merged_df = edited_df.copy()
+    merged_df['ID'] = original_df['ID'].astype(int).values  # ensure int, not float
+    
+    # 2) Find items with Delete == True
+    rows_for_deletion = merged_df[merged_df['Delete'] == True]
+    delete_ids = set(rows_for_deletion['ID'])
+    
+    # 3) For updates
+    for idx in merged_df.index:
+        if merged_df.at[idx, 'Delete'] is True:
+            # skip deleting here, handle after
+            continue
+        
+        row_id = merged_df.at[idx, 'ID']
+        # Check if row_id is in original_df
+        original_rows = original_df[original_df['ID'] == row_id]
+        if original_rows.empty:
+            # No match in original, skip or log an error
+            logging.warning(f"Row with ID={row_id} not found in original for update. Skipping.")
+            continue
+        
+        original_row = original_rows.iloc[0]
+        edited_row = merged_df.loc[idx]
 
-    # Identify deletions based on 'Delete' column
-    deleted_ids = original_ids - edited_ids
-    # Additionally, identify rows marked for deletion
-    rows_marked_for_deletion = edited_df[edited_df['Delete'] == True]
-    ids_marked_for_deletion = set(rows_marked_for_deletion['ID'])
-
-    # Combine both deletion sets
-    total_deleted_ids = deleted_ids | ids_marked_for_deletion
-
-    # Identify additions
-    added_rows = edited_df[edited_df['ID'].isnull()]
-
-    # Identify updates
-    common_ids = original_ids & edited_ids
-
-    # Process deletions
-    for id in total_deleted_ids:
-        original_row = original_df[original_df['ID'] == id].iloc[0]
-        delete_pantry_item(original_row)
-
-    # Process updates
-    for id in common_ids:
-        original_row = original_df[original_df['ID'] == id].iloc[0]
-        edited_row = edited_df[edited_df['ID'] == id].iloc[0]
-        if not original_row.equals(edited_row):
+        # Drop the ID/Delete columns for comparison
+        original_comp = original_row.drop(['ID','Delete'], errors='ignore')
+        edited_comp = edited_row.drop(['ID','Delete'], errors='ignore')
+        
+        if not original_comp.equals(edited_comp):
+            # Something changed
             update_pantry_item(edited_row)
-
-    # Process additions
-    for _, row in added_rows.iterrows():
-        if validate_new_row(row):
-            add_pantry_item(row)
-        else:
-            st.warning("Please complete all required fields for the new item before adding.")
+    
+    # 4) Now do the deletions
+    for row_id in delete_ids:
+        # Retrieve from original df
+        orig_rows = original_df[original_df['ID'] == row_id]
+        if orig_rows.empty:
+            logging.warning(f"Row with ID={row_id} not found in original for deletion. Possibly already deleted.")
+            continue
+        
+        original_row = orig_rows.iloc[0]
+        delete_pantry_item(original_row)
 
 def validate_new_row(row):
     required_fields = ['Item Name', 'Quantity']
@@ -257,42 +293,43 @@ def validate_new_row(row):
     return True
 
 def update_pantry_item(row):
-    # Convert row to dictionary with native Python types
     updated_data = row.to_dict()
+    tags_str = updated_data['Tags'] if 'Tags' in updated_data else ''
+    tags_list = [tag.strip() for tag in tags_str.split(',') if tag.strip()]
 
-    # Prepare payload
-    updated_data = {
+    # Build the payload
+    payload = {
         'item_name': updated_data['Item Name'],
-        'quantity': int(updated_data['Quantity']),  # Ensure it's a native int
+        'quantity': int(updated_data['Quantity']),
         'expiration_date': updated_data['Expiration Date'].isoformat() if pd.notnull(updated_data['Expiration Date']) else None,
         'item_type': updated_data['Item Type'],
-        'notes': updated_data['Notes'],
+        'notes': updated_data['Notes'] if pd.notnull(updated_data['Notes']) else '',
+        'tags': tags_list
     }
-    item_id = row['ID']
+    if 'Weight Per Unit' in updated_data and not pd.isnull(updated_data['Weight Per Unit']):
+        payload['weight_per_unit'] = float(updated_data['Weight Per Unit'])
+    if 'Weight Unit' in updated_data and updated_data['Weight Unit']:
+        payload['weight_unit'] = updated_data['Weight Unit']
+
+    item_id = updated_data['ID']
+    data_json = json.dumps(payload)
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
 
-    # Serialize data to JSON
-    data_json = json.dumps(updated_data)
-
     try:
-        response = api_call_with_refresh(
+        resp = api_call_with_refresh(
             url=f'{os.getenv("DJANGO_URL")}/meals/api/pantry-items/{item_id}/',
             method='put',
             headers=headers,
             data=data_json
         )
-
-        if response is None:
-            logging.error("Failed to update pantry item due to authentication issues.")
-            st.error("Failed to update pantry item. Please try logging in again.")
+        if resp is None:
+            st.error("Failed to update pantry item. Please log in again.")
             return
-
-        if response.status_code == 200:
-            logging.info(f"Pantry item '{updated_data['item_name']}' updated successfully.")
+        if resp.status_code == 200:
+            logging.info(f"Updated pantry item '{payload['item_name']}' successfully.")
         else:
-            st.error(f"Failed to update pantry item: {response.json()}")
-            logging.error(f"Failed to update pantry item: {response.json()}")
-
+            st.error(f"Failed to update item: {resp.json()}")
+            logging.error(f"Failed to update item: {resp.json()}")
     except Exception as e:
         logging.error(f"Error updating pantry item: {e}")
         st.error("An error occurred while updating the pantry item. Please try again.")
@@ -302,78 +339,68 @@ def delete_pantry_item(row):
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
 
     try:
-        response = api_call_with_refresh(
+        resp = api_call_with_refresh(
             url=f'{os.getenv("DJANGO_URL")}/meals/api/pantry-items/{item_id}/',
             method='delete',
-            headers=headers,
-            data=None
+            headers=headers
         )
-        if response is None:
-            logging.error("Failed to delete pantry item due to authentication issues.")
-            st.error("Failed to delete pantry item. Please try logging in again.")
+        if resp is None:
+            st.error("Failed to delete pantry item. Please log in again.")
             return
-
-        if response.status_code == 204:
-            logging.info(f"Pantry item '{row['Item Name']}' deleted successfully.")
-            # Remove the deleted row from the DataFrame
-            st.session_state['edited_pantry_df'] = st.session_state['edited_pantry_df'][st.session_state['edited_pantry_df']['ID'] != item_id]
-            st.rerun() 
+        if resp.status_code == 204:
+            logging.info(f"Deleted pantry item '{row['Item Name']}' successfully.")
+            st.success(f"Deleted '{row['Item Name']}'")
         else:
-            st.error(f"Failed to delete pantry item: {response.json()}")
-            logging.error(f"Failed to delete pantry item: {response.json()}")
-
+            st.error(f"Failed to delete item: {resp.json()}")
+            logging.error(f"Failed to delete item: {resp.json()}")
     except Exception as e:
         logging.error(f"Error deleting pantry item: {e}")
         st.error("An error occurred while deleting the pantry item. Please try again.")
 
+    # If successful
+    st.success(f"Deleted '{row['Item Name']}'")
+    logging.info(f"Deleted item ID={item_id} successfully.")
+
 def add_pantry_item(row):
-    """
-    Add a new pantry item.
-    """
-    # Prepare payload
-    item_data = {
+    tags_str = row.get('Tags', '')
+    tags_list = [tag.strip() for tag in tags_str.split(',') if tag.strip()]
+
+    payload = {
         'item_name': row['Item Name'],
         'quantity': int(row['Quantity']),
         'expiration_date': row['Expiration Date'].isoformat() if pd.notnull(row['Expiration Date']) else None,
         'item_type': row['Item Type'] if pd.notnull(row['Item Type']) else '',
         'notes': row['Notes'] if pd.notnull(row['Notes']) else '',
+        'tags': tags_list
     }
+    if 'Weight Per Unit' in row and not pd.isnull(row['Weight Per Unit']):
+        payload['weight_per_unit'] = float(row['Weight Per Unit'])
+    WEIGHT_UNIT_FIELD = 'Weight Unit'  # how your DataFrame references it
+    if WEIGHT_UNIT_FIELD in row and row[WEIGHT_UNIT_FIELD]:
+        payload['weight_unit'] = row[WEIGHT_UNIT_FIELD]
 
+    
+    data_json = json.dumps(payload)
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
 
-    # Serialize data to JSON
-    data_json = json.dumps(item_data)
-
     try:
-        response = api_call_with_refresh(
+        resp = api_call_with_refresh(
             url=f'{os.getenv("DJANGO_URL")}/meals/api/pantry-items/',
             method='post',
             headers=headers,
             data=data_json
         )
-
-        if response is None:
-            logging.error("Failed to add pantry item due to authentication issues.")
-            st.error("Failed to add pantry item. Please try logging in again.")
+        if resp is None:
+            st.error("Failed to add pantry item. Please log in again.")
             return
-
-        if response.status_code == 201:
+        if resp.status_code == 201:
             logging.info(f"Pantry item '{row['Item Name']}' added successfully.")
         else:
-            st.error(f"Failed to add pantry item: {response.json()}")
-            logging.error(f"Failed to add pantry item: {response.json()}")
-
+            st.error(f"Failed to add item: {resp.json()}")
+            logging.error(f"Failed to add item: {resp.json()}")
     except Exception as e:
         logging.error(f"Error adding pantry item: {e}")
         st.error("An error occurred while adding the pantry item. Please try again.")
 
-    st.markdown(
-        """
-        <a href="https://www.buymeacoffee.com/sautai" target="_blank">
-            <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px; width: 217px;" >
-        </a>
-        """,
-        unsafe_allow_html=True
-    )
 if __name__ == "__main__":
     pantry_page()

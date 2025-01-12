@@ -183,7 +183,9 @@ def login_form():
                         st.session_state['timezone'] = response_data['timezone']
                         st.session_state['preferred_language'] = response_data['preferred_language']
                         st.session_state['dietary_preferences'] = response_data['dietary_preferences']
-                        st.session_state['custom_dietary_preferences'] = response_data.get('custom_dietary_preferences', [])  # Updated key and default
+                        st.session_state['custom_dietary_preferences'] = response_data.get('custom_dietary_preferences', []) 
+                        st.session_state['emergency_supply_goal'] = response_data.get('emergency_supply_goal', 0)
+                        st.session_state['preffered_servings'] = response_data.get('preffered_servings', 1)
                         st.session_state['allergies'] = response_data['allergies']
                         st.session_state['custom_allergies'] = response_data['custom_allergies']
                         st.session_state['goal_name'] = response_data['goal_name']
@@ -565,3 +567,16 @@ def parse_comma_separated_input(input_str):
         List[str]: A list of non-empty, trimmed strings.
     """
     return [pref.strip() for pref in input_str.split(',') if pref.strip()]
+
+def footer():
+    st.write("---")
+    st.markdown(
+        """
+        <small style="color: #777;">
+        <strong>Disclaimer:</strong> SautAI uses generative AI for its meal planning 
+        and suggestions, which may occasionally produce incorrect or incomplete results. 
+        Please verify any critical information and use caution.
+        </small>
+        """,
+        unsafe_allow_html=True
+    )
