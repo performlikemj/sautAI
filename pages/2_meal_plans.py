@@ -24,13 +24,13 @@ def meal_plans():
     # Parse query parameters for email link scenario
     meal_plan_id_from_url = st.query_params.get('meal_plan_id')
     meal_id_from_url = st.query_params.get('meal_id')
-    action = st.query_params.get('action')
+    action = st.query_params.get('action', None)
 
     # Check for approval token (email approval flow)
     approval_token = st.query_params.get('approval_token')
     meal_prep_preference = st.query_params.get('meal_prep_preference')
 
-    if approval_token:
+    if approval_token and action == "approve_meal_plan":
         try:
             response = requests.post(
                 f'{os.getenv("DJANGO_URL")}/meals/api/email_approved_meal_plan/',
@@ -43,6 +43,27 @@ def meal_plans():
         except Exception as e:
             st.error(f"An error occurred: {str(e)}")
             logging.error(f"traceback: {traceback.format_exc()}")
+        return
+
+    elif approval_token and action == "generate_emergency_plan":
+        st.info("Generating your emergency pantry plan...")
+        try:
+            # Now we don't need user_id in the URL since the server uses request.user
+            url = f"{os.getenv('DJANGO_URL')}/meals/api/generate_emergency_supply/"
+            user_id = st.query_params.get('user_id')
+            payload = {'user_id':user_id, 'approval_token':approval_token}
+            resp = requests.post(
+                url=url,
+                data=payload  
+            )
+            
+            if resp.status_code == 200:
+                st.success("Emergency supply list generated successfully! Check your email for details.")
+            else:
+                st.error(f"Error generating emergency plan. {resp.text}")
+        except Exception as e:
+            st.error(f"An error occurred: {str(e)}")
+            logging.error(f"Traceback: {traceback.format_exc()}")
         return
 
     # Handle auth and logout
@@ -66,6 +87,9 @@ def meal_plans():
 
             If you encounter any issues or need assistance, feel free to contact support@sautai.com.
             """)
+
+
+
 
         if 'selected_week_start' not in st.session_state:
             st.session_state.selected_week_start = datetime.now().date() - timedelta(days=datetime.now().date().weekday())
