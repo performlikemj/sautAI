@@ -28,9 +28,9 @@ def meal_plans():
 
     # Check for approval token (email approval flow)
     approval_token = st.query_params.get('approval_token')
-    meal_prep_preference = st.query_params.get('meal_prep_preference')
+    meal_prep_preference = st.query_params.get('meal_prep_preference', None)
 
-    if approval_token and action == "approve_meal_plan":
+    if approval_token and meal_prep_preference:
         try:
             response = requests.post(
                 f'{os.getenv("DJANGO_URL")}/meals/api/email_approved_meal_plan/',
