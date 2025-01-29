@@ -97,71 +97,80 @@ def register():
                 valid_phone, phone_msg = validate_input(phone_number, 'phone_number')
                 valid_postal, postal_msg = validate_input(postal_code, 'postal_code')
 
+                # Create a list of all validation errors
+                validation_errors = []
                 if not valid_username:
-                    st.error(username_msg)
-                elif not valid_email:
-                    st.error(email_msg)
-                elif not valid_password:
-                    st.error(password_msg)
-                elif not valid_phone:
-                    st.error(phone_msg)
-                elif not valid_postal:
-                    st.error(postal_msg)
-                else:
-                    # Parse custom dietary preferences
-                    custom_dietary_preferences = parse_comma_separated_input(custom_dietary_preferences_input)
+                    validation_errors.append(f"Username Error: {username_msg}")
+                if not valid_email:
+                    validation_errors.append(f"Email Error: {email_msg}")
+                if not valid_password:
+                    validation_errors.append(f"Password Error: {password_msg}")
+                if not valid_phone and phone_number:  # Only validate phone if provided
+                    validation_errors.append(f"Phone Number Error: {phone_msg}")
+                if not valid_postal and postal_code:  # Only validate postal if provided
+                    validation_errors.append(f"Postal Code Error: {postal_msg}")
 
-                    user_data = {
-                        "user": {
-                            "username": username,
-                            "email": email,
-                            "password": password,
-                            "phone_number": phone_number,
-                            "dietary_preferences": selected_dietary_preferences,
-                            "custom_dietary_preferences": custom_dietary_preferences,
-                            "allergies": selected_allergies,
-                            "custom_allergies": custom_allergies_list,
-                            "timezone": selected_timezone,
-                            "preferred_language": selected_language_code,
-                            "preferred_servings": preferred_servings,
-                            "emergency_supply_goal": emergency_supply_goal  
-                        },
-                        "address": {
-                            "street": street,
-                            "city": city,
-                            "state": state,
-                            "country": country_code,
-                            "postalcode": postal_code
-                        },
-                        "goal": {
-                            "goal_name": goal_name,
-                            "goal_description": goal_description
-                        }
+                # Display all validation errors in a formatted way
+                if validation_errors:
+                    st.error("Please fix the following errors:")
+                    for error in validation_errors:
+                        st.warning(error)
+                    return
+
+                # Parse custom dietary preferences
+                custom_dietary_preferences = parse_comma_separated_input(custom_dietary_preferences_input)
+
+                user_data = {
+                    "user": {
+                        "username": username,
+                        "email": email,
+                        "password": password,
+                        "phone_number": phone_number,
+                        "dietary_preferences": selected_dietary_preferences,
+                        "custom_dietary_preferences": custom_dietary_preferences,
+                        "allergies": selected_allergies,
+                        "custom_allergies": custom_allergies_list,
+                        "timezone": selected_timezone,
+                        "preferred_language": selected_language_code,
+                        "preferred_servings": preferred_servings,
+                        "emergency_supply_goal": emergency_supply_goal  
+                    },
+                    "address": {
+                        "street": street,
+                        "city": city,
+                        "state": state,
+                        "country": country_code,
+                        "postalcode": postal_code
+                    },
+                    "goal": {
+                        "goal_name": goal_name,
+                        "goal_description": goal_description
                     }
+                }
 
-                    try:
-                        with st.spinner("Registering your account..."):
-                            api_url = f"{os.getenv('DJANGO_URL')}/auth/api/register/"
-                            response = requests.post(api_url, json=user_data, timeout=10)
-                        if response.status_code == 200:
-                            st.success("Registration successful!")
-                            st.info("Please check your email to activate your account.")
-                            st.switch_page("sautai.py")
-                        if response.status_code == 400:
-                            errors = response.json().get('errors', {})
-                            if isinstance(errors, dict):
-                                for field, messages in errors.items():
-                                    # Display the actual error message received from the backend
-                                    st.error(f"{field}: {', '.join(messages)}")
-                            else:
-                                # Check for specific known issues before falling back to a generic error
-                                st.error("An error occurred during registration. Please check your input and try again.")
-                    except requests.exceptions.RequestException as e:
-                        st.error("Failed to register due to a network issue. Please try again later.")
-                        logging.error(f"Registration network error: {e}")
-                    except Exception as e:
-                        st.error("An unexpected error occurred during registration.")
-                        logging.error(f"Unexpected error during registration: {e}")
+                try:
+                    with st.spinner("Registering your account..."):
+                        api_url = f"{os.getenv('DJANGO_URL')}/auth/api/register/"
+                        response = requests.post(api_url, json=user_data, timeout=10)
+                    if response.status_code == 200:
+                        st.success("Registration successful!")
+                        st.info("Please check your email to activate your account.")
+                        st.switch_page("sautai.py")
+                    if response.status_code == 400:
+                        errors = response.json().get('errors', {})
+                        if isinstance(errors, dict):
+                            st.error("Registration failed. Please fix the following issues:")
+                            for field, messages in errors.items():
+                                field_name = field.replace('_', ' ').title()
+                                st.warning(f"**{field_name}**: {', '.join(messages)}")
+                        else:
+                            st.error("Registration failed. Please check your input and try again.")
+                except requests.exceptions.RequestException as e:
+                    st.error("Failed to register due to a network issue. Please try again later.")
+                    logging.error(f"Registration network error: {e}")
+                except Exception as e:
+                    st.error("An unexpected error occurred during registration.")
+                    logging.error(f"Unexpected error during registration: {e}")
 
             st.markdown(
                 """
