@@ -158,20 +158,34 @@ def profile():
 
                 # Validate user inputs if needed
                 # Only show errors if fields are not empty
+                validation_errors = []
+
                 if username_input:
                     valid_username, username_msg = validate_input(username_input, 'username')
                     if not valid_username:
-                        st.error(username_msg)
+                        validation_errors.append(f"Username Error: {username_msg}")
 
                 if email_input:
                     valid_email, email_msg = validate_input(email_input, 'email')
                     if not valid_email:
-                        st.error(email_msg)
+                        validation_errors.append(f"Email Error: {email_msg}")
 
                 if phone_input:
                     valid_phone, phone_msg = validate_input(phone_input, 'phone_number')
                     if not valid_phone:
-                        st.error(phone_msg)
+                        validation_errors.append(f"Phone Number Error: {phone_msg}")
+
+                if postal_input:
+                    valid_postal, postal_msg = validate_input(postal_input, 'postal_code')
+                    if not valid_postal:
+                        validation_errors.append(f"Postal Code Error: {postal_msg}")
+
+                # Display all validation errors in a formatted way
+                if validation_errors:
+                    st.error("Please fix the following errors:")
+                    for error in validation_errors:
+                        st.warning(error)
+                    return
 
                 # Dietary Preferences
                 st.subheader("Dietary and Allergies")
@@ -272,7 +286,17 @@ def profile():
                             # Refresh session state user info after update
                             fetch_and_update_user_profile()
                         else:
-                            st.error(f"Failed to update profile: {update_response.text}")
+                            error_data = update_response.json()
+                            if isinstance(error_data, dict):
+                                st.error("Profile update failed. Please fix the following issues:")
+                                for field, messages in error_data.items():
+                                    field_name = field.replace('_', ' ').title()
+                                    if isinstance(messages, list):
+                                        st.warning(f"**{field_name}**: {', '.join(messages)}")
+                                    else:
+                                        st.warning(f"**{field_name}**: {messages}")
+                            else:
+                                st.error("Failed to update profile. Please try again later.")
 
             # Account Deletion Section
             st.subheader("Delete Account")
