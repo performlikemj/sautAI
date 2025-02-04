@@ -159,10 +159,9 @@ def register():
                     if response.status_code == 400:
                         errors = response.json().get('errors', {})
                         if isinstance(errors, dict):
-                            st.error("Registration failed. Please fix the following issues:")
-                            for field, messages in errors.items():
-                                field_name = field.replace('_', ' ').title()
-                                st.warning(f"**{field_name}**: {', '.join(messages)}")
+                            # Generic message for all registration failures
+                            st.error("Unable to complete registration. If you already have an account, please try logging in. Otherwise, please try again with a different email address.")
+                            st.markdown("[Click here to log in](/login)", unsafe_allow_html=True)
                         else:
                             st.error("Registration failed. Please check your input and try again.")
                 except requests.exceptions.RequestException as e:
