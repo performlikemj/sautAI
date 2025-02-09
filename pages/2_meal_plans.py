@@ -120,7 +120,8 @@ def meal_plans():
         selected_day = st.selectbox(
             "Select a Day",
             options=all_days_options,
-            index=all_days_options.index(st.session_state.selected_day)
+            index=all_days_options.index(st.session_state.selected_day),
+            key="day_selector"
         )
         st.session_state.selected_day = selected_day
 
@@ -279,28 +280,53 @@ def show_normal_ui(meal_plan_df, meal_plan_id, is_approved, is_past_week, select
                     )
                     st.rerun()
 
-            if st.button('Approve Meal Plan', disabled=is_past_week):
+            # Initialize the approval state if not present
+            if 'show_approval_options' not in st.session_state:
+                st.session_state.show_approval_options = False
+
+            if st.button('Approve Meal Plan', disabled=is_past_week) or st.session_state.show_approval_options:
+                st.session_state.show_approval_options = True
                 if not meal_plan_df.empty:
-                    user_id = int(st.session_state.user_info['user_id'])
-                    payload = {'user_id':user_id,'meal_plan_id':meal_plan_id}
-                    with st.spinner("Approving meal plan..."):
-                        resp = api_call_with_refresh(
-                            url=f"{os.getenv('DJANGO_URL')}/meals/api/approve_meal_plan/",
-                            method='post',
-                            headers=headers,
-                            data=payload
-                        )
-                    if resp.status_code == 200:
-                        res = resp.json()
-                        if res['status'] == 'success':
-                            st.success(res['message'])
-                            if 'order_id' in res:
-                                st.info(f"Order ID: {res['order_id']} - Proceed to payment.")
-                            st.rerun()
+                    # Create a popup/modal for meal prep preference selection
+                    prep_preference = st.radio(
+                        "Select meal prep preference:",
+                        ["daily", "one_day_prep"],
+                        format_func=lambda x: "Daily Prep" if x == "daily" else "Bulk Prep",
+                        key="prep_preference_radio"
+                    )
+                    
+                    if st.button("Confirm Approval", key="confirm_approval"):
+                        user_id = int(st.session_state.user_info['user_id'])
+                        payload = {
+                            'user_id': user_id,
+                            'meal_plan_id': meal_plan_id,
+                            'meal_prep_preference': prep_preference
+                        }
+                        with st.spinner("Approving meal plan..."):
+                            resp = api_call_with_refresh(
+                                url=f"{os.getenv('DJANGO_URL')}/meals/api/approve_meal_plan/",
+                                method='post',
+                                headers=headers,
+                                data=payload
+                            )
+                        if resp.status_code == 200:
+                            res = resp.json()
+                            if res['status'] == 'success':
+                                st.success(res['message'])
+                                if 'order_id' in res:
+                                    st.info(f"Order ID: {res['order_id']} - Proceed to payment.")
+                                # Reset the approval options state
+                                st.session_state.show_approval_options = False
+                                st.rerun()
+                            else:
+                                st.info(res['message'])
                         else:
-                            st.info(res['message'])
-                    else:
-                        st.error("Failed to approve meal plan.")
+                            st.error("Failed to approve meal plan.")
+                    
+                    # Add a cancel button
+                    if st.button("Cancel", key="cancel_approval"):
+                        st.session_state.show_approval_options = False
+                        st.rerun()
                 else:
                     st.error("No meal plans found for approval.")
 
@@ -443,7 +469,8 @@ def show_normal_ui(meal_plan_df, meal_plan_id, is_approved, is_past_week, select
             meal_selection = st.selectbox(
                 "Select a Meal to Review", 
                 options=unique_meals['Meal Name'], 
-                index=meal_index
+                index=meal_index,
+                key="meal_review_selector"
             )
             selected_meal_id = unique_meals[unique_meals['Meal Name'] == meal_selection]['meal_id'].values[0]
 
@@ -540,7 +567,8 @@ def display_instructions_pagination():
     selected_idx = st.selectbox(
         "Select Instructions",
         options=[i for i,_ in instruction_options],
-        format_func=lambda i: instruction_options[i][1]
+        format_func=lambda i: instruction_options[i][1],
+        key="instruction_selector"
     )
 
     selected_instruction = instructions[selected_idx]

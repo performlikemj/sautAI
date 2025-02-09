@@ -156,8 +156,15 @@ def profile():
                 email_input = st.text_input("Email", value=email_val)
                 phone_input = st.text_input("Phone Number", value=phone_val)
 
-                # Validate user inputs if needed
-                # Only show errors if fields are not empty
+                # Address fields
+                st.subheader("Address")
+                street_input = st.text_input("Street", value=street_val)
+                city_input = st.text_input("City", value=city_val)
+                state_input = st.text_input("State", value=state_val)
+                postal_input = st.text_input("Postal Code", value=postal_val)
+                country_selected = st.selectbox("Country", country_names, index=country_index)
+
+                # Now do the validation checks after all inputs are defined
                 validation_errors = []
 
                 if username_input:
@@ -180,7 +187,7 @@ def profile():
                     if not valid_postal:
                         validation_errors.append(f"Postal Code Error: {postal_msg}")
 
-                # Display all validation errors in a formatted way
+                # Display validation errors if any
                 if validation_errors:
                     st.error("Please fix the following errors:")
                     for error in validation_errors:
@@ -204,14 +211,6 @@ def profile():
                     value=emergency_supply_goal_val,
                     help="How many days of emergency supplies you want to keep?"
                 )
-
-                # Address
-                st.subheader("Address")
-                street_input = st.text_input("Street", value=street_val)
-                city_input = st.text_input("City", value=city_val)
-                state_input = st.text_input("State", value=state_val)
-                postal_input = st.text_input("Postal Code", value=postal_val)
-                country_selected = st.selectbox("Country", country_names, index=country_index)
 
                 # Language and Timezone
                 st.subheader("Preferences")
