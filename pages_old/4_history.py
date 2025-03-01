@@ -35,7 +35,7 @@ def thread_detail(thread_id):
         st.error("Error fetching thread details.")
 
 
-def threads():
+def main():
     # Login Form
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
         login_form()
@@ -44,9 +44,12 @@ def threads():
     # Logout Button
     if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
         if st.button("Logout", key='form_logout'):
-            # Clear session state as well
+            # Clear session state but preserve navigation
+            navigation_state = st.session_state.get("navigation", None)
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
+            if navigation_state:
+                st.session_state["navigation"] = navigation_state
             st.success("Logged out successfully!")
             st.rerun()
         # Call the toggle_chef_mode function
@@ -125,7 +128,3 @@ def threads():
         except Exception as e:
             st.error("An Error occurred. We are looking into it.")
             logging.error("Error occurred", exc_info=True)
-
-
-if __name__ == "__main__":
-    threads()

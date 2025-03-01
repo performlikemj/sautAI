@@ -164,9 +164,18 @@ def login_form():
         if submit_button:
             if validate_input(username, 'username') and validate_input(password, 'password'):
                 try:
+                    # Preserve navigation state
+                    navigation_state = st.session_state.get("navigation", None)
+                    
                     # Remove guest user from session state
                     for key in list(st.session_state.keys()):
-                        del st.session_state[key]
+                        if key != "navigation":  # Don't delete navigation state
+                            del st.session_state[key]
+                            
+                    # Restore navigation state if it existed
+                    if navigation_state:
+                        st.session_state["navigation"] = navigation_state
+                        
                     # API call to get the token
                     response = requests.post(
                         f'{os.getenv("DJANGO_URL")}/auth/api/login/',
@@ -194,7 +203,7 @@ def login_form():
                         st.session_state['access_token'] = response_data['access']
                         st.session_state['refresh_token'] = response_data['refresh']
                         st.session_state['is_logged_in'] = True
-                        st.rerun()  # Rerun the script to reflect the login state
+                        st.rerun()  # Rerun to update navigation
                 except requests.exceptions.HTTPError as http_err:
                     st.error("Invalid username or password.")
                     logging.warning(f"Login failed: {http_err}")
@@ -206,12 +215,12 @@ def login_form():
                     logging.error(f"Unexpected error during login: {e}")
 
         if register_button:
-            st.switch_page("pages/7_register.py")
+            st.switch_page("views/7_register.py")
 
         # Password Reset Button
         if st.button("Forgot your password?"):
             # Directly navigate to the activate page for password reset
-            st.switch_page("pages/5_account.py")
+            st.switch_page("views/5_account.py")
 
 def resend_activation_link(user_id):
     try:
@@ -289,10 +298,18 @@ def toggle_chef_mode():
                 result = switch_user_role()
                 
                 if result:  # If role switch is successful, update 'user_info' in session state
+                    # Preserve navigation state
+                    navigation_state = st.session_state.get("navigation", None)
+                    
                     # Assuming 'result' properly reflects the updated role
                     new_role = 'chef' if chef_mode else 'customer'
                     st.session_state['current_role'] = new_role
                     st.session_state['user_info']['current_role'] = new_role
+                    
+                    # Restore navigation state
+                    if navigation_state:
+                        st.session_state["navigation"] = navigation_state
+                        
                     st.rerun()
                 else:
                     # If role switch failed, inform the user and revert the toggle to reflect actual user role

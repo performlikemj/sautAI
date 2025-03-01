@@ -13,6 +13,7 @@ import json
 import requests
 import traceback
 import time
+import re
 
 # Set page config for wide layout and custom title
 st.set_page_config(
@@ -149,7 +150,7 @@ def fetch_user_dietary_preferences():
         logging.error(f"Error fetching user profile: {str(e)}")
         return False
 
-def meal_plans():
+def main():
     # Initialize session state for gamification features
     if 'meal_plan_streak' not in st.session_state:
         st.session_state.meal_plan_streak = 0
@@ -515,7 +516,7 @@ def meal_plans():
                 method='get',
                 headers=headers,
             )
-
+            logging.info(f"Response status code: {response.status_code}")
             if response.status_code == 200:
                 meal_plan_data = response.json()
                 if not meal_plan_data:
@@ -1032,6 +1033,10 @@ def meal_plans():
     else:
         pass
 
+    # Add a footer
+    st.markdown("---")
+    st.markdown("### Support SautAI")
+    st.markdown("If you enjoy using SautAI, please consider [supporting us](https://ko-fi.com/sautai)")
 
 def show_normal_ui(meal_plan_df, meal_plan_id, is_approved, is_past_week, selected_data_full,
                    meal_plan_id_from_url=None, meal_id_from_url=None, action=None, selected_tab=None):
@@ -1363,8 +1368,3 @@ def display_instructions_pagination():
             logging.error(f"Parsing error: {e}")
     else:
         st.warning("Instructions not yet available.")
-
-
-
-if __name__ == "__main__":
-    meal_plans()

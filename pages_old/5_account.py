@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %
 
 load_dotenv()
 
-def activate_or_reset_password():
+def main():
     # Login Form
     try:
         if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
@@ -50,7 +50,7 @@ def activate_or_reset_password():
                     # Check the response
                     if response.status_code == 200:
                         st.success("Password reset successfully.")
-                        st.switch_page("sautai.py")
+                        st.switch_page("pages/home.py")
                     elif response.status_code == 400:
                         st.error(response.json()['message'])
                     elif response.status_code == 500:
@@ -69,7 +69,7 @@ def activate_or_reset_password():
                         )
                         if response.ok:
                             st.success(response.json()['message'])
-                            st.switch_page("sautai.py")
+                            st.switch_page("pages/home.py")
                         else:
                             st.error("Account activation failed: " + response.json()['message'])
 
@@ -96,9 +96,12 @@ def activate_or_reset_password():
         # Logout Button
         if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
             if st.button("Logout", key='form_logout'):
-                # Clear session state as well
+                # Clear session state but preserve navigation
+                navigation_state = st.session_state.get("navigation", None)
                 for key in list(st.session_state.keys()):
                     del st.session_state[key]
+                if navigation_state:
+                    st.session_state["navigation"] = navigation_state
                 st.success("Logged out successfully!")
                 st.rerun()
             # Call the toggle_chef_mode function
@@ -135,5 +138,3 @@ def activate_or_reset_password():
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
         st.error("An unexpected error occurred. Please try again later.")
-if __name__ == "__main__":
-    activate_or_reset_password()

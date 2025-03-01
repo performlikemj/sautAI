@@ -745,5 +745,132 @@ def assistant():
 
     footer()
 
-if __name__ == "__main__":
-    assistant()
+def main():
+    # Display login form if user is not logged in
+    if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
+        login_form()
+        return
+
+    # Call the toggle_chef_mode function
+    toggle_chef_mode()
+
+    # Logout Button
+    if st.button("Logout", key="assistant_logout"):
+        # Clear session state but preserve navigation
+        navigation_state = st.session_state.get("navigation", None)
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        if navigation_state:
+            st.session_state["navigation"] = navigation_state
+        st.success("Logged out successfully!")
+        st.rerun()
+
+    # Check if user's email is confirmed
+    if not st.session_state.get('email_confirmed', False):
+        st.warning("Please confirm your email to fully access all features.")
+        if st.button("Resend Activation Email"):
+            response = requests.post(
+                f"{os.getenv('DJANGO_URL')}/auth/api/resend-activation/",
+                json={"email": st.session_state['email']}
+            )
+            if response.status_code == 200:
+                st.success("Activation email sent successfully!")
+            else:
+                st.error("Failed to send activation email. Please try again later.")
+
+    st.title("Chat with SautAI")
+
+    # Initialize chat history if not already in session state
+    if 'messages' not in st.session_state:
+        st.session_state['messages'] = []
+        st.session_state['last_message_time'] = None
+        st.session_state['current_thread_id'] = None
+
+    # Display chat messages from history on app rerun
+    for message in st.session_state['messages']:
+        if message["role"] == "assistant":
+            st.chat_message("assistant").write(message["content"])
+        else:
+            st.chat_message("user").write(message["content"])
+
+    # Function to send message to backend and get response
+    def send_message(prompt, thread_id=None):
+        try:
+            st.session_state.last_message_time = datetime.datetime.now()
+            
+            # Prepare API request
+            url = f"{os.getenv('DJANGO_URL')}/openai/api/chat"
+            
+            headers = {
+                'Authorization': f'Bearer {st.session_state.user_info["access"]}',
+                'Content-Type': 'application/json'
+            }
+            
+            data = {
+                "message": prompt,
+                "role": "user"
+            }
+            
+            if thread_id:
+                data["thread_id"] = thread_id
+                
+            # Make API call
+            response = api_call_with_refresh(url, method='post', json=data, headers=headers)
+            
+            if response.status_code == 200:
+                result = response.json()
+                return result
+            else:
+                st.error(f"Error communicating with the backend: {response.status_code}")
+                logging.error(f"Error communicating with the backend: {response.status_code}, {response.text}")
+                return None
+                
+        except Exception as e:
+            st.error(f"An error occurred: {str(e)}")
+            logging.error(f"Error in send_message: {str(e)}")
+            return None
+
+    # Accept user input
+    prompt = st.chat_input("What's on your mind?")
+    
+    # When user submits a message
+    if prompt:
+        # Add user message to chat history
+        st.session_state['messages'].append({"role": "user", "content": prompt})
+        
+        # Display user message in chat message container
+        st.chat_message("user").write(prompt)
+        
+        # Get response from AI
+        with st.spinner("Thinking..."):
+            thread_id = st.session_state.get('current_thread_id')
+            result = send_message(prompt, thread_id)
+            
+            if result and 'response' in result:
+                # Extract thread ID if present
+                if 'thread_id' in result:
+                    st.session_state['current_thread_id'] = result['thread_id']
+                
+                # Display assistant response in chat message container
+                response_content = result['response']
+                
+                # Add assistant response to chat history
+                st.session_state['messages'].append({"role": "assistant", "content": response_content})
+                
+                # Display the response
+                st.chat_message("assistant").write(response_content)
+                
+                # Format and display generated meal plan if present
+                if 'meal_plan' in result and result['meal_plan']:
+                    st.success("A meal plan has been generated for you! It's now available in your Meal Plans page.")
+    
+    # Clear chat button
+    if st.button("Start New Chat") and len(st.session_state['messages']) > 0:
+        st.session_state['messages'] = []
+        st.session_state['current_thread_id'] = None
+        st.rerun()
+
+    # Add a footer
+    st.markdown("---")
+    st.markdown("### Support SautAI")
+    st.markdown("If you enjoy using SautAI, please consider [supporting us](https://ko-fi.com/sautai)")

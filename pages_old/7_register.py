@@ -19,6 +19,7 @@ logging.basicConfig(level=logging.WARNING,
                     filename='history.log', # Log to a file. Remove this to log to console
                     filemode='w') # 'w' to overwrite the log file on each run, 'a' to append
 
+print("Register page loaded")
 def register():
             
     st.title("Register")
@@ -155,13 +156,14 @@ def register():
                     if response.status_code == 200:
                         st.success("Registration successful!")
                         st.info("Please check your email to activate your account.")
-                        st.switch_page("sautai.py")
+                        # Navigate to home page
+                        st.switch_page("pages/home.py")
                     if response.status_code == 400:
                         errors = response.json().get('errors', {})
                         if isinstance(errors, dict):
                             # Generic message for all registration failures
                             st.error("Unable to complete registration. If you already have an account, please try logging in. Otherwise, please try again with a different email address.")
-                            st.markdown("[Click here to log in](/login)", unsafe_allow_html=True)
+                            st.markdown("[Click here to log in](pages/home.py)", unsafe_allow_html=True)
                         else:
                             st.error("Registration failed. Please check your input and try again.")
                 except requests.exceptions.RequestException as e:
@@ -184,6 +186,3 @@ def register():
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
         st.error("An unexpected error occurred. Please try again later.")
-                
-if __name__ == "__main__":
-    register()
