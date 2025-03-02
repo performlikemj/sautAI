@@ -567,8 +567,7 @@ if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in'
         st.metric("Average Meals Per Week", "21")
     with cols[1]:
         st.metric("Dietary Options", "18+")
-    with cols[2]:
-        st.metric("Happy Users", "1000+")
+
     
     st.markdown("---")
     
