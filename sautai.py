@@ -127,8 +127,20 @@ def main():
         
         # Only show these pages if logged in
         pages.append(st.Page("views/1_assistant.py", title="Assistant", icon="🥘"))
+        # Always show meal plans (we'll handle auth within the page)
+        pages.append(st.Page("views/2_meal_plans.py", title="Meal Plans", icon="📅"))
+        
+        # Check if there are activation or password reset parameters in the URL
+        uid = st.query_params.get("uid", "")
+        token = st.query_params.get("token", "")
+        action = st.query_params.get("action", "")
+        
+        # If there are activation parameters, include the activation page
+        # This is a "hidden" page that won't show in nav but can be accessed by activation link
+        if uid and token and (action == 'activate' or action == 'password_reset'):
+            pages.append(st.Page("views/5_account.py", title="Account Activation", icon="✅"))
+        
         if st.session_state.get("is_logged_in", False):
-            pages.append(st.Page("views/2_meal_plans.py", title="Meal Plans", icon="📅"))
             pages.append(st.Page("views/3_pantry.py", title="Pantry", icon="🏪"))
             if st.session_state.get("is_chef", False):
                 pages.append(st.Page("views/8_chef_meals.py", title="Chef Dashboard", icon="👨‍🍳"))

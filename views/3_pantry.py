@@ -14,6 +14,8 @@ from datetime import datetime as dt, date
 import logging
 import math
 import json
+import sys
+import tempfile
 
 # Load environment variables
 load_dotenv()
@@ -204,11 +206,127 @@ def add_pantry_item(row):
         logging.error(f"Error adding pantry item: {e}")
         st.error("An error occurred while adding the pantry item. Please try again.")
 
+def voice_input_tab():
+    """Direct implementation of voice input functionality for adding pantry items."""
+    st.subheader("Add Pantry Item with Voice", anchor=False)
+    
+    # Expandable section with instructions
+    with st.expander("How to use voice input"):
+        st.markdown("""
+        **Tips for best results:**
+        - Speak clearly into your microphone
+        - Mention all required details:
+          - Item name (e.g., "black beans")
+          - Quantity (e.g., "3 cans")
+          - Expiration date if known (e.g., "expires December 2025")
+          - Type ("canned" or "dry goods")
+        - Optional: Add any special notes
+        - Keep recordings brief (under 15-20 seconds) for best results
+        
+        **Example:** "Two cans of organic black beans, expires January 15th, 2025. Canned goods."
+        """)
+    
+    # Audio input widget
+    audio_data = st.audio_input("Record your pantry item description", key="pantry_voice_input")
+    
+    if audio_data:
+        # Display the recorded audio
+        st.audio(audio_data, format="audio/wav")
+        
+        # Display file size information
+        audio_size = len(audio_data.getvalue())
+        audio_size_mb = audio_size / (1024 * 1024)  # Convert to MB for display
+        st.info(f"Audio recording size: {audio_size_mb:.2f} MB")
+        
+        # Button to process the audio
+        if st.button("Add to Pantry", key="process_voice_btn", type="primary"):
+            with st.spinner("Processing your audio..."):
+                try:
+                    # Save the audio data to a temporary file
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_audio:
+                        temp_audio.write(audio_data.getvalue())
+                        temp_audio_path = temp_audio.name
+                    
+                    # Send the audio file to the backend API
+                    with open(temp_audio_path, 'rb') as audio_file:
+                        headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                        files = {'audio_file': audio_file}
+                        
+                        response = api_call_with_refresh(
+                            url=f'{os.getenv("DJANGO_URL")}/meals/api/pantry-items/from-audio/',
+                            method='post',
+                            headers=headers,
+                            files=files
+                        )
+                    
+                    # Clean up the temporary file
+                    os.unlink(temp_audio_path)
+                    
+                    # Process the response
+                    if response and response.status_code == 201:
+                        result = response.json()
+                        
+                        # Display the results in a success message
+                        st.success(f"Added '{result['pantry_item']['item_name']}' to your pantry!")
+                        
+                        # Create tabs to show details
+                        transcription_tab, details_tab = st.tabs(["What I Heard", "Item Details"])
+                        
+                        with transcription_tab:
+                            st.markdown(f"**Transcription:** {result['transcription']}")
+                        
+                        with details_tab:
+                            pantry_item = result['pantry_item']
+                            
+                            # Format expiration date for display
+                            expiration = pantry_item.get('expiration_date', 'Not specified')
+                            if expiration is None:
+                                expiration = 'Not specified'
+                            
+                            # Display item details in a table format
+                            st.markdown(f"""
+                            | Property | Value |
+                            | --- | --- |
+                            | Item | **{pantry_item['item_name']}** |
+                            | Quantity | {pantry_item['quantity']} |
+                            | Type | {pantry_item['item_type']} |
+                            | Expiration | {expiration} |
+                            """)
+                            
+                            if pantry_item.get('notes'):
+                                st.markdown(f"**Notes:** {pantry_item['notes']}")
+                            
+                        # Add a refresh button to clear and prepare for another entry
+                        if st.button("Add Another Item", key="add_another_voice"):
+                            st.rerun()
+                    
+                    else:
+                        # Handle errors from the API
+                        error_message = "An error occurred while processing your audio."
+                        if response:
+                            try:
+                                error_data = response.json()
+                                error_details = error_data.get('details', '')
+                                error_message = f"{error_data.get('error', 'Error')}: {error_details}"
+                            except:
+                                error_message = f"Error: HTTP {response.status_code}"
+                        
+                        st.error(error_message)
+                        logging.error(f"Voice pantry item error: {error_message}")
+                
+                except Exception as e:
+                    st.error(f"Error processing audio: {str(e)}")
+                    logging.error(f"Exception in voice pantry processing: {str(e)}")
+
 # Main content - moved from pantry_page() to top level
 # Initialize session state for form visibility
 try:
     if 'show_add_form' not in st.session_state:
         st.session_state.show_add_form = False
+        
+    # Initialize tab selection state if not already set
+    if 'pantry_tab' not in st.session_state:
+        st.session_state.pantry_tab = "List View"
 
     # Login Form
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
@@ -242,163 +360,171 @@ try:
             - **Stay Organized**: Easily manage your stock of canned and dry goods, along with custom notes for each item.
             
             By keeping your pantry updated, sautAI helps to align your meal plans with what you already have on hand, saving time and reducing food waste.
-            
-            **Editing Tags:** Enter tags as a comma-separated list. For example: `Gluten-Free, High-Protein`.
             """)
+            
+            # Create tabs for different ways to add/manage pantry items
+            tab_list, tab_voice = st.tabs(["List View", "Voice Input"])
+            
+            with tab_list:
+                st.markdown("**Editing Tags:** Enter tags as a comma-separated list. For example: `Gluten-Free, High-Protein`.")
+                
+                # Initialize pagination
+                if 'pantry_page_number' not in st.session_state:
+                    st.session_state.pantry_page_number = 1
 
-            # Initialize pagination
-            if 'pantry_page_number' not in st.session_state:
-                st.session_state.pantry_page_number = 1
+                headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                response = api_call_with_refresh(
+                    url=f'{os.getenv("DJANGO_URL")}/meals/api/pantry-items/?page={st.session_state.pantry_page_number}',
+                    method='get',
+                    headers=headers,
+                )
 
-            headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-            response = api_call_with_refresh(
-                url=f'{os.getenv("DJANGO_URL")}/meals/api/pantry-items/?page={st.session_state.pantry_page_number}',
-                method='get',
-                headers=headers,
-            )
+                if response and response.status_code == 200:
+                    pantry_data = response.json()
+                    pantry_items = pantry_data.get('results', [])
+                    pantry_records = []
 
-            if response and response.status_code == 200:
-                pantry_data = response.json()
-                pantry_items = pantry_data.get('results', [])
-                pantry_records = []
+                    for item in pantry_items:
+                        # Build each row with the fields you want to display/edit
+                        pantry_records.append({
+                            'ID': int(item['id']),
+                            'Item Name': item['item_name'],
+                            'Quantity': item['quantity'],
+                            'Weight Per Unit': item.get('weight_per_unit', None),
+                            'Weight Unit': item.get('weight_unit', ''),
+                            'Expiration Date': parse_expiration_date(item['expiration_date']),
+                            'Item Type': item['item_type'],
+                            'Notes': item['notes'],
+                            'Tags': ', '.join(item.get('tags', [])),
+                        })
 
-                for item in pantry_items:
-                    # Build each row with the fields you want to display/edit
-                    pantry_records.append({
-                        'ID': int(item['id']),
-                        'Item Name': item['item_name'],
-                        'Quantity': item['quantity'],
-                        'Weight Per Unit': item.get('weight_per_unit', None),
-                        'Weight Unit': item.get('weight_unit', ''),
-                        'Expiration Date': parse_expiration_date(item['expiration_date']),
-                        'Item Type': item['item_type'],
-                        'Notes': item['notes'],
-                        'Tags': ', '.join(item.get('tags', [])),
-                    })
+                    if not pantry_records:
+                        st.info("No pantry items found.")
+                    else:
+                        pantry_df = pd.DataFrame(pantry_records)
+                        pantry_df['Delete'] = False
 
-                if not pantry_records:
-                    st.info("No pantry items found.")
-                else:
-                    pantry_df = pd.DataFrame(pantry_records)
-                    pantry_df['Delete'] = False
+                        # Store original for comparison later
+                        st.session_state['original_pantry_df'] = pantry_df.copy()
 
-                    # Store original for comparison later
-                    st.session_state['original_pantry_df'] = pantry_df.copy()
+                        # Hide the ID column from display
+                        display_df = pantry_df.drop(columns=['ID'])
 
-                    # Hide the ID column from display
-                    display_df = pantry_df.drop(columns=['ID'])
+                        # Show data_editor with custom columns
+                        edited_df = st.data_editor(
+                            display_df,
+                            use_container_width=True,
+                            hide_index=True,
+                            column_config={
+                                'Quantity': st.column_config.NumberColumn(
+                                    'Quantity',
+                                    min_value=0,
+                                    step=1
+                                ),
+                                'Weight Per Unit': st.column_config.NumberColumn(
+                                    'Weight Per Unit',
+                                    help="How many ounces or grams per can/bag?"
+                                ),
+                                'Weight Unit': st.column_config.SelectboxColumn(
+                                    'Weight Unit',
+                                    options=["", "oz", "lb", "g", "kg"],
+                                    help="The unit for weight_per_unit"
+                                ),
+                                'Expiration Date': st.column_config.DateColumn('Expiration Date'),
+                                'Item Type': st.column_config.SelectboxColumn(
+                                    'Item Type',
+                                    options=['Canned', 'Dry']
+                                ),
+                                'Notes': st.column_config.TextColumn('Notes'),
+                                'Tags': st.column_config.TextColumn('Tags'),
+                                'Delete': st.column_config.CheckboxColumn('Delete', default=False),
+                            },
+                            num_rows="dynamic",
+                            key='pantry_data_editor',
+                        )
 
-                    # Show data_editor with custom columns
-                    edited_df = st.data_editor(
-                        display_df,
-                        use_container_width=True,
-                        hide_index=True,
-                        column_config={
-                            'Quantity': st.column_config.NumberColumn(
-                                'Quantity',
-                                min_value=0,
-                                step=1
-                            ),
-                            'Weight Per Unit': st.column_config.NumberColumn(
-                                'Weight Per Unit',
-                                help="How many ounces or grams per can/bag?"
-                            ),
-                            'Weight Unit': st.column_config.SelectboxColumn(
-                                'Weight Unit',
-                                options=["", "oz", "lb", "g", "kg"],
-                                help="The unit for weight_per_unit"
-                            ),
-                            'Expiration Date': st.column_config.DateColumn('Expiration Date'),
-                            'Item Type': st.column_config.SelectboxColumn(
-                                'Item Type',
-                                options=['Canned', 'Dry']
-                            ),
-                            'Notes': st.column_config.TextColumn('Notes'),
-                            'Tags': st.column_config.TextColumn('Tags'),
-                            'Delete': st.column_config.CheckboxColumn('Delete', default=False),
-                        },
-                        num_rows="dynamic",
-                        key='pantry_data_editor',
-                    )
+                        st.session_state['edited_pantry_df'] = edited_df
 
-                    st.session_state['edited_pantry_df'] = edited_df
+                        # Buttons for submission & cancellation
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button('Submit Changes', key='submit_changes_button'):
+                                process_changes(
+                                    original_df=st.session_state['original_pantry_df'],
+                                    edited_df=st.session_state['edited_pantry_df']
+                                )
+                                st.success("Changes submitted successfully!")
+                                st.rerun()
+                        with col2:
+                            if st.button('Cancel Changes', key='cancel_changes_button'):
+                                st.session_state['edited_pantry_df'] = st.session_state['original_pantry_df']
+                                st.warning("Changes have been discarded.")
+                                st.rerun()
 
-                    # Buttons for submission & cancellation
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if st.button('Submit Changes', key='submit_changes_button'):
-                            process_changes(
-                                original_df=st.session_state['original_pantry_df'],
-                                edited_df=st.session_state['edited_pantry_df']
-                            )
-                            st.success("Changes submitted successfully!")
+                    # Pagination Controls
+                    st.markdown("---")
+                    col_prev, col_info, col_next = st.columns([1, 2, 1])
+                    with col_prev:
+                        if st.button('Previous Page', key='previous_page_button') and pantry_data.get('previous'):
+                            st.session_state.pantry_page_number -= 1
                             st.rerun()
-                    with col2:
-                        if st.button('Cancel Changes', key='cancel_changes_button'):
-                            st.session_state['edited_pantry_df'] = st.session_state['original_pantry_df']
-                            st.warning("Changes have been discarded.")
+                    with col_next:
+                        if st.button('Next Page', key='next_page_button') and pantry_data.get('next'):
+                            st.session_state.pantry_page_number += 1
                             st.rerun()
 
-                # Pagination Controls
-                st.markdown("---")
-                col_prev, col_info, col_next = st.columns([1, 2, 1])
-                with col_prev:
-                    if st.button('Previous Page', key='previous_page_button') and pantry_data.get('previous'):
-                        st.session_state.pantry_page_number -= 1
-                        st.rerun()
-                with col_next:
-                    if st.button('Next Page', key='next_page_button') and pantry_data.get('next'):
-                        st.session_state.pantry_page_number += 1
-                        st.rerun()
+                    total_pages = math.ceil(pantry_data.get('count', 0) / 10)
+                    st.write(f"Page {st.session_state.pantry_page_number} of {total_pages}")
 
-                total_pages = math.ceil(pantry_data.get('count', 0) / 10)
-                st.write(f"Page {st.session_state.pantry_page_number} of {total_pages}")
-
-            elif response and response.status_code == 401:
-                st.error("Unauthorized access. Please log in again.")
-                logging.error(f"Status code: {response.status_code}, Response: {response.text}")
-            else:
-                st.error("Error fetching pantry items.")
-                if response:
+                elif response and response.status_code == 401:
+                    st.error("Unauthorized access. Please log in again.")
                     logging.error(f"Status code: {response.status_code}, Response: {response.text}")
                 else:
-                    logging.error("No response from server.")
+                    st.error("Error fetching pantry items.")
+                    if response:
+                        logging.error(f"Status code: {response.status_code}, Response: {response.text}")
+                    else:
+                        logging.error("No response from server.")
 
-            # Add New Pantry Item form
-            if not pantry_items or st.button("Add New Pantry Item", key='show_add_pantry_item_form'):
-                st.session_state.show_add_form = True
-            UNIT_OPTIONS = ['oz', 'lb', 'g', 'kg']
+                # Add New Pantry Item form
+                if not pantry_items or st.button("Add New Pantry Item", key='show_add_pantry_item_form'):
+                    st.session_state.show_add_form = True
+                UNIT_OPTIONS = ['oz', 'lb', 'g', 'kg']
 
-            if st.session_state.show_add_form:
-                with st.form(key='add_pantry_item_form'):
-                    item_name = st.text_input("Item Name")
-                    quantity = st.number_input("Quantity", min_value=1, value=1, step=1)
-                    weight_val = st.number_input("Weight Per Unit", min_value=0.0, value=0.0, step=0.1)
-                    selected_unit = st.selectbox("Weight Unit", options=[""] + UNIT_OPTIONS, index=0, help="(Leave blank if not applicable)")
-                    expiration_date = st.date_input("Expiration Date", value=date.today())
-                    item_type = st.selectbox("Item Type", options=['Canned', 'Dry'])
-                    notes = st.text_area("Notes")
-                    tags_str = st.text_input("Tags (comma-separated)")
-                    add_item_submit = st.form_submit_button("Add Item")
+                if st.session_state.show_add_form:
+                    with st.form(key='add_pantry_item_form'):
+                        item_name = st.text_input("Item Name")
+                        quantity = st.number_input("Quantity", min_value=1, value=1, step=1)
+                        weight_val = st.number_input("Weight Per Unit", min_value=0.0, value=0.0, step=0.1)
+                        selected_unit = st.selectbox("Weight Unit", options=[""] + UNIT_OPTIONS, index=0, help="(Leave blank if not applicable)")
+                        expiration_date = st.date_input("Expiration Date", value=date.today())
+                        item_type = st.selectbox("Item Type", options=['Canned', 'Dry'])
+                        notes = st.text_area("Notes")
+                        tags_str = st.text_input("Tags (comma-separated)")
+                        add_item_submit = st.form_submit_button("Add Item")
 
-                    if add_item_submit:
-                        new_item = {
-                            'Item Name': item_name,
-                            'Quantity': quantity,
-                            'Weight Per Unit': weight_val,
-                            'Weight Unit': None if selected_unit == "" else selected_unit,
-                            'Expiration Date': expiration_date,
-                            'Item Type': item_type,
-                            'Notes': notes,
-                            'Tags': tags_str,
-                        }
-                        if validate_new_row(new_item):
-                            add_pantry_item(pd.Series(new_item))
-                            st.success(f"'{item_name}' has been added to your pantry.")
-                            st.session_state.show_add_form = False
-                            st.rerun()
-                        else:
-                            st.error("Please complete all fields before adding the item.")
+                        if add_item_submit:
+                            new_item = {
+                                'Item Name': item_name,
+                                'Quantity': quantity,
+                                'Weight Per Unit': weight_val,
+                                'Weight Unit': None if selected_unit == "" else selected_unit,
+                                'Expiration Date': expiration_date,
+                                'Item Type': item_type,
+                                'Notes': notes,
+                                'Tags': tags_str,
+                            }
+                            if validate_new_row(new_item):
+                                add_pantry_item(pd.Series(new_item))
+                                st.success(f"'{item_name}' has been added to your pantry.")
+                                st.session_state.show_add_form = False
+                                st.rerun()
+                            else:
+                                st.error("Please complete all fields before adding the item.")
+            
+            with tab_voice:
+                # Display the voice input functionality directly
+                voice_input_tab()
 
     elif is_user_authenticated() and not st.session_state.get('email_confirmed', False):
         st.warning("Your email address is not confirmed. Please confirm your email to access all features.")

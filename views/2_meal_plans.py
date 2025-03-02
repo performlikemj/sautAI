@@ -545,9 +545,77 @@ elif approval_token and action == "generate_emergency_plan":
         logging.error(f"Traceback: {traceback.format_exc()}")
     st.stop()
 
-# Login Form
+# Create a welcome screen for users that aren't logged in
 if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
-    login_form()
+    st.title("📅 SautAI Meal Plans")
+    
+    # Explain the benefits and features
+    st.markdown("""
+    ### Discover personalized meal plans tailored just for you!
+    
+    With SautAI's powerful meal planning features, you can:
+    - Get AI-generated meal plans based on your dietary preferences
+    - Easily approve and customize your weekly meals
+    - Generate detailed cooking instructions
+    - Track your nutrition goals
+    - And much more!
+    """)
+    
+    # Add some visually appealing images or stats
+    cols = st.columns(3)
+    with cols[0]:
+        st.metric("Average Meals Per Week", "21")
+    with cols[1]:
+        st.metric("Dietary Options", "18+")
+    with cols[2]:
+        st.metric("Happy Users", "1000+")
+    
+    st.markdown("---")
+    
+    # Show login/registration options
+    st.subheader("Ready to start your personalized meal planning journey?")
+    
+    login_cols = st.columns([1,1])
+    with login_cols[0]:
+        if st.button("Login Now", type="primary", use_container_width=True):
+            login_form()
+            st.stop()
+    with login_cols[1]:
+        if st.button("Create Account", use_container_width=True):
+            # In Streamlit, redirect to the register page
+            # For Streamlit, we'd normally use st.switch_page but since it's not an exact fit for navigation,
+            # we'll use this workaround with JavaScript
+            st.markdown("""
+            <script>
+            const params = new URLSearchParams();
+            params.set('from_meal_plans', 'true');
+            window.location.href = '/Register?' + params.toString();
+            </script>
+            """, unsafe_allow_html=True)
+            st.info("Redirecting to registration page...")
+    
+    # Sample preview (optional)
+    with st.expander("See a sample meal plan"):
+        st.markdown("""
+        ### Sample Weekly Meal Plan
+        
+        #### Monday
+        - 🍳 **Breakfast**: Avocado Toast with Poached Eggs
+        - 🥗 **Lunch**: Mediterranean Quinoa Salad
+        - 🍽️ **Dinner**: Herb-Roasted Salmon with Vegetables
+        
+        #### Tuesday
+        - 🍳 **Breakfast**: Greek Yogurt with Fresh Berries and Honey
+        - 🥗 **Lunch**: Chicken and Vegetable Wrap
+        - 🍽️ **Dinner**: Vegetable Stir-Fry with Brown Rice
+        
+        *Create an account to see your own personalized meal plans!*
+        """)
+    
+    st.markdown("---")
+    st.info("Already have a meal plan sent to you via email? Check your inbox for approval links!")
+    
+    # Stop execution here for non-logged in users
     st.stop()
 
 # Display logout button and chef mode toggle if user is logged in

@@ -57,16 +57,27 @@ def refresh_token(refresh_token):
 
 
 # Use this in your API calls
-def api_call_with_refresh(url, method='get', data=None, headers=None):
+def api_call_with_refresh(url, method='get', data=None, files=None, headers=None):
     try:
-        response = requests.request(method, url, json=data, headers=headers)
+        # Choose the right request format based on whether we're uploading files or sending JSON
+        if files:
+            response = requests.request(method, url, data=data, files=files, headers=headers)
+        else:
+            response = requests.request(method, url, json=data, headers=headers)
+            
         if response.status_code == 401:  # Token expired
             new_tokens = refresh_token(st.session_state.user_info["refresh"])
             if new_tokens:
                 st.session_state.user_info.update(new_tokens)
 
                 headers['Authorization'] = f'Bearer {new_tokens["access"]}'
-                response = requests.request(method, url, json=data, headers=headers)  # Retry with new token
+                
+                # Retry with new token, again handling files appropriately
+                if files:
+                    response = requests.request(method, url, data=data, files=files, headers=headers)
+                else:
+                    response = requests.request(method, url, json=data, headers=headers)
+                    
         response.raise_for_status()
         return response
     except requests.exceptions.HTTPError as http_err:

@@ -113,11 +113,11 @@ def main():
         with st.expander("Explore Our Features"):
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.image("https://live.staticflickr.com/65535/53502731882_3c40de9d35_b.jpg", caption="Personalized Meal Plans", use_column_width=True)
+                st.image("https://live.staticflickr.com/65535/53502731882_3c40de9d35_b.jpg", caption="Personalized Meal Plans", use_container_width=True)
             with col2:
-                st.image("https://live.staticflickr.com/65535/53503924179_28ed5b65c6_b.jpg", caption="Health and Wellness Tracking", use_column_width=True)
+                st.image("https://live.staticflickr.com/65535/53503924179_28ed5b65c6_b.jpg", caption="Health and Wellness Tracking", use_container_width=True)
             with col3:
-                st.image("https://live.staticflickr.com/65535/53503924239_cfbdefb816_b.jpg", caption="Dietary Management", use_column_width=True)
+                st.image("https://live.staticflickr.com/65535/53503924239_cfbdefb816_b.jpg", caption="Dietary Management", use_container_width=True)
         
         # How It Works Section
         with st.container():

@@ -181,7 +181,7 @@ try:
         with features_tab1:
             col1, col2 = st.columns([0.4, 0.6])
             with col1:
-                st.image("https://live.staticflickr.com/65535/53502731882_3c40de9d35_b.jpg", use_column_width=True)
+                st.image("https://live.staticflickr.com/65535/53502731882_3c40de9d35_b.jpg", use_container_width=True)
             with col2:
                 st.markdown("### Effortless Meal Planning")
                 st.markdown("""
@@ -194,7 +194,7 @@ try:
         with features_tab2:
             col1, col2 = st.columns([0.4, 0.6])
             with col1:
-                st.image("https://live.staticflickr.com/65535/53503924179_28ed5b65c6_b.jpg", use_column_width=True)
+                st.image("https://live.staticflickr.com/65535/53503924179_28ed5b65c6_b.jpg", use_container_width=True)
             with col2:
                 st.markdown("### Simple Health Monitoring")
                 st.markdown("""
@@ -207,7 +207,7 @@ try:
         with features_tab3:
             col1, col2 = st.columns([0.4, 0.6])
             with col1:
-                st.image("https://live.staticflickr.com/65535/53503924239_cfbdefb816_b.jpg", use_column_width=True)
+                st.image("https://live.staticflickr.com/65535/53503924239_cfbdefb816_b.jpg", use_container_width=True)
             with col2:
                 st.markdown("### Ongoing Support")
                 st.markdown("""
@@ -219,7 +219,7 @@ try:
     else:
         # Mobile view - stack everything vertically with expanders
         with st.expander("Meal Planning", expanded=True):
-            st.image("https://live.staticflickr.com/65535/53502731882_3c40de9d35_b.jpg", use_column_width=True)
+            st.image("https://live.staticflickr.com/65535/53502731882_3c40de9d35_b.jpg", use_container_width=True)
             st.markdown("### Effortless Meal Planning")
             st.markdown("""
             - **Customized Weekly Plans** – Get a full week of meals tailored to your diet and preferences
@@ -229,7 +229,7 @@ try:
             """)
             
         with st.expander("Health Tracking", expanded=False):
-            st.image("https://live.staticflickr.com/65535/53503924179_28ed5b65c6_b.jpg", use_column_width=True)
+            st.image("https://live.staticflickr.com/65535/53503924179_28ed5b65c6_b.jpg", use_container_width=True)
             st.markdown("### Simple Health Monitoring")
             st.markdown("""
             - **Calorie & Nutrition Tracking** – Effortlessly log and monitor your daily intake
@@ -239,7 +239,7 @@ try:
             """)
             
         with st.expander("Expert Support", expanded=False):
-            st.image("https://live.staticflickr.com/65535/53503924239_cfbdefb816_b.jpg", use_column_width=True)
+            st.image("https://live.staticflickr.com/65535/53503924239_cfbdefb816_b.jpg", use_container_width=True)
             st.markdown("### Ongoing Support")
             st.markdown("""
             - **AI Nutrition Assistant** – Get immediate answers to all your nutrition questions
