@@ -541,8 +541,6 @@ try:
                 st.session_state["navigation"] = navigation_state
             st.success("Logged out successfully!")
             st.rerun()
-        # Call the toggle_chef_mode function
-        toggle_chef_mode()
 
     # Check if the user is authenticated and email is confirmed
     if is_user_authenticated() and st.session_state.get('email_confirmed', False):

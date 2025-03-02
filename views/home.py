@@ -77,8 +77,6 @@ try:
                 st.session_state["navigation"] = navigation_state
             st.success("Logged out successfully!")
             st.rerun()
-        # Call the toggle_chef_mode function
-        toggle_chef_mode()
         
     # Hero Section with improved layout and copy and responsive design
     # Add custom CSS for responsive layout

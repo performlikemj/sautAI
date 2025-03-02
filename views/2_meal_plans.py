@@ -576,22 +576,11 @@ if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in'
     
     login_cols = st.columns([1,1])
     with login_cols[0]:
-        if st.button("Login Now", type="primary", use_container_width=True):
-            login_form()
-            st.stop()
+        login_form()
     with login_cols[1]:
         if st.button("Create Account", use_container_width=True):
-            # In Streamlit, redirect to the register page
-            # For Streamlit, we'd normally use st.switch_page but since it's not an exact fit for navigation,
-            # we'll use this workaround with JavaScript
-            st.markdown("""
-            <script>
-            const params = new URLSearchParams();
-            params.set('from_meal_plans', 'true');
-            window.location.href = '/Register?' + params.toString();
-            </script>
-            """, unsafe_allow_html=True)
-            st.info("Redirecting to registration page...")
+            st.switch_page("views/7_register.py")
+            
     
     # Sample preview (optional)
     with st.expander("See a sample meal plan"):
@@ -627,9 +616,6 @@ if st.button("Logout", key='meal_plan_logout'):
         st.session_state["navigation"] = navigation_state
     st.success("Logged out successfully!")
     st.rerun()
-
-# Toggle chef mode
-toggle_chef_mode()
 
 # Check if user is authenticated and email confirmed
 if is_user_authenticated() and st.session_state.get('email_confirmed', False):

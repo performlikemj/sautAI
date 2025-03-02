@@ -4,6 +4,7 @@ import logging
 from dotenv import load_dotenv
 import sys
 import traceback
+from utils import display_chef_toggle_in_sidebar
 
 # Load environment variables and configure logging
 load_dotenv()
@@ -128,8 +129,9 @@ def main():
         # Only show these pages if logged in
         pages.append(st.Page("views/1_assistant.py", title="Assistant", icon="🥘"))
         # Always show meal plans (we'll handle auth within the page)
-        pages.append(st.Page("views/2_meal_plans.py", title="Meal Plans", icon="📅"))
-        
+        # Only show meal plans if user is not a chef or if they're a chef but in customer role
+        if not (st.session_state.get("is_chef", False) and st.session_state.get("current_role", "customer") == "chef"):
+            pages.append(st.Page("views/2_meal_plans.py", title="Meal Plans", icon="📅"))
         # Check if there are activation or password reset parameters in the URL
         uid = st.query_params.get("uid", "")
         token = st.query_params.get("token", "")
@@ -141,12 +143,20 @@ def main():
             pages.append(st.Page("views/5_account.py", title="Account Activation", icon="✅"))
         
         if st.session_state.get("is_logged_in", False):
-            pages.append(st.Page("views/3_pantry.py", title="Pantry", icon="🏪"))
-            if st.session_state.get("is_chef", False):
+            # Check if user is in chef mode
+            current_role = st.session_state.get("current_role", "customer")
+            
+            if current_role == "chef" and st.session_state.get("is_chef", False):
+                # Only show chef-relevant pages when in chef mode
                 pages.append(st.Page("views/8_chef_meals.py", title="Chef Dashboard", icon="👨‍🍳"))
-            pages.append(st.Page("views/4_history.py", title="Chat History", icon="💬"))
-            pages.append(st.Page("views/5_account.py", title="My Account", icon="⚙️"))
-            pages.append(st.Page("views/6_profile.py", title="Profile", icon="🪪"))
+                pages.append(st.Page("views/5_account.py", title="My Account", icon="⚙️"))
+                pages.append(st.Page("views/6_profile.py", title="Profile", icon="🪪"))
+            else:
+                # Show regular user pages when not in chef mode
+                pages.append(st.Page("views/3_pantry.py", title="Pantry", icon="🏪"))
+                pages.append(st.Page("views/4_history.py", title="Chat History", icon="💬"))
+                pages.append(st.Page("views/5_account.py", title="My Account", icon="⚙️"))
+                pages.append(st.Page("views/6_profile.py", title="Profile", icon="🪪"))
         else:
             # Show register page if not logged in
             pages.append(st.Page("views/7_register.py", title="Register", icon="📝"))
@@ -156,6 +166,9 @@ def main():
     # Get navigation pages and store in session state for access from other files
     pages = get_pages()
     st.session_state["navigation"] = pages
+    
+    # Display chef toggle in sidebar if user has chef privileges
+    display_chef_toggle_in_sidebar()
     
     # Initialize navigation
     try:

@@ -344,8 +344,6 @@ try:
                 st.session_state["navigation"] = navigation_state
             st.success("Logged out successfully!")
             st.rerun()
-        # Call the toggle_chef_mode function
-        toggle_chef_mode()
 
     if is_user_authenticated() and st.session_state.get('email_confirmed', False):
         if 'current_role' in st.session_state and st.session_state['current_role'] != 'chef':

@@ -45,9 +45,6 @@ try:
         st.success("Logged out successfully!")
         st.rerun()
 
-    # Toggle chef mode
-    toggle_chef_mode()
-
     # Check email confirmation
     if is_user_authenticated() and not st.session_state.get('email_confirmed', False):
         st.warning("Your email address is not confirmed. Please confirm your email to access all features.")

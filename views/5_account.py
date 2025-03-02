@@ -118,8 +118,6 @@ try:
                 st.session_state["navigation"] = navigation_state
             st.success("Logged out successfully!")
             st.rerun()
-        # Call the toggle_chef_mode function
-        toggle_chef_mode()
 
         current_password = st.text_input("Current Password", type="password")
         new_password = st.text_input("New Password", type="password")

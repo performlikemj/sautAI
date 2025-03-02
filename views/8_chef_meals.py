@@ -44,9 +44,22 @@ def create_stripe_account():
             data = response.json()
             return data.get('url')
         else:
+            # Use development mode to return mock data if the API fails
+            dev_mode = st.session_state.get('dev_mode', False)
+            if dev_mode:
+                logging.warning("Using mock Stripe account link (dev mode)")
+                return "https://example.com/mock-stripe-onboarding"
+                
+            logging.error(f"Failed to create Stripe account link. Status: {response.status_code if response else 'No response'}")
             st.error("Failed to create Stripe account link")
             return None
     except Exception as e:
+        # Use development mode to return mock data if the API fails
+        dev_mode = st.session_state.get('dev_mode', False)
+        if dev_mode:
+            logging.warning("Using mock Stripe account link (dev mode)")
+            return "https://example.com/mock-stripe-onboarding"
+            
         st.error(f"Error creating Stripe account: {str(e)}")
         logging.error(f"Error creating Stripe account: {str(e)}")
         logging.error(traceback.format_exc())
@@ -65,9 +78,22 @@ def check_stripe_account_status():
         if response and response.status_code == 200:
             return response.json()
         else:
+            # Use development mode to return mock data if the API fails
+            dev_mode = st.session_state.get('dev_mode', False)
+            if dev_mode:
+                logging.warning("Using mock Stripe account status data (dev mode)")
+                return {'has_account': True, 'is_active': True}
+            
+            logging.error(f"Failed to check Stripe account status. Status: {response.status_code if response else 'No response'}")
             st.error("Failed to check Stripe account status")
             return {'has_account': False}
     except Exception as e:
+        # Use development mode to return mock data if the API fails
+        dev_mode = st.session_state.get('dev_mode', False)
+        if dev_mode:
+            logging.warning("Using mock Stripe account status data (dev mode)")
+            return {'has_account': True, 'is_active': True}
+            
         st.error(f"Error checking Stripe account status: {str(e)}")
         logging.error(f"Error checking Stripe account status: {str(e)}")
         logging.error(traceback.format_exc())
@@ -86,9 +112,34 @@ def get_chef_dashboard_stats():
         if response and response.status_code == 200:
             return response.json()
         else:
+            # Use development mode to return mock data if the API fails
+            dev_mode = st.session_state.get('dev_mode', False)
+            if dev_mode:
+                logging.warning("Using mock dashboard stats data (dev mode)")
+                return {
+                    'upcoming_events_count': 2,
+                    'active_orders_count': 5,
+                    'review_count': 12,
+                    'avg_rating': 4.7,
+                    'revenue_this_month': 350.00
+                }
+                
+            logging.error(f"Failed to fetch dashboard statistics. Status: {response.status_code if response else 'No response'}")
             st.error("Failed to fetch dashboard statistics")
             return {}
     except Exception as e:
+        # Use development mode to return mock data if the API fails
+        dev_mode = st.session_state.get('dev_mode', False)
+        if dev_mode:
+            logging.warning("Using mock dashboard stats data (dev mode)")
+            return {
+                'upcoming_events_count': 2,
+                'active_orders_count': 5,
+                'review_count': 12,
+                'avg_rating': 4.7,
+                'revenue_this_month': 350.00
+            }
+            
         st.error(f"Error fetching dashboard statistics: {str(e)}")
         logging.error(f"Error fetching dashboard statistics: {str(e)}")
         logging.error(traceback.format_exc())
@@ -126,9 +177,90 @@ def fetch_chef_meal_events(my_events=False):
                 logging.error(f"Expected list of events but got: {type(data)}")
                 return []
         else:
+            # Use development mode to return mock data if the API fails
+            dev_mode = st.session_state.get('dev_mode', False)
+            if dev_mode:
+                logging.warning("Using mock meal events data (dev mode)")
+                tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+                next_week = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
+                
+                # Create mock event data
+                mock_events = [
+                    {
+                        'id': 1,
+                        'meal': {'id': 1, 'name': 'Mock Meal 1', 'description': 'This is a mock meal for testing'},
+                        'event_date': tomorrow,
+                        'event_time': '18:00',
+                        'order_cutoff_time': f"{tomorrow}T12:00:00Z",
+                        'base_price': '25.00',
+                        'current_price': '22.00',
+                        'max_orders': 10,
+                        'orders_count': 3,
+                        'status': 'active',
+                        'description': 'Mock event for tomorrow',
+                        'special_instructions': 'These are mock instructions'
+                    },
+                    {
+                        'id': 2,
+                        'meal': {'id': 2, 'name': 'Mock Meal 2', 'description': 'Another mock meal for testing'},
+                        'event_date': next_week,
+                        'event_time': '19:00',
+                        'order_cutoff_time': f"{next_week}T12:00:00Z",
+                        'base_price': '30.00',
+                        'current_price': '27.50',
+                        'max_orders': 15,
+                        'orders_count': 5,
+                        'status': 'active',
+                        'description': 'Mock event for next week',
+                        'special_instructions': ''
+                    }
+                ]
+                return mock_events
+                
+            logging.error(f"Failed to fetch chef meal events. Status: {response.status_code if response else 'No response'}")
             st.error("Failed to fetch chef meal events")
             return []
     except Exception as e:
+        # Use development mode to return mock data if the API fails
+        dev_mode = st.session_state.get('dev_mode', False)
+        if dev_mode:
+            logging.warning("Using mock meal events data (dev mode)")
+            tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+            next_week = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
+            
+            # Create mock event data
+            mock_events = [
+                {
+                    'id': 1,
+                    'meal': {'id': 1, 'name': 'Mock Meal 1', 'description': 'This is a mock meal for testing'},
+                    'event_date': tomorrow,
+                    'event_time': '18:00',
+                    'order_cutoff_time': f"{tomorrow}T12:00:00Z",
+                    'base_price': '25.00',
+                    'current_price': '22.00',
+                    'max_orders': 10,
+                    'orders_count': 3,
+                    'status': 'active',
+                    'description': 'Mock event for tomorrow',
+                    'special_instructions': 'These are mock instructions'
+                },
+                {
+                    'id': 2,
+                    'meal': {'id': 2, 'name': 'Mock Meal 2', 'description': 'Another mock meal for testing'},
+                    'event_date': next_week,
+                    'event_time': '19:00',
+                    'order_cutoff_time': f"{next_week}T12:00:00Z",
+                    'base_price': '30.00',
+                    'current_price': '27.50',
+                    'max_orders': 15,
+                    'orders_count': 5,
+                    'status': 'active',
+                    'description': 'Mock event for next week',
+                    'special_instructions': ''
+                }
+            ]
+            return mock_events
+            
         st.error(f"Error fetching chef meal events: {str(e)}")
         logging.error(f"Error fetching chef meal events: {str(e)}")
         logging.error(traceback.format_exc())
@@ -310,73 +442,77 @@ def fetch_chef_meals():
         if response and response.status_code == 200:
             return response.json()
         else:
+            # Use development mode to return mock data if the API fails
+            dev_mode = st.session_state.get('dev_mode', False)
+            if dev_mode:
+                logging.warning("Using mock chef meals data (dev mode)")
+                return [
+                    {
+                        'id': 1,
+                        'name': 'Spaghetti Carbonara',
+                        'description': 'Classic Italian pasta dish with eggs, cheese, pancetta, and black pepper.',
+                        'ingredients': 'Pasta, eggs, cheese, pancetta, black pepper',
+                        'is_public': True,
+                        'created_at': '2023-01-01T12:00:00Z'
+                    },
+                    {
+                        'id': 2,
+                        'name': 'Chicken Tikka Masala',
+                        'description': 'Roasted marinated chicken chunks in spiced curry sauce.',
+                        'ingredients': 'Chicken, yogurt, cream, tomatoes, spices',
+                        'is_public': True,
+                        'created_at': '2023-01-02T12:00:00Z'
+                    },
+                    {
+                        'id': 3,
+                        'name': 'Vegetable Stir Fry',
+                        'description': 'Quick and healthy vegetable stir fry with soy sauce.',
+                        'ingredients': 'Mixed vegetables, tofu, soy sauce, garlic, ginger',
+                        'is_public': True,
+                        'created_at': '2023-01-03T12:00:00Z'
+                    }
+                ]
+                
+            logging.error(f"Failed to fetch chef meals. Status: {response.status_code if response else 'No response'}")
             st.error("Failed to fetch chef meals")
             return []
     except Exception as e:
+        # Use development mode to return mock data if the API fails
+        dev_mode = st.session_state.get('dev_mode', False)
+        if dev_mode:
+            logging.warning("Using mock chef meals data (dev mode)")
+            return [
+                {
+                    'id': 1,
+                    'name': 'Spaghetti Carbonara',
+                    'description': 'Classic Italian pasta dish with eggs, cheese, pancetta, and black pepper.',
+                    'ingredients': 'Pasta, eggs, cheese, pancetta, black pepper',
+                    'is_public': True,
+                    'created_at': '2023-01-01T12:00:00Z'
+                },
+                {
+                    'id': 2,
+                    'name': 'Chicken Tikka Masala',
+                    'description': 'Roasted marinated chicken chunks in spiced curry sauce.',
+                    'ingredients': 'Chicken, yogurt, cream, tomatoes, spices',
+                    'is_public': True,
+                    'created_at': '2023-01-02T12:00:00Z'
+                },
+                {
+                    'id': 3,
+                    'name': 'Vegetable Stir Fry',
+                    'description': 'Quick and healthy vegetable stir fry with soy sauce.',
+                    'ingredients': 'Mixed vegetables, tofu, soy sauce, garlic, ginger',
+                    'is_public': True,
+                    'created_at': '2023-01-03T12:00:00Z'
+                }
+            ]
+            
         st.error(f"Error fetching chef meals: {str(e)}")
         logging.error(f"Error fetching chef meals: {str(e)}")
         logging.error(traceback.format_exc())
         return []
 
-# Function to handle chef mode toggle
-def handle_chef_mode_toggle():
-    # Log session state for debugging
-    logging.info("Session state keys: %s", list(st.session_state.keys()))
-    logging.info("User info in session: %s", 'user_info' in st.session_state)
-    logging.info("is_chef in session: %s", 'is_chef' in st.session_state)
-    
-    if 'is_chef' in st.session_state:
-        logging.info("is_chef value: %s", st.session_state['is_chef'])
-    else:
-        logging.warning("is_chef not found in session state!")
-        
-    if 'current_role' in st.session_state:
-        logging.info("current_role: %s", st.session_state['current_role'])
-    else:
-        logging.info("current_role not set in session state")
-    
-    # Check if user is authorized to be a chef
-    if 'is_chef' in st.session_state and st.session_state['is_chef']:
-        logging.info("User has chef privileges - showing toggle")
-        st.sidebar.markdown("### Chef Mode")
-        current_role = st.session_state.get('current_role', 'customer')
-        
-        # Create a toggle in the sidebar
-        is_chef_mode = st.sidebar.toggle("Enable Chef Mode", 
-                                        value=(current_role == 'chef'),
-                                        help="Switch between chef and customer views")
-        
-        # Update session state if toggle changed
-        new_role = 'chef' if is_chef_mode else 'customer'
-        if current_role != new_role:
-            logging.info("Role switching from %s to %s", current_role, new_role)
-            st.session_state['current_role'] = new_role
-            # Call API to update backend if needed
-            try:
-                headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-                response = api_call_with_refresh(
-                    url=f"{os.getenv('DJANGO_URL')}/meals/api/switch-role/",
-                    method='post',
-                    headers=headers,
-                    data={'role': new_role}
-                )
-                if response and response.status_code == 200:
-                    logging.info("API role switch successful")
-                    st.sidebar.success(f"Switched to {new_role} mode!")
-                    # Force page rerun to apply changes
-                    st.rerun()
-                else:
-                    error_msg = f"Failed to switch to {new_role} mode. Status: {response.status_code if response else 'No response'}"
-                    logging.error(error_msg)
-                    st.sidebar.error(error_msg)
-            except Exception as e:
-                error_msg = f"Error switching modes: {str(e)}"
-                st.sidebar.error(error_msg)
-                logging.error(error_msg)
-                logging.error(traceback.format_exc())
-    else:
-        logging.info("User does not have chef privileges - not showing toggle")
-    return
 
 # Main function for chef meals page
 def chef_meals():
@@ -388,8 +524,19 @@ def chef_meals():
     else:
         logging.info("User logged in, username: %s", st.session_state.get('username', 'unknown'))
 
-    # Handle chef mode toggle in sidebar
-    handle_chef_mode_toggle()
+    # Add development mode toggle in the sidebar
+    with st.sidebar:
+        st.markdown("---")
+        st.markdown("### Developer Options")
+        dev_mode = st.toggle("Development Mode", 
+                           value=st.session_state.get('dev_mode', False),
+                           help="Enable mock data when API endpoints are not available")
+        
+        # Update session state
+        st.session_state['dev_mode'] = dev_mode
+        
+        if dev_mode:
+            st.info("Development mode enabled. Using mock data for missing API endpoints.")
     
     # Check if user is a chef - restrict access to chef role only
     current_role = st.session_state.get('current_role', 'customer')
@@ -694,3 +841,11 @@ def chef_meals():
             if result:
                 st.success("Meal event created successfully!")
                 st.rerun()
+
+# Call the chef_meals function inside a try/except block (consistent with other views)
+try:
+    chef_meals()
+except Exception as e:
+    logging.error(f"An error occurred: {str(e)}")
+    logging.error(traceback.format_exc())
+    st.error("An unexpected error occurred. Please try again later.")

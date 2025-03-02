@@ -52,8 +52,6 @@ if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
             st.session_state["navigation"] = navigation_state
         st.success("Logged out successfully!")
         st.rerun()
-    # Call the toggle_chef_mode function
-    toggle_chef_mode()
 
 # Assistant and other functionalities should not be shown if user is in chef mode
 if 'current_role' in st.session_state and st.session_state['current_role'] != 'chef':

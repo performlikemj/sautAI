@@ -4,9 +4,8 @@ from collections import defaultdict
 import os
 import time
 from typing_extensions import override
-import openai
 from openai import OpenAIError
-from openai import AssistantEventHandler, OpenAI
+from openai import AssistantEventHandler, OpenAI, BadRequestError
 from openai.types.beta.threads.runs import ToolCall, ToolCallDelta
 from openai.types.beta.threads import Message, MessageDelta
 from openai.types.beta.threads.runs import ToolCall, RunStep
@@ -17,6 +16,7 @@ import streamlit as st
 import logging
 from dotenv import load_dotenv
 import re
+import traceback
 
 # Set up logging
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[
@@ -31,10 +31,9 @@ django_url = os.getenv("DJANGO_URL")
 
 openai_env_key = os.getenv("OPENAI_KEY")
 
-if openai_env_key:
-    openai.api_key = openai_env_key
 
-client = openai
+
+client = OpenAI(api_key=openai_env_key)
 
 openai_headers = {
     "Content-Type": "application/json",
@@ -232,6 +231,7 @@ def login_form():
         if st.button("Forgot your password?"):
             # Directly navigate to the activate page for password reset
             st.switch_page("views/5_account.py")
+
 
 def resend_activation_link(user_id):
     try:
@@ -546,7 +546,7 @@ def start_or_continue_streaming(client, user_id, openai_headers, chat_container 
             tool_choice= "auto" if not change_meals else {"type": "function", "function": {"name": "replace_meal_based_on_preferences"}}
         ) as stream:
             stream.until_done()
-    except openai.BadRequestError as e:
+    except BadRequestError as e:
         if 'already has an active run' in str(e):
             st.session_state.thread_id = None
             logging.error(e)
@@ -608,3 +608,50 @@ def footer():
         """,
         unsafe_allow_html=True
     )
+
+def display_chef_toggle_in_sidebar():
+    """
+    Displays a toggle in the sidebar for users with chef privileges to switch between chef and customer modes.
+    This function should be called from the main app file to make the toggle available on all pages.
+    """
+    # Only show for users with chef privileges
+    if 'is_chef' in st.session_state and st.session_state['is_chef']:
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("### Chef Access")
+        
+        current_role = st.session_state.get('current_role', 'customer')
+        is_chef_mode = st.sidebar.toggle(
+            "Enable Chef Mode", 
+            value=(current_role == 'chef'),
+            help="Switch between chef and customer views"
+        )
+        
+        # Handle toggle state change
+        new_role = 'chef' if is_chef_mode else 'customer'
+        
+        if current_role != new_role:
+            try:
+                # Call API to update backend
+                headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                response = api_call_with_refresh(
+                    url=f"{os.getenv('DJANGO_URL')}/auth/api/switch_role/",
+                    method='post',
+                    headers=headers,
+                    data={'role': new_role}
+                )
+                
+                if response and response.status_code == 200:
+                    # Update session state
+                    st.session_state['current_role'] = new_role
+                    st.sidebar.success(f"Switched to {new_role} mode!")
+                    # If in chef mode, suggest navigating to chef meals page
+                    if new_role == 'chef':
+                        st.sidebar.info("You can now access the Chef Meals page.")
+                    st.rerun()
+                else:
+                    st.sidebar.error(f"Failed to switch to {new_role} mode.")
+                    logging.error(f"Failed to switch role. Status: {response.status_code if response else 'No response'}")
+            except Exception as e:
+                st.sidebar.error(f"Error switching modes: {str(e)}")
+                logging.error(f"Error switching modes: {str(e)}")
+                logging.error(traceback.format_exc())
