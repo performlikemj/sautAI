@@ -56,13 +56,13 @@ def refresh_token(refresh_token):
 
 
 # Use this in your API calls
-def api_call_with_refresh(url, method='get', data=None, files=None, headers=None):
+def api_call_with_refresh(url, method='get', data=None, files=None, headers=None, params=None):
     try:
         # Choose the right request format based on whether we're uploading files or sending JSON
         if files:
-            response = requests.request(method, url, data=data, files=files, headers=headers)
+            response = requests.request(method, url, data=data, files=files, headers=headers, params=params)
         else:
-            response = requests.request(method, url, json=data, headers=headers)
+            response = requests.request(method, url, json=data, headers=headers, params=params)
             
         if response.status_code == 401:  # Token expired
             new_tokens = refresh_token(st.session_state.user_info["refresh"])
@@ -73,15 +73,77 @@ def api_call_with_refresh(url, method='get', data=None, files=None, headers=None
                 
                 # Retry with new token, again handling files appropriately
                 if files:
-                    response = requests.request(method, url, data=data, files=files, headers=headers)
+                    response = requests.request(method, url, data=data, files=files, headers=headers, params=params)
                 else:
-                    response = requests.request(method, url, json=data, headers=headers)
-                    
-        response.raise_for_status()
+                    response = requests.request(method, url, json=data, headers=headers, params=params)
+        
+        # Try to display appropriate messages based on response status and content
+        if response.status_code >= 400:  # Error status codes
+            logging.error(f"API error: {response.status_code} for {url}")
+            try:
+                # Try to parse response as JSON to extract error details
+                response_data = response.json()
+                
+                # Handle standardized responses with status and message
+                if isinstance(response_data, dict):
+                    if 'status' in response_data and 'message' in response_data:
+                        # Use different display based on the status value
+                        if response_data['status'] == 'success':
+                            st.success(response_data['message'])
+                        elif response_data['status'] == 'error':
+                            error_message = response_data['message']
+                            
+                            # Check for field-specific errors in details
+                            if 'details' in response_data and isinstance(response_data['details'], dict):
+                                details = response_data['details']
+                                field_errors = []
+                                for field, error_list in details.items():
+                                    if isinstance(error_list, list):
+                                        error_str = ', '.join(error_list)
+                                    else:
+                                        error_str = str(error_list)
+                                    field_errors.append(f"{field}: {error_str}")
+                                
+                                if field_errors:
+                                    error_message += f"\n• " + "\n• ".join(field_errors)
+                            
+                            st.error(error_message)
+                        elif response_data['status'] == 'warning':
+                            st.warning(response_data['message'])
+                        else:
+                            st.error(f"Error: {response_data['message']}")
+                    else:
+                        # Handle non-standardized error responses
+                        error_message = response_data.get('message', 
+                                      response_data.get('error', 
+                                      response_data.get('detail', f"Error {response.status_code}")))
+                        st.error(error_message)
+            except Exception as e:
+                # Fallback for non-JSON responses or other parsing errors
+                logging.error(f"Error parsing response: {str(e)}")
+                st.error(f"Error {response.status_code}: {response.text[:100]}")
+        
+        # Handle successful responses with messages
+        elif 200 <= response.status_code < 300:
+            try:
+                # For success responses that aren't empty, check for message
+                if response.status_code != 204:  # No Content
+                    response_data = response.json()
+                    if isinstance(response_data, dict) and 'status' in response_data and 'message' in response_data:
+                        if response_data['status'] == 'success' and response_data['message']:
+                            st.success(response_data['message'])
+            except:
+                # If can't parse JSON or no standard format, just continue
+                pass
+                
+        # For error status codes, raise the HTTP error after displaying the message
+        if response.status_code >= 400:
+            response.raise_for_status()
+            
         return response
     except requests.exceptions.HTTPError as http_err:
         logging.error(f"HTTP error occurred: {http_err}")
-        st.error("An error occurred while connecting to the server. Please try again.")
+        # Error message already displayed above, don't show generic message
         return None
     except requests.exceptions.RequestException as req_err:
         logging.error(f"Request error: {req_err}")

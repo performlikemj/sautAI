@@ -29,6 +29,14 @@ def update_goal(goal_name, goal_description):
 
 # Main content - moved from profile() to top level
 try:
+    # Check if we need to redirect to chef application
+    if st.session_state.get("show_chef_application", False):
+        st.switch_page("views/chef_application.py")
+    else:
+        # If it exists in session state but we didn't switch pages, clear it.
+        if 'show_chef_application' in st.session_state:
+            del st.session_state['show_chef_application']
+
     # If not logged in, show login form
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
         login_form()
@@ -335,6 +343,32 @@ try:
                         st.error(f"Failed to delete account: {error_message}")
                 else:
                     st.error('You must type "done eating" exactly and provide your password.')
+
+            # Chef Application Section
+            st.subheader("Become a Chef")
+            
+            # Check if user is already a chef
+            if st.session_state.get("is_chef", False):
+                st.success("You are already a chef! You can access the chef dashboard from the main menu.")
+            else:
+                st.info("""
+                Join a futuristic food cooperative where your culinary talents nourish and empower your community.
+                
+                As a chef with sautAI, you can:
+                
+                - Design and manage personalized meal plans tailored to your community's tastes and needs.
+                - Serve fresh, delicious meals from convenient community-focused locations.
+                - Set flexible pricing that makes healthy food accessible while ensuring fair compensation.
+                - Build your culinary reputation and gain recognition for your creativity and skill.
+                - Earn income by making a positive, direct impact on your neighbors' lives.
+                
+                Become a part of the future of food—where innovation meets community collaboration.
+                """)
+                
+                if st.button("Apply to Become a Chef", use_container_width=True):
+                    st.session_state.show_chef_application = True
+                    st.rerun()
+                    
 
         else:
             # If the user somehow is authenticated but no role, just show an error or handle gracefully

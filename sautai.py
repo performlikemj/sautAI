@@ -157,6 +157,9 @@ def main():
                 pages.append(st.Page("views/4_history.py", title="Chat History", icon="💬"))
                 pages.append(st.Page("views/5_account.py", title="My Account", icon="⚙️"))
                 pages.append(st.Page("views/6_profile.py", title="Profile", icon="🪪"))
+                # Only show chef application page if explicitly requested
+                if st.session_state.get("show_chef_application", False):
+                    pages.append(st.Page("views/chef_application.py", title="Chef Application", icon="👨‍🍳"))
         else:
             # Show register page if not logged in
             pages.append(st.Page("views/7_register.py", title="Register", icon="📝"))

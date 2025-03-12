@@ -574,7 +574,8 @@ try:
                     metric_trends = fetch_user_metrics(user_id)
                     plot_metric_trends(metric_trends)
 
-        if not st.session_state.get('showed_user_summary', False):
+        # Only show user summary for non-chef users
+        if not st.session_state.get('showed_user_summary', False) and st.session_state.get('current_role', '') != 'chef':
             with st.spinner("Grabbing your health summary..."):
                 headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
                 summary_data = get_user_summary(st.session_state.get('user_id'), headers)
@@ -631,8 +632,8 @@ try:
             with chat_container.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        # Display follow-up recommendations if available
-        if 'recommend_follow_up' in st.session_state and st.session_state.recommend_follow_up and 'items' in st.session_state.recommend_follow_up and len(st.session_state.recommend_follow_up['items']) > 0:
+        # Display follow-up recommendations if available (only for non-chef users)
+        if 'recommend_follow_up' in st.session_state and st.session_state.recommend_follow_up and 'items' in st.session_state.recommend_follow_up and len(st.session_state.recommend_follow_up['items']) > 0 and st.session_state.get('current_role', '') != 'chef':
             with st.container():
                 st.write("Recommended Follow-Ups:")
                 for index, item in enumerate(st.session_state.recommend_follow_up['items']):
@@ -653,6 +654,26 @@ try:
             st.session_state.chat_history = []
             st.session_state.selected_thread_id = None
             st.session_state.recommend_follow_up = []
+            chat_container.empty()
+            st.rerun()
+    else:
+        # For chef mode users, show a simplified chat interface
+        #TODO: Add a chef mode chat interface with a backend api for chef specific queries and tools
+        st.info("You are currently in Chef Mode. Some features may be limited.")
+        for message in st.session_state.chat_history:
+            with chat_container.chat_message(message["role"]):
+                st.markdown(message["content"])
+
+        # Get user input
+        prompt = st.chat_input("Enter your question:")
+        if prompt:
+            process_user_input(prompt, chat_container)
+
+        # Button to start a new chat
+        if st.session_state.chat_history and st.button("Start New Chat"):
+            st.session_state.thread_id = None
+            st.session_state.chat_history = []
+            st.session_state.selected_thread_id = None
             chat_container.empty()
             st.rerun()
 
