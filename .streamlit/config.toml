@@ -1,0 +1,20 @@
+[theme]
+primaryColor="#5cb85c"
+backgroundColor="#FFFFFF"
+secondaryBackgroundColor="#F9F9F9"
+textColor="#303030"
+font="sans serif"
+
+[browser]
+gatherUsageStats = false
+
+[server]
+enableStaticServing = false
+fileWatcherType = "auto"
+
+[ui]
+hideTopBar = false
+
+# The following options were causing errors and have been removed or fixed:
+# - runner.fastRerenderEnabled (removed as it's no longer valid)
+# - pages.alwaysVisiblPages (removed as it's not valid) 
