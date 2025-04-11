@@ -9,7 +9,7 @@ font="sans serif"
 gatherUsageStats = false
 
 [server]
-enableStaticServing = false
+enableStaticServing = true
 fileWatcherType = "auto"
 
 [ui]
