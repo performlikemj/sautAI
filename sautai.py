@@ -4,7 +4,31 @@ import logging
 from dotenv import load_dotenv
 import sys
 import traceback
-from utils import display_chef_toggle_in_sidebar
+
+# Add the current directory to the Python path to ensure imports work correctly
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+
+# Now import from utils with the modified path
+try:
+    from utils import display_chef_toggle_in_sidebar
+except ImportError as e:
+    # Fallback definition if import still fails
+    def display_chef_toggle_in_sidebar():
+        """Fallback implementation if the utils module can't be imported"""
+        if 'is_chef' in st.session_state and st.session_state['is_chef']:
+            st.sidebar.markdown("### Chef Access")
+            current_role = st.session_state.get('current_role', 'customer')
+            is_chef_mode = st.sidebar.toggle(
+                "Enable Chef Mode", 
+                value=(current_role == 'chef'),
+                help="Switch between chef and customer views"
+            )
+            # Handle role switching (simplified version)
+            if (is_chef_mode and current_role != 'chef') or (not is_chef_mode and current_role != 'customer'):
+                st.sidebar.info("Please refresh the page to apply the role change.")
+
 
 # Load environment variables and configure logging
 load_dotenv()
@@ -142,6 +166,7 @@ def main():
         if uid and token and (action == 'activate' or action == 'password_reset'):
             pages.append(st.Page("views/5_account.py", title="Account Activation", icon="✅"))
         
+        
         if st.session_state.get("is_logged_in", False):
             # Check if user is in chef mode
             current_role = st.session_state.get("current_role", "customer")
@@ -163,6 +188,7 @@ def main():
         else:
             # Show register page if not logged in
             pages.append(st.Page("views/7_register.py", title="Register", icon="📝"))
+            
         
         return pages
     
@@ -179,7 +205,7 @@ def main():
         pg.run()  # Run the selected page
     except Exception as e:
         logging.error(f"Navigation error: {str(e)}")
-        print(f"Navigation error: {str(e)}")
+
         traceback.print_exc()
         st.error("Navigation error occurred. Please try refreshing the page.")
     

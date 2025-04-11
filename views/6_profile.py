@@ -100,7 +100,7 @@ try:
             user_details = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/user_details/', method='get', headers=headers)
             address_details = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/address_details/', method='get', headers=headers)
             countries_details = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/countries/', method='get', headers=headers)
-
+            
             if user_details.status_code == 200:
                 user_data = user_details.json()
                 st.session_state.user_id = user_data.get('id')
@@ -108,9 +108,9 @@ try:
                     user_data['custom_dietary_preferences'] = []
             else:
                 user_data = {}
-
+            
             address_data = address_details.json() if address_details and address_details.status_code == 200 else {}
-
+            
             countries_list = countries_details.json() if countries_details and countries_details.status_code == 200 else []
             country_dict = {country['name']: country['code'] for country in countries_list}
             country_names = list(country_dict.keys())
@@ -134,10 +134,10 @@ try:
             street_val = address_data.get('street', '')
             city_val = address_data.get('city', '')
             state_val = address_data.get('state', '')
-            postal_val = address_data.get('postalcode', '')
+            postal_val = address_data.get('postalcode', address_data.get('input_postalcode', ''))
             user_country = address_data.get('country', '')
             country_index = country_names.index(user_country) if user_country in country_names else 0
-
+            
             dietary_preferences = [
                 'Everything', 'Vegetarian', 'Pescatarian', 'Gluten-Free', 'Keto', 
                 'Paleo', 'Halal', 'Kosher', 'Low-Calorie', 'Low-Sodium', 'High-Protein', 
@@ -279,6 +279,7 @@ try:
                                 'city': city_input,
                                 'state': state_input,
                                 'postalcode': postal_input,
+                                'input_postalcode': postal_input,
                                 'country': country_selected
                             }
                         }

@@ -717,3 +717,139 @@ def display_chef_toggle_in_sidebar():
                 st.sidebar.error(f"Error switching modes: {str(e)}")
                 logging.error(f"Error switching modes: {str(e)}")
                 logging.error(traceback.format_exc())
+
+def get_chef_meals_by_postal_code(meal_type=None, date=None, week_start_date=None, chef_id=None, include_compatible_only=False, page=1, page_size=10):
+    """
+    Fetch chef-created meals available for the user's postal code.
+    
+    Args:
+        meal_type (str, optional): Filter by meal type (Breakfast, Lunch, Dinner)
+        date (str, optional): Filter by specific date in YYYY-MM-DD format (backward compatibility)
+        week_start_date (str, optional): Start date of the week in YYYY-MM-DD format
+        chef_id (int, optional): Filter by specific chef ID
+        include_compatible_only (bool, optional): Only return meals compatible with user's dietary preferences
+        page (int, optional): Page number for pagination
+        page_size (int, optional): Number of items per page
+        
+    Returns:
+        dict: JSON response with chef meals data or None if the request failed
+    """
+    try:
+        if not is_user_authenticated():
+            st.error("You must be logged in to view chef meals.")
+            return None
+            
+        # Build query parameters
+        params = {'page': page, 'page_size': page_size}
+        
+        # Priority: week_start_date > date
+        if week_start_date:
+            params['week_start_date'] = week_start_date
+        elif date:
+            params['date'] = date
+            
+        if meal_type:
+            params['meal_type'] = meal_type
+        if chef_id:
+            params['chef_id'] = chef_id
+        if include_compatible_only:
+            params['include_compatible_only'] = 'true'
+            
+        # Make authenticated API call
+        headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+        response = api_call_with_refresh(
+            url=f'{os.getenv("DJANGO_URL")}/meals/api/chef-meals-by-postal-code/',
+            method='get',
+            headers=headers,
+            params=params
+        )
+        
+        if response and response.status_code == 200:
+            return response.json()
+        elif response and response.status_code == 400:
+            data = response.json()
+            if data.get('code') == 'missing_postal_code':
+                st.warning("Please set your postal code in your profile to see available chef meals.")
+            return None
+        else:
+            return None
+            
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error fetching chef meals: {e}")
+        st.error("Failed to load chef meals. Please try again later.")
+        return None
+    except Exception as e:
+        logging.error(f"Unexpected error in get_chef_meals_by_postal_code: {e}")
+        st.error("An unexpected error occurred while fetching chef meals.")
+        return None
+
+def replace_meal_with_chef_meal(meal_plan_meal_id, chef_meal_id, event_id=None, quantity=1, special_requests=None):
+    """
+    Replace a meal in the user's meal plan with a chef-created meal.
+    
+    Args:
+        meal_plan_meal_id (int): ID of the meal plan meal to replace
+        chef_meal_id (int): ID of the chef meal to use as replacement
+        event_id (int, optional): ID of the specific chef meal event to use
+        quantity (int, optional): Number of meals to order. Defaults to 1.
+        special_requests (str, optional): Any special instructions for the chef
+        
+    Returns:
+        dict: Response data containing status and message or None if failed
+    """
+    try:
+        if not is_user_authenticated():
+            st.error("You must be logged in to replace meals.")
+            return None
+            
+        # Convert NumPy types to native Python types to ensure JSON serialization works
+        meal_plan_meal_id = int(meal_plan_meal_id)
+        chef_meal_id = int(chef_meal_id)
+        quantity = int(quantity)
+        if event_id is not None:
+            event_id = int(event_id)
+            
+        # Prepare the payload
+        payload = {
+            'meal_plan_meal_id': meal_plan_meal_id,
+            'chef_meal_id': chef_meal_id,
+            'quantity': quantity
+        }
+        
+        if event_id:
+            payload['event_id'] = event_id
+            
+        if special_requests:
+            payload['special_requests'] = special_requests
+            
+
+        # Make authenticated API call
+        headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+        response = api_call_with_refresh(
+            url=f'{os.getenv("DJANGO_URL")}/meals/api/replace_meal_plan_meal/',
+            method='put',
+            headers=headers,
+            data=payload
+        )
+        
+        if response and response.status_code == 200:
+            return response.json()
+        else:
+            error_message = "Failed to replace meal."
+            if response and hasattr(response, 'json'):
+                try:
+                    error_data = response.json()
+                    error_message = error_data.get('message', error_message)
+                except:
+                    pass
+            st.error(error_message)
+            return None
+            
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error replacing meal with chef meal: {e}")
+        st.error("Failed to replace meal. Please try again later.")
+        return None
+    except Exception as e:
+        logging.error(f"Unexpected error in replace_meal_with_chef_meal: {e}")
+        st.error("An unexpected error occurred while replacing the meal.")
+        return None

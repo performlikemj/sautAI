@@ -8,6 +8,7 @@ import traceback
 import datetime
 import logging
 from datetime import datetime, timedelta
+from dateutil.parser import parse
 from utils import api_call_with_refresh, login_form, toggle_chef_mode, is_user_authenticated, validate_input, footer
 
 # Configure logging
@@ -31,15 +32,7 @@ def check_chef_status():
         
         if response and response.status_code == 200:
             return response.json()
-        else:
-            # Use development mode to return mock data if the API fails
-            dev_mode = st.session_state.get('dev_mode', False)
-            if dev_mode:
-                logging.warning("Using mock chef status data (dev mode)")
-                return {'is_chef': False, 'has_pending_request': False}
-            
-            logging.error(f"Failed to check chef status. Status: {response.status_code if response else 'No response'}")
-            return {'is_chef': False, 'has_pending_request': False}
+
     except Exception as e:
         st.error(f"Error checking chef status: {str(e)}")
         logging.error(f"Error checking chef status: {str(e)}")
@@ -142,37 +135,20 @@ def create_stripe_account():
         data = {
             'user_id': st.session_state.user_id
         }
-        print(f"Stripe account link data: {data}")
+
         response = api_call_with_refresh(
             url=f"{os.getenv('DJANGO_URL')}/meals/api/stripe-account-link/",
             method='post',
             data=data,
             headers=headers
         )
-        print(f"Stripe account link response: {response}")
+
         if response and response.status_code == 200:
             data = response.json()
-            print(f"Stripe account link data: {data}")
+
             return data.get('url')
-        else:
-            # Use development mode to return mock data if the API fails
-            dev_mode = st.session_state.get('dev_mode', False)
-            if dev_mode:
-                logging.warning("Using mock Stripe account link (dev mode)")
-                return "https://example.com/mock-stripe-onboarding"
-                
-            logging.error(f"Failed to create Stripe account link. Status: {response.status_code if response else 'No response'}")
-            if response:
-                print(f"Stripe account link error: {response.json()}")
-            st.error("Failed to create Stripe account link")
-            return None
+
     except Exception as e:
-        # Use development mode to return mock data if the API fails
-        dev_mode = st.session_state.get('dev_mode', False)
-        if dev_mode:
-            logging.warning("Using mock Stripe account link (dev mode)")
-            return "https://example.com/mock-stripe-onboarding"
-            
         st.error(f"Error creating Stripe account: {str(e)}")
         logging.error(f"Error creating Stripe account: {str(e)}")
         logging.error(traceback.format_exc())
@@ -191,22 +167,10 @@ def check_stripe_account_status():
         if response and response.status_code == 200:
             return response.json()
         else:
-            # Use development mode to return mock data if the API fails
-            dev_mode = st.session_state.get('dev_mode', False)
-            if dev_mode:
-                logging.warning("Using mock Stripe account status data (dev mode)")
-                return {'has_account': True, 'is_active': True}
-            
             logging.error(f"Failed to check Stripe account status. Status: {response.status_code if response else 'No response'}")
             st.error("Failed to check Stripe account status")
             return {'has_account': False}
     except Exception as e:
-        # Use development mode to return mock data if the API fails
-        dev_mode = st.session_state.get('dev_mode', False)
-        if dev_mode:
-            logging.warning("Using mock Stripe account status data (dev mode)")
-            return {'has_account': True, 'is_active': True}
-            
         st.error(f"Error checking Stripe account status: {str(e)}")
         logging.error(f"Error checking Stripe account status: {str(e)}")
         logging.error(traceback.format_exc())
@@ -214,10 +178,12 @@ def check_stripe_account_status():
 
 # Function to get chef dashboard stats
 def get_chef_dashboard_stats():
+    """
+    Get the dashboard statistics for the chef from the backend.
+    """
     try:
         headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
         url = f"{os.getenv('DJANGO_URL')}/meals/api/chef-dashboard-stats/"
-        logging.info(f"Fetching chef dashboard stats from: {url}")
         
         response = api_call_with_refresh(
             url=url,
@@ -227,42 +193,13 @@ def get_chef_dashboard_stats():
         
         if response and response.status_code == 200:
             data = response.json()
-            logging.info(f"Dashboard stats API response type: {type(data)}")
-            logging.info(f"Dashboard stats API response content: {data}")
-            
-            if isinstance(data, dict):
-                logging.info(f"Dashboard stats keys: {data.keys()}")
-            
+            logging.info(f"Chef dashboard stats: {data}")
             return data
         else:
-            # Use development mode to return mock data if the API fails
-            dev_mode = st.session_state.get('dev_mode', False)
-            if dev_mode:
-                logging.warning("Using mock dashboard stats data (dev mode)")
-                return {
-                    'upcoming_events_count': 2,
-                    'active_orders_count': 5,
-                    'review_count': 12,
-                    'avg_rating': 4.7,
-                    'revenue_this_month': 350.00
-                }
-                
-            logging.error(f"Failed to fetch dashboard statistics. Status: {response.status_code if response else 'No response'}")
             st.error("Failed to fetch dashboard statistics")
+            logging.error(f"Failed to fetch chef dashboard stats. Status: {response.status_code if response else 'No response'}")
             return {}
     except Exception as e:
-        # Use development mode to return mock data if the API fails
-        dev_mode = st.session_state.get('dev_mode', False)
-        if dev_mode:
-            logging.warning("Using mock dashboard stats data (dev mode)")
-            return {
-                'upcoming_events_count': 2,
-                'active_orders_count': 5,
-                'review_count': 12,
-                'avg_rating': 4.7,
-                'revenue_this_month': 350.00
-            }
-            
         st.error(f"Error fetching dashboard statistics: {str(e)}")
         logging.error(f"Error fetching dashboard statistics: {str(e)}")
         logging.error(traceback.format_exc())
@@ -286,10 +223,10 @@ def fetch_chef_meal_events(my_events=False):
             headers=headers,
             params=params
         )
-        print(f"Chef meal events response: {response}")
+        # print(f"Chef meal events response: {response}")
         if response and response.status_code == 200:
             data = response.json()
-            print(f"Chef meal events response: {data}")
+            # print(f"Chef meal events response: {data}")
             logging.info(f"Chef meal events API response type: {type(data)}")
             
             # Add more detailed logging to understand the structure
@@ -356,89 +293,9 @@ def fetch_chef_meal_events(my_events=False):
                 return []
         else:
             logging.error(f"Failed to fetch chef meal events. Status: {response.status_code if response else 'No response'}")
-            # Use development mode to return mock data if the API fails
-            dev_mode = st.session_state.get('dev_mode', False)
-            if dev_mode:
-                logging.warning("Using mock meal events data (dev mode)")
-                tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
-                next_week = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
-                
-                # Create mock event data
-                mock_events = [
-                    {
-                        'id': 1,
-                        'meal': {'id': 1, 'name': 'Mock Meal 1', 'description': 'This is a mock meal for testing'},
-                        'event_date': tomorrow,
-                        'event_time': '18:00',
-                        'order_cutoff_time': f"{tomorrow}T12:00:00Z",
-                        'base_price': '25.00',
-                        'current_price': '22.00',
-                        'max_orders': 10,
-                        'orders_count': 3,
-                        'status': 'active',
-                        'description': 'Mock event for tomorrow',
-                        'special_instructions': 'These are mock instructions'
-                    },
-                    {
-                        'id': 2,
-                        'meal': {'id': 2, 'name': 'Mock Meal 2', 'description': 'Another mock meal for testing'},
-                        'event_date': next_week,
-                        'event_time': '19:00',
-                        'order_cutoff_time': f"{next_week}T12:00:00Z",
-                        'base_price': '30.00',
-                        'current_price': '27.50',
-                        'max_orders': 15,
-                        'orders_count': 5,
-                        'status': 'active',
-                        'description': 'Mock event for next week',
-                        'special_instructions': ''
-                    }
-                ]
-                return mock_events
-                
             st.error("Failed to fetch chef meal events")
             return []
     except Exception as e:
-        # Use development mode to return mock data if the API fails
-        dev_mode = st.session_state.get('dev_mode', False)
-        if dev_mode:
-            logging.warning("Using mock meal events data (dev mode)")
-            tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
-            next_week = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
-            
-            # Create mock event data
-            mock_events = [
-                {
-                    'id': 1,
-                    'meal': {'id': 1, 'name': 'Mock Meal 1', 'description': 'This is a mock meal for testing'},
-                    'event_date': tomorrow,
-                    'event_time': '18:00',
-                    'order_cutoff_time': f"{tomorrow}T12:00:00Z",
-                    'base_price': '25.00',
-                    'current_price': '22.00',
-                    'max_orders': 10,
-                    'orders_count': 3,
-                    'status': 'active',
-                    'description': 'Mock event for tomorrow',
-                    'special_instructions': 'These are mock instructions'
-                },
-                {
-                    'id': 2,
-                    'meal': {'id': 2, 'name': 'Mock Meal 2', 'description': 'Another mock meal for testing'},
-                    'event_date': next_week,
-                    'event_time': '19:00',
-                    'order_cutoff_time': f"{next_week}T12:00:00Z",
-                    'base_price': '30.00',
-                    'current_price': '27.50',
-                    'max_orders': 15,
-                    'orders_count': 5,
-                    'status': 'active',
-                    'description': 'Mock event for next week',
-                    'special_instructions': ''
-                }
-            ]
-            return mock_events
-            
         st.error(f"Error fetching chef meal events: {str(e)}")
         logging.error(f"Error fetching chef meal events: {str(e)}")
         logging.error(traceback.format_exc())
@@ -448,7 +305,7 @@ def fetch_chef_meal_events(my_events=False):
 def fetch_chef_meal_orders(as_chef=False):
     try:
         headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-        url = f"{os.getenv('DJANGO_URL')}/meals/api/chef-meal-orders/"
+        url = f"{os.getenv('DJANGO_URL')}/meals/api/chef-received-orders/"
         
         # Add query parameter for chef view
         if as_chef:
@@ -464,7 +321,20 @@ def fetch_chef_meal_orders(as_chef=False):
         if response and response.status_code == 200:
             data = response.json()
             logging.info(f"Chef meal orders API response type: {type(data)}")
-            logging.info(f"Chef meal orders API response content: {data}")
+            # Log a summary of the response
+            if isinstance(data, list):
+                logging.info(f"Orders list length: {len(data)}")
+                if len(data) > 0:
+                    logging.info(f"Sample order: {data[0]}")
+            elif isinstance(data, dict):
+                logging.info(f"Orders dict keys: {data.keys()}")
+                if 'details' in data and isinstance(data['details'], dict):
+                    logging.info(f"Details keys: {data['details'].keys()}")
+                    if 'results' in data['details']:
+                        results = data['details']['results']
+                        logging.info(f"Results count: {len(results) if isinstance(results, list) else 'not a list'}")
+                        if isinstance(results, list) and len(results) > 0:
+                            logging.info(f"Sample result: {results[0]}")
             
             # Validate the response format
             if isinstance(data, list):
@@ -479,6 +349,11 @@ def fetch_chef_meal_orders(as_chef=False):
         else:
             st.error("Failed to fetch chef meal orders")
             logging.error(f"Failed to fetch chef meal orders. Status: {response.status_code if response else 'No response'}")
+            if response:
+                try:
+                    logging.error(f"Response content: {response.text}")
+                except:
+                    pass
             return []
     except Exception as e:
         st.error(f"Error fetching chef meal orders: {str(e)}")
@@ -530,8 +405,72 @@ def create_chef_meal_event(data):
         logging.error(traceback.format_exc())
         return {'error': f"Error creating chef meal event: {str(e)}"}
 
+# Function to update a chef meal event
+def update_chef_meal_event(event_id, data):
+    """
+    Update an existing chef meal event.
+    
+    Args:
+        event_id: The ID of the event to update
+        data: Dictionary containing event data to update
+    
+    Returns:
+        Dictionary with the updated event data or error message
+    """
+    try:
+        headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+        response = api_call_with_refresh(
+            url=f"{os.getenv('DJANGO_URL')}/meals/api/chef-meal-events/{event_id}/update/",
+            method='put',
+            headers=headers,
+            data=data
+        )
+        
+        if response and response.status_code == 200:
+            result = response.json()
+            if 'status' in result and result['status'] == 'success':
+                return result.get('details', result)
+            return result
+        else:
+            if response:
+                try:
+                    error_data = response.json()
+                    # Format error messages for better display
+                    if isinstance(error_data, dict):
+                        if 'status' in error_data and error_data['status'] == 'error' and 'message' in error_data:
+                            error_message = error_data['message']
+                            
+                            # Check for detailed field errors
+                            if 'details' in error_data and isinstance(error_data['details'], dict):
+                                field_errors = []
+                                for field, errors in error_data['details'].items():
+                                    if isinstance(errors, list):
+                                        field_errors.append(f"{field}: {', '.join(errors)}")
+                                    else:
+                                        field_errors.append(f"{field}: {errors}")
+                                
+                                if field_errors:
+                                    error_message += f"\n• " + "\n• ".join(field_errors)
+                        else:
+                            # Fallback for non-standard error format
+                            error_message = error_data.get('error', 'Failed to update chef meal event')
+                    else:
+                        error_message = "Failed to update chef meal event with an unexpected response format."
+                    
+                    return {'error': error_message}
+                except ValueError:
+                    # If response is not JSON
+                    return {'error': f"Failed to update chef meal event: {response.text}"}
+            else:
+                return {'error': "Failed to update chef meal event. No response from server."}
+    except Exception as e:
+        logging.error(f"Error updating chef meal event: {str(e)}")
+        logging.error(traceback.format_exc())
+        return {'error': f"Error updating chef meal event: {str(e)}"}
+
 # Function to cancel a chef meal event
 def cancel_chef_meal_event(event_id, reason):
+
     try:
         headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
         response = api_call_with_refresh(
@@ -542,6 +481,7 @@ def cancel_chef_meal_event(event_id, reason):
         )
         
         if response and response.status_code == 200:
+
             return True
         else:
             st.error("Failed to cancel event")
@@ -605,32 +545,30 @@ def cancel_chef_meal_order(order_id, reason):
         logging.error(traceback.format_exc())
         return False
 
-# Function to process payment for a chef meal order
-def process_payment(order_id, token):
+# Function to confirm a chef meal order
+def confirm_chef_meal_order(order_id):
     try:
         headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-        data = {'token': token}
         response = api_call_with_refresh(
-            url=f"{os.getenv('DJANGO_URL')}/meals/api/process-chef-meal-payment/{order_id}/",
+            url=f"{os.getenv('DJANGO_URL')}/meals/api/chef-meal-orders/{order_id}/confirm/",
             method='post',
-            headers=headers,
-            data=data
+            headers=headers
         )
         
         if response and response.status_code == 200:
-            return response.json()
+            return True
         else:
             if response:
-                error_message = response.json().get('error', 'Payment processing failed')
+                error_message = response.json().get('error', 'Failed to confirm order')
                 st.error(error_message)
             else:
-                st.error("Payment processing failed")
-            return None
+                st.error("Failed to confirm order")
+            return False
     except Exception as e:
-        st.error(f"Error processing payment: {str(e)}")
-        logging.error(f"Error processing payment: {str(e)}")
+        st.error(f"Error confirming chef meal order: {str(e)}")
+        logging.error(f"Error confirming chef meal order: {str(e)}")
         logging.error(traceback.format_exc())
-        return None
+        return False
 
 # Function to format dates in a more user-friendly way
 def format_date(date_str):
@@ -700,7 +638,7 @@ def create_chef_dish(data):
             data=data
         )
         
-        print(f"Dish creation response: {response}")
+
         if response and response.status_code in [200, 201]:
             logging.info(f"Dish creation successful: {response.json()}")
             return response.json()
@@ -775,28 +713,10 @@ def fetch_chef_dishes():
                     st.warning("You don't have permission to access dishes. Make sure your chef account is set up correctly.")
             else:
                 logging.error("No response received when fetching chef dishes")
-            
-            # In development mode, return mock data
-            if st.session_state.get('dev_mode', False):
-                logging.warning("Using mock dish data (dev mode)")
-                return [
-                    {'id': 1, 'name': 'Appetizer Sample', 'description': 'A sample appetizer', 'featured': False},
-                    {'id': 2, 'name': 'Main Course Sample', 'description': 'A sample main course', 'featured': True},
-                    {'id': 3, 'name': 'Dessert Sample', 'description': 'A sample dessert', 'featured': False}
-                ]
             return []
     except Exception as e:
         logging.error(f"Error fetching chef dishes: {str(e)}")
         logging.error(traceback.format_exc())
-        
-        # In development mode, return mock data
-        if st.session_state.get('dev_mode', False):
-            logging.warning("Using mock dish data (dev mode)")
-            return [
-                {'id': 1, 'name': 'Appetizer Sample', 'description': 'A sample appetizer', 'featured': False},
-                {'id': 2, 'name': 'Main Course Sample', 'description': 'A sample main course', 'featured': True},
-                {'id': 3, 'name': 'Dessert Sample', 'description': 'A sample dessert', 'featured': False}
-            ]
         return []
 
 def fetch_dietary_preferences():
@@ -978,28 +898,10 @@ def fetch_chef_ingredients():
                     st.warning("You don't have permission to access ingredients. Make sure your chef account is set up correctly.")
             else:
                 logging.error("No response received when fetching chef ingredients")
-            
-            # In development mode, return mock data
-            if st.session_state.get('dev_mode', False):
-                logging.warning("Using mock ingredient data (dev mode)")
-                return [
-                    {'id': 1, 'name': 'Chicken', 'calories': 165, 'fat': 3.6, 'carbohydrates': 0, 'protein': 31},
-                    {'id': 2, 'name': 'Rice', 'calories': 130, 'fat': 0.3, 'carbohydrates': 28, 'protein': 2.7},
-                    {'id': 3, 'name': 'Tomatoes', 'calories': 18, 'fat': 0.2, 'carbohydrates': 3.9, 'protein': 0.9}
-                ]
             return []
     except Exception as e:
         logging.error(f"Error fetching chef ingredients: {str(e)}")
         logging.error(traceback.format_exc())
-        
-        # In development mode, return mock data
-        if st.session_state.get('dev_mode', False):
-            logging.warning("Using mock ingredient data (dev mode)")
-            return [
-                {'id': 1, 'name': 'Chicken', 'calories': 165, 'fat': 3.6, 'carbohydrates': 0, 'protein': 31},
-                {'id': 2, 'name': 'Rice', 'calories': 130, 'fat': 0.3, 'carbohydrates': 28, 'protein': 2.7},
-                {'id': 3, 'name': 'Tomatoes', 'calories': 18, 'fat': 0.2, 'carbohydrates': 3.9, 'protein': 0.9}
-            ]
         return []
 
 def create_chef_ingredient(data):
@@ -1118,20 +1020,6 @@ def chef_meals():
         st.stop()
     else:
         logging.info("User logged in, username: %s", st.session_state.get('username', 'unknown'))
-
-    # Add development mode toggle in the sidebar
-    with st.sidebar:
-        st.markdown("---")
-        st.markdown("### Developer Options")
-        dev_mode = st.toggle("Development Mode", 
-                           value=st.session_state.get('dev_mode', False),
-                           help="Enable mock data when API endpoints are not available")
-        
-        # Update session state
-        st.session_state['dev_mode'] = dev_mode
-        
-        if dev_mode:
-            st.info("Development mode enabled. Using mock data for missing API endpoints.")
     
     # Check chef status
     chef_status = check_chef_status()
@@ -1147,7 +1035,7 @@ def chef_meals():
     st.write("Create and manage your chef meal events and track orders from customers.")
     
     # Create tabs for different views
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Dashboard", "My Meal Events", "Received Orders", "Create Meal", "Create Event"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Dashboard", "My Meal Events", "Received Orders", "Manage Meals", "Create Event"])
     
     # Tab 1: Chef Dashboard
     with tab1:
@@ -1155,9 +1043,9 @@ def chef_meals():
         
         # Check Stripe account status
         stripe_status = check_stripe_account_status()
-        print(f"Stripe status: {stripe_status}")
-        print(f"Stripe status has_account: {stripe_status.get('has_account', False)}")
-        print(f"Stripe status is_active: {stripe_status.get('is_active', False)}")
+
+
+
         if not stripe_status.get('has_account', False):
             st.warning("You need to set up your Stripe account to receive payments for your meal events.")
             if st.button("Set Up Stripe Account"):
@@ -1188,6 +1076,7 @@ def chef_meals():
         stats = get_chef_dashboard_stats()
         
         if stats:
+            # Top row metrics
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
@@ -1197,17 +1086,286 @@ def chef_meals():
                 st.metric("Active Orders", stats.get('active_orders_count', 0))
             
             with col3:
-                st.metric("Reviews", stats.get('review_count', 0))
+                st.metric("Past Events", stats.get('past_events_count', 0))
             
             with col4:
                 st.metric("Average Rating", f"{float(stats.get('avg_rating', 0)):.1f}★")
             
+            # Revenue section
             st.subheader("Revenue")
-            st.info(f"Monthly Revenue: {format_currency(stats.get('revenue_this_month', 0))}")
             
-            # Add a placeholder for future charts
+            rev_col1, rev_col2, rev_col3 = st.columns(3)
+            
+            with rev_col1:
+                st.metric("Monthly Revenue", format_currency(float(stats.get('revenue_this_month', 0))))
+            
+            with rev_col2:
+                st.metric("Monthly Refunds", format_currency(float(stats.get('refunds_this_month', 0))))
+            
+            with rev_col3:
+                st.metric("Net Revenue", format_currency(float(stats.get('net_revenue', 0))))
+            
+            # Additional metrics
+            st.subheader("Additional Metrics")
+            
+            add_col1, add_col2, add_col3 = st.columns(3)
+            
+            with add_col1:
+                st.metric("Customer Savings", format_currency(float(stats.get('customer_savings', 0))),
+                          help="Amount saved by customers through dynamic pricing")
+            
+            with add_col2:
+                st.metric("Pending Adjustments", stats.get('pending_price_adjustments', 0),
+                          help="Number of orders with pending price adjustments")
+            
+            with add_col3:
+                st.metric("Reviews", stats.get('review_count', 0))
+            
+            # Order History section
             st.subheader("Order History")
-            st.info("Detailed analytics coming soon!")
+            # Fetch received orders for analytics
+            orders = fetch_chef_meal_orders(as_chef=True)
+
+            # Display Active Orders Summary Card
+            st.subheader("Active Orders Summary")
+            try:
+                # Process the orders data to extract active orders
+                active_events = []
+                active_orders = []
+                total_revenue = 0.0
+                
+                if isinstance(orders, list):
+                    # Process list of orders directly
+                    for order in orders:
+                        active_orders.append(order)
+                        # Calculate revenue from meals_for_chef
+                        if 'meals_for_chef' in order:
+                            for meal in order['meals_for_chef']:
+                                price = float(meal.get('price', 0))
+                                quantity = int(meal.get('quantity', 1))
+                                total_revenue += price * quantity
+                        elif 'total_value_for_chef' in order:
+                            total_revenue += float(order['total_value_for_chef'])
+                
+                elif isinstance(orders, dict) and 'details' in orders and 'results' in orders['details']:
+
+                    # Simply add any event that has active_orders to our list
+                    for event in orders['details']['results']:
+                        if 'active_orders' in event and event['active_orders']:
+                            # print(f'Active orders: {event["active_orders"]}')
+
+                            active_events.append(event)
+                            for order in event['active_orders']:
+                                active_orders.append(order)
+                                # Calculate revenue
+                                if 'price_paid' in order and 'quantity' in order:
+                                    price = float(order['price_paid'])
+                                    quantity = int(order.get('quantity', 1))
+                                    total_revenue += price * quantity
+                
+                # Display order summaries
+                if active_orders:
+                    # Show counts by status
+                    status_counts = {}
+                    meal_counts = {}
+                    customer_counts = {}
+                    total_items = 0
+                    
+                    for order in active_orders:
+                        status = order.get('status', 'unknown').lower()
+                        status_counts[status] = status_counts.get(status, 0) + 1
+                        
+                        # Track unique customers
+                        customer = order.get('customer_username', 'unknown')
+                        customer_counts[customer] = customer_counts.get(customer, 0) + 1
+                        
+                        # Track total items across all orders
+                        if 'meals_for_chef' in order:
+                            for meal in order['meals_for_chef']:
+                                meal_name = meal.get('meal_name', 'unknown')
+                                quantity = int(meal.get('quantity', 1))
+                                meal_counts[meal_name] = meal_counts.get(meal_name, 0) + quantity
+                                total_items += quantity
+                    
+                    # Create metrics for different order statuses
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Total Orders", len(active_orders))
+                    with col2:
+                        st.metric("Total Revenue", format_currency(total_revenue))
+                    with col3:
+                        st.metric("Total Items", total_items)
+                    
+                    # Second row of metrics
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Placed Orders", status_counts.get('placed', 0))
+                    with col2:
+                        st.metric("Confirmed Orders", status_counts.get('confirmed', 0))
+                    with col3:
+                        st.metric("Unique Customers", len(customer_counts))
+                    
+                    # Display popular items
+                    if meal_counts:
+                        st.subheader("Popular Items")
+                        # Convert meal counts to dataframe for display
+                        meal_data = []
+                        for meal, count in meal_counts.items():
+                            meal_data.append({"Meal": meal, "Orders": count})
+                        
+                        meal_df = pd.DataFrame(meal_data)
+                        if not meal_df.empty:
+                            meal_df = meal_df.sort_values(by="Orders", ascending=False)
+                            st.bar_chart(meal_df.set_index("Meal"))
+                    
+                    # Display active orders in an expander
+                    with st.expander("View Active Orders", expanded=True):
+                        # Create dataframe for all orders
+                        orders_df_data = []
+                        for order in active_orders:
+                            order_items = []
+                            total_quantity = 0
+                            if 'meals_for_chef' in order:
+                                for meal in order['meals_for_chef']:
+                                    meal_name = meal.get('meal_name', 'unknown')
+                                    quantity = int(meal.get('quantity', 1))
+                                    order_items.append(f"{meal_name} (x{quantity})")
+                                    total_quantity += quantity
+                            
+                            orders_df_data.append({
+                                'Order ID': order.get('id', 'N/A'),
+                                'Customer': order.get('customer_username', 'Unknown'),
+                                'Status': order.get('status', 'unknown').upper(),
+                                'Items': ", ".join(order_items),
+                                'Total Quantity': total_quantity,
+                                'Total Value': format_currency(float(order.get('total_value_for_chef', 0))),
+                                'Order Date': format_datetime(order.get('order_date', '')),
+                                'Updated': format_datetime(order.get('updated_at', ''))
+                            })
+                        
+                        orders_df = pd.DataFrame(orders_df_data)
+                        if not orders_df.empty:
+                            st.dataframe(orders_df, use_container_width=True)
+                        
+                        # Show individual order details
+                        for order in active_orders:
+                            with st.container():
+                                st.markdown(f"### Order #{order.get('id', 'N/A')} - {order.get('status', 'unknown').upper()}")
+                                
+                                col1, col2 = st.columns([3, 2])
+                                with col1:
+                                    st.markdown(f"**Customer:** {order.get('customer_username', 'Unknown')}")
+                                    st.markdown(f"**Date:** {format_datetime(order.get('order_date', ''))}")
+                                    
+                                    # Display meals
+                                    if 'meals_for_chef' in order:
+                                        st.markdown("**Ordered Items:**")
+                                        for meal in order['meals_for_chef']:
+                                            meal_name = meal.get('meal_name', 'unknown')
+                                            quantity = int(meal.get('quantity', 1))
+                                            price = float(meal.get('price', 0))
+                                            st.markdown(f"- {meal_name} (x{quantity}) @ {format_currency(price)} each")
+                                
+                                with col2:
+                                    st.markdown(f"**Total Value:** {format_currency(float(order.get('total_value_for_chef', 0)))}")
+                                    st.markdown(f"**Payment:** {'Paid' if order.get('is_paid', False) else 'Pending'}")
+                                    st.markdown(f"**Last Updated:** {format_datetime(order.get('updated_at', ''))}")
+                                    
+                                    # Order actions based on status
+                                    status = order.get('status', '').lower()
+                                    if status == 'placed':
+                                        if st.button("Confirm Order", key=f"dash_confirm_{order.get('id')}"):
+                                            st.success(f"Order #{order.get('id')} confirmed!")
+                                            # Here you would add the API call to update status
+                                    elif status == 'confirmed':
+                                        if st.button("Mark Completed", key=f"dash_complete_{order.get('id')}"):
+                                            st.success(f"Order #{order.get('id')} marked as completed!")
+                                            # Here you would add the API call to update status
+                                
+                                if order.get('special_requests'):
+                                    st.markdown(f"**Special Requests:** {order.get('special_requests')}")
+                                
+                                st.markdown("---")
+                else:
+                    st.info("You have no active orders at this time.")
+            except Exception as e:
+                logging.error(f"Error displaying active orders: {str(e)}")
+                st.error("Error displaying active orders. Please try refreshing the page.")
+            
+            if orders:
+                # Add debug logging to understand orders format
+                logging.info(f"Orders type for analytics: {type(orders)}")
+                if isinstance(orders, dict) and 'details' in orders:
+                    logging.info(f"Orders has details key with type: {type(orders['details'])}")
+                
+                order_data = []
+                
+                # Handle both list format and dict with details.results format
+                orders_list = orders
+                if isinstance(orders, dict):
+                    if 'details' in orders and isinstance(orders['details'], dict) and 'results' in orders['details']:
+                        orders_list = orders['details']['results']
+                    elif 'details' in orders and isinstance(orders['details'], list):
+                        orders_list = orders['details']
+                    elif 'results' in orders:
+                        orders_list = orders['results']
+                
+                logging.info(f"Processing {len(orders_list) if isinstance(orders_list, list) else 'unknown'} orders for analytics")
+                
+                # Check if we need to extract orders from meal events
+                if not isinstance(orders_list, list) or len(orders_list) == 0:
+                    # Try to get orders from events
+                    st.info("No order details found. Attempting to use meal events data instead.")
+                    events = fetch_chef_meal_events(my_events=True)
+                    if events and isinstance(events, list):
+                        # Extract basic order data from events
+                        for event in events:
+                            if event.get('orders_count', 0) > 0:
+                                event_date = event.get('event_date')
+                                created_at = event.get('created_at')
+                                price = float(event.get('current_price', 0))
+                                quantity = int(event.get('orders_count', 0))
+                                revenue = price * quantity
+                                
+                                # Use event created_at or event_date if available
+                                date_to_use = created_at if created_at else f"{event_date}T00:00:00Z" if event_date else None
+                                
+                                if date_to_use:
+                                    order_data.append({
+                                        'created_at': date_to_use,
+                                        'revenue': revenue
+                                    })
+                
+                for order in (orders_list if isinstance(orders_list, list) else []):
+                    try:
+                        created_at = order.get('created_at')
+                        price_paid = float(order.get('price_paid', 0))
+                        quantity = int(order.get('quantity', 0))
+                        revenue = price_paid * quantity
+                        # Append the raw created_at value for conversion later
+                        order_data.append({'created_at': created_at, 'revenue': revenue})
+                        logging.info(f"Added order data: {created_at}, revenue: {revenue}")
+                    except Exception as e:
+                        logging.error(f"Error processing order for analytics: {str(e)}")
+                        logging.error(f"Problematic order data: {order}")
+                        continue
+                if order_data:
+                    df_orders = pd.DataFrame(order_data)
+                    # Convert 'created_at' to datetime, coercing errors to NaT
+                    df_orders['created_at'] = pd.to_datetime(df_orders['created_at'], errors='coerce')
+                    # Drop rows with invalid or missing dates
+                    df_orders = df_orders.dropna(subset=['created_at'])
+                    if not df_orders.empty:
+                        df_orders['month'] = df_orders['created_at'].dt.to_period('M').astype(str)
+                        revenue_by_month = df_orders.groupby('month')['revenue'].sum().reset_index()
+                        st.subheader("Monthly Revenue")
+                        st.bar_chart(revenue_by_month.set_index('month'))
+                    else:
+                        st.info("No valid order dates available for analytics.")
+                else:
+                    st.info("No order data available for analytics.")
+            else:
+                st.info("No orders found for analytics.")
     
     # Tab 2: My Meal Events
     with tab2:
@@ -1221,14 +1379,6 @@ def chef_meals():
         # Fetch chef's meal events
         events = fetch_chef_meal_events(my_events=True)
         
-        # Debug information
-        if dev_mode:
-            st.info(f"Found {len(events)} events from the API")
-            if len(events) == 0:
-                # Show current dashboard stats to compare
-                stats = get_chef_dashboard_stats()
-                st.write("Dashboard shows:")
-                st.write(f"- Upcoming Events: {stats.get('upcoming_events_count', 0)}")
         
         if events:
             try:
@@ -1274,18 +1424,231 @@ def chef_meals():
                                 st.markdown(f"**Current Price:** {format_currency(event['current_price'])}")
                                 st.markdown(f"**Orders:** {event['orders_count']}/{event['max_orders']}")
                                 
-                                # Cancel button if event is still upcoming
+                                # Create unique keys for each event's state
+                                cancel_state_key = f"cancel_state_{event['id']}"
+                                edit_state_key = f"edit_state_{event['id']}"
+                                
+                                # Initialize the state keys if they don't exist
+                                if cancel_state_key not in st.session_state:
+                                    st.session_state[cancel_state_key] = "initial"
+                                if edit_state_key not in st.session_state:
+                                    st.session_state[edit_state_key] = "initial"
+                                
+                                # Only show action buttons if the event is not cancelled or completed
                                 if event['status'] not in ['cancelled', 'completed']:
-                                    if st.button(f"Cancel Event", key=f"cancel_{event['id']}"):
-                                        reason = st.text_area("Reason for cancellation", key=f"reason_{event['id']}")
-                                        if st.button(f"Confirm Cancellation", key=f"confirm_{event['id']}"):
-                                            if cancel_chef_meal_event(event['id'], reason):
-                                                st.success("Event cancelled successfully!")
+                                    # Create a row of buttons for actions
+                                    action_col1, action_col2 = st.columns(2)
+                                    
+                                    with action_col1:
+                                        # Edit button
+                                        if st.session_state[edit_state_key] == "initial" and st.session_state[cancel_state_key] == "initial":
+                                            if st.button("Edit Event", key=f"edit_{event['id']}"):
+                                                st.session_state[edit_state_key] = "editing"
                                                 st.rerun()
+                                    
+                                    with action_col2:
+                                        # Cancel button - only show if not in edit mode
+                                        if st.session_state[edit_state_key] == "initial":
+                                            if st.session_state[cancel_state_key] == "initial":
+                                                if st.button("Cancel Event", key=f"cancel_{event['id']}"):
+                                                    st.session_state[cancel_state_key] = "reason_requested"
+                                                    st.rerun()
                             
-                            st.markdown(f"**Description:** {event['description']}")
-                            if event['special_instructions']:
-                                st.markdown(f"**Special Instructions:** {event['special_instructions']}")
+                            # Show edit form if in editing mode
+                            if st.session_state.get(edit_state_key) == "editing":
+                                st.markdown("---")
+                                st.subheader("Edit Event")
+                                
+                                with st.form(key=f"edit_event_form_{event['id']}"):
+                                    # Get all available meals for this chef
+                                    meals = fetch_chef_meals()
+                                    meal_options = {m['id']: m['name'] for m in meals}
+                                    
+                                    # Default values from current event
+                                    current_meal_id = event['meal']['id']
+                                    
+                                    # Create meal selection dropdown
+                                    meal_id = st.selectbox(
+                                        "Select Meal", 
+                                        options=list(meal_options.keys()),
+                                        index=list(meal_options.keys()).index(current_meal_id) if current_meal_id in meal_options.keys() else 0,
+                                        format_func=lambda x: meal_options[x]
+                                    )
+                                    
+                                    col1, col2 = st.columns(2)
+                                    
+                                    with col1:
+                                        # Parse event date string to date object
+                                        # Parse event date string to date object
+                                        try:
+                                            current_date = datetime.strptime(event['event_date'], '%Y-%m-%d').date()
+                                        except (ValueError, TypeError):
+                                            current_date = datetime.now().date() + timedelta(days=1)
+                                        
+                                        min_date = datetime.now().date() + timedelta(days=1)
+                                        # Ensure the default date is not before the minimum allowed date
+                                        default_date = current_date if current_date >= min_date else min_date
+                                        
+                                        event_date = st.date_input(
+                                            "Event Date", 
+                                            value=default_date,
+                                            min_value=min_date
+                                        )
+                                        
+                                        # Parse event time string to time object
+                                        try:
+                                            current_time = datetime.strptime(event['event_time'], '%H:%M').time()
+                                        except (ValueError, TypeError):
+                                            current_time = datetime.now().time().replace(hour=18, minute=0)
+                                            
+                                        event_time = st.time_input(
+                                            "Event Time", 
+                                            value=current_time
+                                        )
+                                        
+                                        # Parse cutoff time string to datetime object
+                                        try:
+                                            cutoff_datetime = parse(event['order_cutoff_time'])
+                                            cutoff_date = cutoff_datetime.date()
+                                            cutoff_time = cutoff_datetime.time()
+                                        except (ValueError, TypeError):
+                                            cutoff_date = datetime.now().date()
+                                            cutoff_time = datetime.now().time().replace(hour=12, minute=0)
+                                        
+                                        # Ensure cutoff date isn't before the minimum allowed date (today)
+                                        min_cutoff_date = datetime.now().date()
+                                        # Use the greater of the current cutoff date and min allowed date
+                                        default_cutoff_date = max(cutoff_date, min_cutoff_date)
+                                        
+                                        cutoff_date = st.date_input(
+                                            "Order Cutoff Date", 
+                                            value=default_cutoff_date,
+                                            min_value=min_cutoff_date
+                                        )
+                                        
+                                        order_cutoff_time = st.time_input(
+                                            "Order Cutoff Time", 
+                                            value=cutoff_time
+                                        )
+                                    
+                                    with col2:
+                                        base_price = st.number_input(
+                                            "Base Price ($)", 
+                                            min_value=5.0, 
+                                            step=1.0, 
+                                            value=float(event['base_price'])
+                                        )
+                                        
+                                        min_price = st.number_input(
+                                            "Minimum Price ($)", 
+                                            min_value=1.0, 
+                                            step=1.0, 
+                                            value=float(event['min_price']) if 'min_price' in event else max(5.0, float(event['base_price']) * 0.7),
+                                            help="The lowest price you'll accept per meal as more people order. Cannot go below $1."
+                                        )
+                                        
+                                        orders_count = int(event['orders_count'])
+                                        max_orders = st.number_input(
+                                            "Maximum Orders", 
+                                            min_value=orders_count, 
+                                            step=1, 
+                                            value=int(event['max_orders'])
+                                        )
+                                        
+                                        min_orders = st.number_input(
+                                            "Minimum Orders", 
+                                            min_value=1, 
+                                            max_value=max_orders, 
+                                            step=1, 
+                                            value=int(event['min_orders']) if 'min_orders' in event else 3
+                                        )
+                                    
+                                    description = st.text_area(
+                                        "Event Description", 
+                                        value=event['description']
+                                    )
+                                    
+                                    special_instructions = st.text_area(
+                                        "Special Instructions (Optional)", 
+                                        value=event['special_instructions'] if 'special_instructions' in event else ""
+                                    )
+                                    
+                                    # Validate cutoff time is before event time
+                                    cutoff_datetime = datetime.combine(cutoff_date, order_cutoff_time)
+                                    event_datetime = datetime.combine(event_date, event_time)
+                                    if cutoff_datetime >= event_datetime:
+                                        st.warning("Order cutoff time must be before event time.")
+                                    
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        submit_button = st.form_submit_button("Update Event")
+                                    with col2:
+                                        cancel_button = st.form_submit_button("Cancel")
+                                
+                                if submit_button:
+                                    # Format the cutoff time
+                                    cutoff_datetime = datetime.combine(cutoff_date, order_cutoff_time)
+                                    
+                                    # Validate cutoff time is before event time
+                                    event_datetime = datetime.combine(event_date, event_time)
+                                    if cutoff_datetime >= event_datetime:
+                                        st.error("Order cutoff time must be before event time. Please adjust and try again.")
+                                    else:
+                                        # Prepare the data
+                                        data = {
+                                            'meal': meal_id,
+                                            'event_date': event_date.strftime('%Y-%m-%d'),
+                                            'event_time': event_time.strftime('%H:%M'),
+                                            'order_cutoff_time': cutoff_datetime.strftime('%Y-%m-%d %H:%M'),
+                                            'base_price': base_price,
+                                            'min_price': min_price,
+                                            'max_orders': max_orders,
+                                            'min_orders': min_orders,
+                                            'description': description,
+                                            'special_instructions': special_instructions
+                                        }
+                                        
+                                        # Update the event
+                                        result = update_chef_meal_event(event['id'], data)
+                                        
+                                        if result:
+                                            if 'error' in result:
+                                                st.error(result['error'])
+                                            else:
+                                                st.success("Event updated successfully!")
+                                                # Reset the edit state
+                                                st.session_state[edit_state_key] = "initial"
+                                                time.sleep(1)  # Give user time to see the success message
+                                                st.rerun()
+                                
+                                elif cancel_button:
+                                    # Reset edit state
+                                    st.session_state[edit_state_key] = "initial"
+                                    st.rerun()
+                                    
+                            # Show cancellation UI if in cancel mode
+                            elif st.session_state.get(cancel_state_key) == "reason_requested":
+                                st.markdown("---")
+                                st.subheader("Cancel Event")
+                                reason = st.text_area("Reason for cancellation", key=f"reason_{event['id']}")
+                                col1, col2 = st.columns([1, 1])
+                                with col1:
+                                    if st.button(f"Confirm Cancellation", key=f"confirm_{event['id']}"):
+                                        if cancel_chef_meal_event(event['id'], reason):
+                                            st.session_state[cancel_state_key] = "initial"
+                                            st.success("Event cancelled successfully!")
+                                            time.sleep(1)  # Give user time to see the success message
+                                            st.rerun()
+                                with col2:
+                                    if st.button("Cancel", key=f"back_{event['id']}"):
+                                        st.session_state[cancel_state_key] = "initial"
+                                        st.rerun()
+                            
+                            # Only show description if not in edit or cancel mode
+                            elif st.session_state.get(edit_state_key) == "initial" and st.session_state.get(cancel_state_key) == "initial":
+                                st.markdown(f"**Description:** {event['description']}")
+                                if event['special_instructions']:
+                                    st.markdown(f"**Special Instructions:** {event['special_instructions']}")
                 else:
                     st.info("You don't have any upcoming meal events.")
                 
@@ -1318,91 +1681,521 @@ def chef_meals():
         # Fetch orders as chef
         orders = fetch_chef_meal_orders(as_chef=True)
         logging.info(f"Orders received in tab3: Type={type(orders)}, Content={orders}")
+
+        # Add refresh button
+        if st.button("Refresh Orders", key="refresh_orders_tab3"):
+            st.rerun()
+
+        # Add fulfillment management section
+        st.subheader("Order Fulfillment Management")
         
-        if orders:
-            # Add detailed logging before processing orders
-            logging.info(f"Processing orders of type: {type(orders)}")
+        # Initialize session state for fulfillment management if needed
+        if 'fulfillment_events' not in st.session_state:
+            st.session_state['fulfillment_events'] = {}
+        
+        # Initialize lists for processing
+        events_with_orders = []
+        all_orders = []
+        
+        try:
+            # Handle the case where orders is a list (direct orders)
+            if isinstance(orders, list):
+                # Group orders by meal if possible
+                orders_by_meal = {}
+                for order in orders:
+                    # This is simpler than our previous implementation since we don't have events
+                    # We'll create synthetic event groupings based on meals
+                    # Look for meal information in the order
+                    primary_meal = None
+                    if 'meals_for_chef' in order and order['meals_for_chef']:
+                        primary_meal = order['meals_for_chef'][0].get('meal_name', 'Unnamed Meal')
+                    else:
+                        primary_meal = "Ungrouped Orders"
+                    
+                    # Add to the appropriate group
+                    if primary_meal not in orders_by_meal:
+                        orders_by_meal[primary_meal] = {
+                            'id': f"synthetic_{primary_meal.replace(' ', '_')}",
+                            'meal': {'name': primary_meal},
+                            'event_date': order.get('order_date', '').split('T')[0] if order.get('order_date') else 'Unknown Date',
+                            'event_time': 'Varies',
+                            'current_price': order.get('total_value_for_chef', 0),
+                            'orders_count': 0,
+                            'max_orders': 999,
+                            'active_orders': []
+                        }
+                    
+                    # Add this order to the appropriate group
+                    orders_by_meal[primary_meal]['active_orders'].append(order)
+                    orders_by_meal[primary_meal]['orders_count'] += 1
+                    all_orders.append(order)
+                
+                # Convert our groups to a list
+                for meal_name, event_data in orders_by_meal.items():
+                    events_with_orders.append(event_data)
             
-            try:
-                # Split into active and past orders
-                active_orders = [o for o in orders if o['status'] in ['placed', 'confirmed']]
-                logging.info(f"Active orders: {len(active_orders)}")
+            # Also handle the original dictionary format for backward compatibility
+            elif isinstance(orders, dict) and 'details' in orders and 'results' in orders['details']:
+                events = orders['details']['results']
+                now = datetime.now().date()
+                logging.info(f"Current date: {now}")
                 
-                completed_orders = [o for o in orders if o['status'] == 'completed']
-                logging.info(f"Completed orders: {len(completed_orders)}")
+                for event in events:
+                    event_id = event.get('id')
+                    
+                    # Check if event has active orders - add ALL events with active orders
+                    if 'active_orders' in event and event['active_orders']:
+                        logging.info(f"Event {event_id} has active orders. Adding to display list.")
+                        events_with_orders.append(event)
+                        all_orders.extend(event['active_orders'])
                 
-                cancelled_orders = [o for o in orders if o['status'] in ['cancelled', 'refunded']]
-                logging.info(f"Cancelled orders: {len(cancelled_orders)}")
+                # Log the events we found
+                logging.info(f"Found {len(events_with_orders)} events with active orders: {[e.get('id') for e in events_with_orders]}")
+            
+            # Sort events by date (most recent first)
+            events_with_orders.sort(key=lambda x: x.get('event_date', '9999-12-31'), reverse=True)
+            
+            # Create summary metrics for all orders
+            status_counts = {}
+            for order in all_orders:
+                status = order.get('status', 'unknown').lower()
+                status_counts[status] = status_counts.get(status, 0) + 1
                 
-                # Display active orders
-                if active_orders:
-                    st.subheader("Active Orders")
-                    for order in active_orders:
-                        with st.expander(f"Order #{order['id']} - {order['customer']['username']}"):
-                            col1, col2 = st.columns(2)
-                            
-                            with col1:
-                                st.markdown(f"**Meal:** {order['meal_event']['meal']['name']}")
-                                st.markdown(f"**Event Date:** {format_date(order['meal_event']['event_date'])}")
-                                st.markdown(f"**Quantity:** {order['quantity']}")
-                                st.markdown(f"**Price Paid:** {format_currency(float(order['price_paid']) * order['quantity'])}")
-                            
-                            with col2:
-                                st.markdown(f"**Status:** {order['status'].capitalize()}")
-                                st.markdown(f"**Order Date:** {format_datetime(order['created_at'])}")
-                                
-                                # Button to mark as completed if event date has passed
-                                event_date = datetime.strptime(order['meal_event']['event_date'], '%Y-%m-%d').date()
-                                if order['status'] == 'confirmed' and event_date <= datetime.now().date():
-                                    if st.button(f"Mark as Completed", key=f"complete_{order['id']}"):
-                                        # Implement the completion logic here
-                                        st.success("Order marked as completed!")
-                                        st.rerun()
+            # Display order status metrics
+            st.subheader("Order Status Summary")
+            cols = st.columns(5)
+            with cols[0]:
+                st.metric("Total Orders", len(all_orders))
+            with cols[1]:
+                st.metric("Placed", status_counts.get('placed', 0))
+            with cols[2]:
+                st.metric("Confirmed", status_counts.get('confirmed', 0))
+            with cols[3]:
+                st.metric("Completed", status_counts.get('completed', 0))
+            with cols[4]:
+                st.metric("Cancelled", status_counts.get('cancelled', 0) + status_counts.get('refunded', 0))
+        
+        except Exception as e:
+            logging.error(f"Error processing events for fulfillment: {str(e)}")
+            logging.error(traceback.format_exc())
+        
+        if events_with_orders:
+            # Display fulfillment summary
+            with st.container():
+                st.markdown("### Orders by Meal/Event")
+                st.info("Showing all meals/events with active orders")
+                
+                for event in events_with_orders:
+                    # Create a unique key for this event in session state
+                    event_key = f"event_{event['id']}"
+                    if event_key not in st.session_state['fulfillment_events']:
+                        st.session_state['fulfillment_events'][event_key] = {
+                            'expanded': False,
+                            'selected_orders': []
+                        }
+                    
+                    # Format event date and time information
+                    try:
+                        event_date = datetime.strptime(event['event_date'], '%Y-%m-%d').date()
+                        days_until = (event_date - datetime.now().date()).days
+                        if days_until > 0:
+                            time_status = f"📅 {days_until} days away"
+                        elif days_until == 0:
+                            time_status = "📅 Today"
+                        else:
+                            time_status = f"🕒 {abs(days_until)} days ago"
+                    except (ValueError, TypeError):
+                        time_status = "📋 Unknown date"
+                    
+                    # Create expander label with order count
+                    order_count = len(event['active_orders'])
+                    meal_name = event['meal']['name'] if isinstance(event['meal'], dict) else event.get('meal', 'Unnamed Meal')
+                    expander_label = f"{meal_name} - {format_date(event['event_date'])} ({time_status}) - {order_count} order(s)"
+                    
+                    # Event card with order summary
+                    with st.expander(expander_label, expanded=st.session_state['fulfillment_events'][event_key]['expanded']):
+                        # Toggle expanded state when clicked
+                        st.session_state['fulfillment_events'][event_key]['expanded'] = True
                         
-                            if order['special_requests']:
-                                st.markdown(f"**Special Requests:** {order['special_requests']}")
-                else:
-                    st.info("You don't have any active orders.")
+                        # Show a warning for past events
+                        if 'days_until' in locals() and days_until < 0:
+                            st.warning(f"⚠️ This event is in the past ({abs(days_until)} days ago)")
+                        
+                        # Show event details
+                        col1, col2 = st.columns([3, 2])
+                        with col1:
+                            if 'event_time' in event:
+                                st.markdown(f"**Event Time:** {event['event_time']}")
+                            st.markdown(f"**Current Price:** {format_currency(float(event.get('current_price', 0)))}")
+                            st.markdown(f"**Orders:** {event.get('orders_count', len(event['active_orders']))}/{event.get('max_orders', 'unlimited')}")
+                        
+                        with col2:
+                            # Display order status breakdown for this event
+                            status_counts = {'placed': 0, 'confirmed': 0, 'completed': 0, 'cancelled': 0}
+                            total_revenue = 0
+                            
+                            for order in event['active_orders']:
+                                status = order.get('status', 'unknown').lower()
+                                status_counts[status] = status_counts.get(status, 0) + 1
+                                total_revenue += float(order.get('total_value_for_chef', 0))
+                            
+                            st.markdown("**Order Status Counts:**")
+                            st.markdown(f"- Placed: {status_counts.get('placed', 0)}")
+                            st.markdown(f"- Confirmed: {status_counts.get('confirmed', 0)}")
+                            st.markdown(f"- Completed: {status_counts.get('completed', 0)}")
+                            st.markdown(f"- Cancelled: {status_counts.get('cancelled', 0)}")
+                            st.markdown(f"**Total Revenue:** {format_currency(total_revenue)}")
+                        
+                        # Display active orders for this event with action buttons
+                        # TODO: Verify whether the order date is based on when the plan was created or when the order was placed
+                        if 'active_orders' in event and event['active_orders']:
+                            st.markdown("### Orders")
+                            # print(f'Active orders: {event["active_orders"]}')
+                            # Create tabs for different status groups
+                            order_tabs = st.tabs(["All Orders", "Placed", "Confirmed", "Completed", "Cancelled"])
+                            
+                            with order_tabs[0]:  # All Orders tab
+                                orders_table_data = []
+                                for order in event['active_orders']:
+                                    # Get meal information
+                                    meal_details = []
+                                    if 'meals_for_chef' in order:
+                                        for meal in order['meals_for_chef']:
+                                            meal_name = meal.get('meal_name', 'unknown')
+                                            quantity = meal.get('quantity', 1)
+                                            meal_details.append(f"{meal_name} (x{quantity})")
+                                    
+                                    orders_table_data.append({
+                                        'Order ID': order.get('id', 'N/A'),
+                                        'Customer': order.get('customer_username', 'Unknown'),
+                                        'Status': order.get('status', 'unknown').upper(),
+                                        'Items': ", ".join(meal_details),
+                                        'Total Quantity': order.get('quantity', 1),
+                                        'Total Value': format_currency(float(order.get('total_value_for_chef', 0))),
+                                        'Order Date': format_datetime(order.get('order_date', order.get('created_at', ''))),
+                                        'Updated': format_datetime(order.get('updated_at', ''))
+                                    })
+                                
+                                if orders_table_data:
+                                    st.dataframe(orders_table_data, use_container_width=True)
+                                else:
+                                    st.info("No orders available")
+                            
+                            # Placed orders tab
+                            with order_tabs[1]:
+                                placed_orders = [o for o in event['active_orders'] if o.get('status', '').lower() == 'placed']
+                                for order in placed_orders:
+                                    with st.container():
+                                        col1, col2, col3 = st.columns([4, 2, 2])
+                                        with col1:
+                                            st.markdown(f"**Order #{order.get('id', 'N/A')} - {order.get('customer_username', order.get('customer_name', 'Unknown'))}**")
+                                            
+                                            # Show meal items if available
+                                            if 'meals_for_chef' in order:
+                                                st.markdown("**Items:**")
+                                                for meal in order['meals_for_chef']:
+                                                    meal_name = meal.get('meal_name', 'Unknown')
+                                                    quantity = meal.get('quantity', 1)
+                                                    price = meal.get('price', 0)
+                                                    st.markdown(f"- {meal_name} (x{quantity}) @ {format_currency(float(price))}")
+                                            else:
+                                                st.markdown(f"**Quantity:** {order.get('quantity', 1)}")
+                                                
+                                            if order.get('special_requests'):
+                                                st.markdown(f"**Special Requests:** {order.get('special_requests')}")
+                                        
+                                        with col2:
+                                            st.markdown(f"**Total Value:** {format_currency(float(order.get('total_value_for_chef', 0)))}")
+                                            st.markdown(f"**Payment:** {'Paid' if order.get('is_paid', False) else 'Pending'}")
+                                            st.markdown(f"**Order Date:** {format_datetime(order.get('order_date', order.get('created_at', '')))}")
+                                        
+                                        with col3:
+                                            if st.button("Confirm Order", key=f"confirm_btn_{order.get('id', 'unknown')}"):
+                                                # Call the confirm function
+                                                if confirm_chef_meal_order(order.get('id', 'unknown')):
+                                                    st.success(f"Order #{order.get('id', 'unknown')} confirmed!")
+                                                    time.sleep(1)  # Give the user a moment to see the success message
+                                                    st.rerun()  # Refresh the page to update the order status
+                            
+                                        st.markdown("---")
+                                
+                                if not placed_orders:
+                                    st.info("No placed orders")
+                            
+                            # Confirmed orders tab
+                            with order_tabs[2]:
+                                confirmed_orders = [o for o in event['active_orders'] if o.get('status', '').lower() == 'confirmed']
+                                for order in confirmed_orders:
+                                    with st.container():
+                                        col1, col2, col3 = st.columns([4, 2, 2])
+                                        with col1:
+                                            st.markdown(f"**Order #{order.get('id', 'N/A')} - {order.get('customer_username', order.get('customer_name', 'Unknown'))}**")
+                                            
+                                            # Show meal items if available
+                                            if 'meals_for_chef' in order:
+                                                st.markdown("**Items:**")
+                                                for meal in order['meals_for_chef']:
+                                                    meal_name = meal.get('meal_name', 'Unknown')
+                                                    quantity = meal.get('quantity', 1)
+                                                    price = meal.get('price', 0)
+                                                    st.markdown(f"- {meal_name} (x{quantity}) @ {format_currency(float(price))}")
+                                            else:
+                                                st.markdown(f"**Quantity:** {order.get('quantity', 1)}")
+                                                
+                                            if order.get('special_requests'):
+                                                st.markdown(f"**Special Requests:** {order.get('special_requests')}")
+                                        
+                                        with col2:
+                                            st.markdown(f"**Total Value:** {format_currency(float(order.get('total_value_for_chef', 0)))}")
+                                            st.markdown(f"**Payment:** {'Paid' if order.get('is_paid', False) else 'Pending'}")
+                                            st.markdown(f"**Order Date:** {format_datetime(order.get('order_date', order.get('created_at', '')))}")
+                                        
+                                        with col3:
+                                            if st.button("Mark Completed", key=f"complete_btn_{order.get('id', 'unknown')}"):
+                                                # Here would be API call to update order status
+                                                st.success(f"Order #{order.get('id', 'unknown')} marked as completed!")
+                                                # In a real implementation, you would update the order status
+                            
+                                        st.markdown("---")
+                                
+                                if not confirmed_orders:
+                                    st.info("No confirmed orders")
+                                
+                            # Completed orders tab
+                            with order_tabs[3]:
+                                completed_orders = [o for o in event['active_orders'] if o.get('status', '').lower() == 'completed']
+                                if completed_orders:
+                                    completed_df = pd.DataFrame([
+                                        {
+                                            'Order ID': o.get('id', 'N/A'),
+                                            'Customer': o.get('customer_username', o.get('customer_name', 'Unknown')),
+                                            'Items': ', '.join([f"{m.get('meal_name', 'Unknown')} (x{m.get('quantity', 1)})" 
+                                                              for m in o.get('meals_for_chef', [])]) if 'meals_for_chef' in o else 'Unknown',
+                                            'Quantity': sum([m.get('quantity', 1) for m in o.get('meals_for_chef', [])]) if 'meals_for_chef' in o else o.get('quantity', 1),
+                                            'Total': format_currency(float(o.get('total_value_for_chef', 0))),
+                                            'Completed At': format_datetime(o.get('updated_at', o.get('order_date', o.get('created_at', ''))))
+                                        } for o in completed_orders
+                                    ])
+                                    st.dataframe(completed_df)
+                                else:
+                                    st.info("No completed orders")
+                            
+                            # Cancelled orders tab
+                            with order_tabs[4]:
+                                cancelled_orders = [o for o in event['active_orders'] if o.get('status', '').lower() in ['cancelled', 'refunded']]
+                                if cancelled_orders:
+                                    cancelled_df = pd.DataFrame([
+                                        {
+                                            'Order ID': o.get('id', 'N/A'),
+                                            'Customer': o.get('customer_username', o.get('customer_name', 'Unknown')),
+                                            'Status': o.get('status', 'Unknown').capitalize(),
+                                            'Items': ', '.join([f"{m.get('meal_name', 'Unknown')} (x{m.get('quantity', 1)})"
+                                                              for m in o.get('meals_for_chef', [])]) if 'meals_for_chef' in o else 'Unknown',
+                                            'Total': format_currency(float(o.get('total_value_for_chef', 0))),
+                                            'Cancelled At': format_datetime(o.get('updated_at', o.get('order_date', o.get('created_at', ''))))
+                                        } for o in cancelled_orders
+                                    ])
+                                    st.dataframe(cancelled_df)
+                                else:
+                                    st.info("No cancelled orders")
+                        
+                        # No active orders message
+                        if not event['active_orders']:
+                            st.info("No active orders for this event.")
                 
-                # Display completed orders in a table
-                if completed_orders:
-                    st.subheader("Completed Orders")
-                    completed_df = pd.DataFrame([
-                        {
-                            'Order Date': format_datetime(o['created_at']),
-                            'Customer': o['customer']['username'],
-                            'Meal': o['meal_event']['meal']['name'],
-                            'Quantity': o['quantity'],
-                            'Total': format_currency(float(o['price_paid']) * o['quantity'])
-                        } for o in completed_orders
-                    ])
-                    
-                    st.dataframe(completed_df)
-                
-                # Display cancelled orders in a table
-                if cancelled_orders:
-                    st.subheader("Cancelled Orders")
-                    cancelled_df = pd.DataFrame([
-                        {
-                            'Order Date': format_datetime(o['created_at']),
-                            'Customer': o['customer']['username'],
-                            'Meal': o['meal_event']['meal']['name'],
-                            'Status': o['status'].capitalize(),
-                            'Refunded': 'Yes' if o['status'] == 'refunded' else 'No'
-                        } for o in cancelled_orders
-                    ])
-                    
-                    st.dataframe(cancelled_df)
-            except Exception as e:
-                st.error(f"Error processing orders: {str(e)}")
-                logging.error(f"Error processing orders: {str(e)}")
-                logging.error(traceback.format_exc())
+                # Clear expanded state for other events when navigating away
+                for key in st.session_state['fulfillment_events']:
+                    if key != event_key:
+                        st.session_state['fulfillment_events'][key]['expanded'] = False
         else:
-            st.info("You haven't received any orders yet.")
+            st.info("You have no upcoming events with orders.")
+            
+            # Show a call to action to create an event
+            if st.button("Create a New Event"):
+                # Navigate to create event tab in a real implementation
+                pass
+
+        # # Status filter for orders
+        # st.subheader("All Orders")
+        # status_filter = st.multiselect(
+        #     "Filter by Status",
+        #     options=["placed", "confirmed", "completed", "cancelled", "refunded"],
+        #     default=["placed", "confirmed"],
+        #     format_func=lambda x: x.capitalize()
+        # )
+        
+        # try:
+        #     # Initialize containers for different order types
+        #     active_orders = []
+        #     completed_orders = []
+        #     cancelled_orders = []
+            
+        #     # Process orders data structure
+        #     if isinstance(orders, dict) and 'details' in orders and 'results' in orders['details']:
+        #         events = orders['details']['results']
+        #         logging.info(f"Processing {len(events)} events for the 'All Orders' section.")
+                
+        #         # Extract orders from all events
+        #         for i, event in enumerate(events):
+        #             event_id = event.get('id')
+        #             logging.debug(f"Processing event {i+1}/{len(events)}, ID: {event_id}")
+                    
+        #             # Check if 'active_orders' key exists and is a non-empty list
+        #             if 'active_orders' in event and isinstance(event['active_orders'], list) and event['active_orders']:
+        #                 logging.debug(f"Event {event_id} has {len(event['active_orders'])} active orders. Extracting...")
+                        
+        #                 event_date = event.get('event_date', '')
+        #                 event_time = event.get('event_time', '')
+        #                 meal_name = event['meal']['name'] if 'meal' in event and 'name' in event['meal'] else 'Unknown Meal'
+        #                 meal_image = event['meal'].get('image', None)
+                    
+        #                 # Process active orders for this event
+        #                 for order in event['active_orders']:
+        #                     # Add event context to the order
+        #                     try:
+        #                         order['event_id'] = event_id
+        #                         order['event_date'] = event_date
+        #                         order['event_time'] = event_time
+        #                         order['meal_name'] = meal_name
+        #                         order['meal_image'] = meal_image
+                                
+        #                         # Sort into appropriate lists
+        #                         order_status = order.get('status')
+        #                         order_id = order.get('id', 'Unknown ID') # Get order ID for logging
+                                
+        #                         if order_status in ['placed', 'confirmed']:
+        #                             active_orders.append(order)
+        #                             logging.debug(f"Successfully processed and added active order {order_id} with status '{order_status}'.")
+        #                         elif order_status == 'completed':
+        #                             completed_orders.append(order)
+        #                             logging.debug(f"Processed completed order {order_id}.")
+        #                         elif order_status in ['cancelled', 'refunded']:
+        #                             cancelled_orders.append(order)
+        #                             logging.debug(f"Processed cancelled/refunded order {order_id}.")
+        #                         else:
+        #                             logging.warning(f"Order {order_id} has unknown status: '{order_status}'")
+                                    
+        #                     except Exception as order_error:
+        #                         order_id_for_error = order.get('id', 'Unknown ID')
+        #                         logging.error(f"Error processing order {order_id_for_error} within event {event_id}: {str(order_error)}")
+        #                         logging.error(f"Problematic order data: {order}")
+        #                         # Continue to next order instead of stopping
+        #                         continue 
+        #             else:
+        #                 # Log if active_orders is missing, not a list, or empty
+        #                 if 'active_orders' not in event:
+        #                     logging.warning(f"Event {event_id} is missing 'active_orders' key.")
+        #                 elif not isinstance(event.get('active_orders'), list):
+        #                     logging.warning(f"Event {event_id} 'active_orders' is not a list (type: {type(event.get('active_orders'))}).")
+        #                 elif not event.get('active_orders'):
+        #                     logging.debug(f"Event {event_id} has an empty 'active_orders' list.")
+            
+        #     logging.info(f"Finished processing events. Found {len(active_orders)} active, {len(completed_orders)} completed, {len(cancelled_orders)} cancelled orders.")
+        #     # Log the content of active_orders before filtering for debugging
+        #     logging.debug(f"Active orders before filtering: {active_orders}")
+        #     logging.debug(f"Current status filter: {status_filter}")
+            
+        #     # Display counts at the top
+        #     col1, col2, col3 = st.columns(3)
+        #     with col1:
+        #         st.metric("Active Orders", len(active_orders))
+        #     with col2:
+        #         st.metric("Completed Orders", len(completed_orders))
+        #     with col3:
+        #         st.metric("Cancelled Orders", len(cancelled_orders))
+            
+        #     # Display active orders
+        #     filtered_active = [o for o in active_orders if o['status'] in status_filter]
+        #     if filtered_active:
+        #         st.subheader("Active Orders")
+        #         for order in filtered_active:
+        #             with st.expander(f"Order #{order['id']} - {order['customer_name']} - {order['status'].upper()}"):
+        #                 col1, col2 = st.columns([3, 2])
+                        
+        #                 with col1:
+        #                     st.markdown(f"**Meal:** {order['meal_name']}")
+        #                     st.markdown(f"**Event Date:** {format_date(order['event_date'])} at {order['event_time']}")
+        #                     st.markdown(f"**Quantity:** {order.get('quantity', 1)}")
+        #                     price = float(order.get('price_paid', 0))
+        #                     quantity = int(order.get('quantity', 1))
+        #                     st.markdown(f"**Price Paid:** {format_currency(price * quantity)}")
+                        
+        #                 with col2:
+        #                     st.markdown(f"**Status:** {order['status'].capitalize()}")
+        #                     st.markdown(f"**Order Date:** {format_datetime(order['created_at'])}")
+        #                     st.markdown(f"**Delivery Method:** {order.get('delivery_method', 'Not specified')}")
+                            
+        #                     # Show address if available and not empty
+        #                     address = order.get('address', {})
+        #                     if address and any(address.values()):
+        #                         address_parts = []
+        #                         for key in ['street', 'city', 'state', 'postal_code', 'country']:
+        #                             if address.get(key):
+        #                                 address_parts.append(address[key])
+        #                         if address_parts:
+        #                             st.markdown(f"**Address:** {', '.join(address_parts)}")
+                            
+        #                     # Button to mark as completed if event date has passed
+        #                     event_date = datetime.strptime(order['event_date'], '%Y-%m-%d').date()
+        #                     if order['status'] == 'confirmed' and event_date <= datetime.now().date():
+        #                         if st.button(f"Mark as Completed", key=f"complete_{order['id']}"):
+        #                             # Implement the completion logic here
+        #                             st.success("Order marked as completed!")
+        #                             st.rerun()
+                    
+        #                 if order.get('special_requests'):
+        #                     st.markdown(f"**Special Requests:** {order['special_requests']}")
+        #     else:
+        #         if "placed" in status_filter or "confirmed" in status_filter:
+        #             st.info("You don't have any active orders matching the selected filters.")
+            
+        #     # Display completed orders in a table
+        #     filtered_completed = [o for o in completed_orders if o['status'] in status_filter]
+        #     if filtered_completed and "completed" in status_filter:
+        #         st.subheader("Completed Orders")
+        #         completed_df = pd.DataFrame([
+        #             {
+        #                 'Order Date': format_datetime(o['created_at']),
+        #                 'Customer': o['customer_name'],
+        #                 'Meal': o['meal_name'],
+        #                 'Event Date': format_date(o['event_date']),
+        #                 'Quantity': o.get('quantity', 1),
+        #                 'Total': format_currency(float(o.get('price_paid', 0)) * int(o.get('quantity', 1)))
+        #             } for o in filtered_completed
+        #         ])
+                
+        #         st.dataframe(completed_df)
+            
+        #     # Display cancelled orders in a table
+        #     filtered_cancelled = [o for o in cancelled_orders if o['status'] in status_filter]
+        #     if filtered_cancelled and any(s in status_filter for s in ["cancelled", "refunded"]):
+        #         st.subheader("Cancelled Orders")
+        #         cancelled_df = pd.DataFrame([
+        #             {
+        #                 'Order Date': format_datetime(o['created_at']),
+        #                 'Customer': o['customer_name'],
+        #                 'Meal': o['meal_name'],
+        #                 'Event Date': format_date(o['event_date']),
+        #                 'Status': o['status'].capitalize(),
+        #                 'Refunded': 'Yes' if o['status'] == 'refunded' else 'No'
+        #             } for o in filtered_cancelled
+        #         ])
+                
+        #         st.dataframe(cancelled_df)
+                
+        #     if not filtered_active and not filtered_completed and not filtered_cancelled:
+        #         st.warning("No orders match your selected filters. Try changing the status filter.")
+        # except Exception as e:
+        #     st.error(f"Error processing orders: {str(e)}")
+        #     logging.error(f"Error processing orders: {str(e)}")
+        #     logging.error(traceback.format_exc())
+
+        # if not orders or (isinstance(orders, dict) and not orders.get('details', {}).get('results', [])):
+        #     st.info("You haven't received any orders yet.")
     
-    # Tab 4: Create Meal
+    # Tab 4: Manage Meals
     with tab4:
-        st.header("Create a Meal")
+        st.header("Manage Meals")
         
         # Add helpful info about meal creation
         st.info("Create meals that can be used in your chef events. Once created, meals can be selected when creating a new event.")
@@ -1754,7 +2547,11 @@ def chef_meals():
                                                      help="A high-quality image of your meal helps attract customers")
                         
                         if image_file:
-                            st.image(image_file, caption="Preview", width=200)
+                            try:
+                                st.image(image_file, caption="Preview", width=200)
+                            except Exception as e:
+                                st.warning("Unable to preview uploaded image.")
+                                logging.warning(f"Image preview error: {str(e)}")
                     
                     st.markdown("---")
                     st.subheader("Dietary Preferences")
@@ -2025,7 +2822,11 @@ def chef_meals():
                         with col2:
                             image_file = st.file_uploader("Meal Image (optional)", type=["jpg", "jpeg", "png"])
                             if 'image' in meal_details and meal_details['image']:
-                                st.image(meal_details['image'], width=150, caption="Current image")
+                                try:
+                                    st.image(meal_details['image'], width=150, caption="Current image")
+                                except Exception as e:
+                                    st.warning("Unable to load image. It may be missing or inaccessible.")
+                                    logging.warning(f"Image loading error: {str(e)}")
                         
                         # Get chef dishes for selection
                         chef_dishes = fetch_chef_dishes()
@@ -2204,7 +3005,8 @@ def chef_meals():
             
             with col2:
                 base_price = st.number_input("Base Price ($)", min_value=5.0, step=1.0, value=15.0)
-                min_price = st.number_input("Minimum Price ($)", min_value=1.0, max_value=base_price, step=1.0, value=max(5.0, base_price * 0.7))
+                min_price = st.number_input("Minimum Price ($)", min_value=1.0, step=1.0, value=max(5.0, base_price * 0.7), 
+                                          help="The lowest price you'll accept per meal as more people order. Cannot go below $1.")
                 max_orders = st.number_input("Maximum Orders", min_value=1, step=1, value=10)
                 min_orders = st.number_input("Minimum Orders", min_value=1, max_value=max_orders, step=1, value=3)
             
@@ -2344,7 +3146,7 @@ def update_chef_meal(meal_id, data, image_file=None):
                 form_data['custom_dietary_preferences'] = json.dumps(form_data['custom_dietary_preferences'])
             
             response = api_call_with_refresh(
-                url=f"{os.getenv('DJANGO_URL')}/meals/api/chef/meals/{meal_id}/",
+                url=f"{os.getenv('DJANGO_URL')}/meals/api/chef/meals/{meal_id}/update/",
                 method='patch',
                 headers=headers,
                 data=form_data,
@@ -2353,7 +3155,7 @@ def update_chef_meal(meal_id, data, image_file=None):
         else:
             # No image, regular JSON submission
             response = api_call_with_refresh(
-                url=f"{os.getenv('DJANGO_URL')}/meals/api/chef/meals/{meal_id}/",
+                url=f"{os.getenv('DJANGO_URL')}/meals/api/chef/meals/{meal_id}/update/",
                 method='patch',
                 headers=headers,
                 data=data
@@ -2475,6 +3277,6 @@ def get_chef_meal_details(meal_id):
 try:
     chef_meals()
 except Exception as e:
-    logging.error(f"An error occurred: {str(e)}")
+    st.error("We're experiencing technical difficulties loading the Chef Meals page. Our team has been notified.")
+    logging.error(f"An error occurred in chef_meals: {str(e)}")
     logging.error(traceback.format_exc())
-    st.error("An unexpected error occurred. Please try again later.")
