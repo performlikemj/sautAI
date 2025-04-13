@@ -1897,17 +1897,41 @@ if is_user_authenticated() and st.session_state.get('email_confirmed', False):
                     width="medium"
                 )
             
-            selected_rows = st.data_editor(
+            # Initialize selection state if not present
+            # REMOVED initialization for st.session_state.meal_selections
+
+            # Prepare initial selection state - REMOVED this block as selection state is handled by editor directly
+            # for idx, row in display_df.iterrows():
+            #     meal_id = row['Meal Plan Meal ID']
+            #     if meal_id not in st.session_state.meal_selections:
+            #         st.session_state.meal_selections[meal_id] = False
+            #     # Set the Select column based on session state
+            #     display_df.at[idx, 'Select'] = st.session_state.meal_selections[meal_id]
+
+            # Use on_change parameter to update selections without page reload - REMOVED update_meal_selections function
+            # def update_meal_selections():
+            #     # Get edited data from the session state
+            #     edited_df = st.session_state.meal_plan_editor
+            #     # Update selections in session state
+            #     for idx, row in edited_df.iterrows():
+            #         meal_id = row['Meal Plan Meal ID']
+            #         st.session_state.meal_selections[meal_id] = row['Select']
+
+            edited_display_df = st.data_editor(
                 display_df,
                 use_container_width=True,
                 hide_index=True,
                 num_rows="fixed",
                 column_config=column_config,
-                column_order=["Select", "Day", "Meal Type", "Meal Name", 'Source' if 'Source' in display_df.columns else 'is_chef_meal', "Description", "Meal Date"]
+                column_order=["Select", "Day", "Meal Type", "Meal Name", 'Source' if 'Source' in display_df.columns else 'is_chef_meal', "Description", "Meal Date"],
+                # REMOVED on_change=update_meal_selections,
+                key="meal_plan_editor"
             )
 
-            # Get the selected rows correctly
-            selected_data_full = selected_rows[selected_rows['Select'] == True].copy()
+            # Get the selected rows based on the current state of the editor widget
+            # Filter the returned DataFrame from the editor to get selected rows
+            # The edited_display_df holds the current state displayed in the editor
+            selected_data_full = edited_display_df[edited_display_df['Select'] == True]
 
             # Action buttons with improved UI
             st.markdown("### 🎯 Actions")

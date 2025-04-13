@@ -120,7 +120,7 @@ def main():
     st.markdown("---")  # Add a horizontal rule for separation
     
     # Screen size detection JavaScript
-    st.markdown("""
+    st.components.v1.html("""
     <script>
         // Detect screen width and send to Streamlit
         const setScreenSizeState = () => {
@@ -138,7 +138,7 @@ def main():
         window.addEventListener('load', setScreenSizeState);
         window.addEventListener('resize', setScreenSizeState);
     </script>
-    """, unsafe_allow_html=True)
+    """, height=0)
     
     # Make sure _is_desktop is initialized (default to desktop view)
     if '_is_desktop' not in st.session_state:
