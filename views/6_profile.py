@@ -153,7 +153,7 @@ try:
             ]
 
             # Languages
-            language_options = {'en': 'English', 'ja': 'Japanese', 'es': 'Spanish', 'fr': 'French'}
+            language_options = {'en': 'English', 'jp': 'Japanese', 'es': 'Spanish', 'fr': 'French'}
             language_labels = list(language_options.values())
             language_keys = list(language_options.keys())
             current_language_label = language_options.get(preferred_language_val, 'English')

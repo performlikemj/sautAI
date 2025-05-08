@@ -70,7 +70,7 @@ try:
         # Define a dictionary for languages
         language_options = {
             'en': 'English',
-            'ja': 'Japanese',
+            'jp': 'Japanese',
             'es': 'Spanish',
             'fr': 'French',
         }
