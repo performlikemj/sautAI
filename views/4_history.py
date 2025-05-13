@@ -115,8 +115,22 @@ if 'current_role' in st.session_state and st.session_state['current_role'] != 'c
 
                     # Button to continue the conversation on the assistant page
                     if st.button(thread['title'], key=thread['id']):
-                        st.session_state.selected_thread_id = thread['openai_thread_id']
-                        st.switch_page("views/1_assistant.py")
+                        # Extract the response ID properly depending on the format
+                        resp_id = None
+                        # Check if openai_thread_id is a string or list
+                        thread_ids = thread.get('openai_thread_id', [])
+                        
+                        if isinstance(thread_ids, list) and thread_ids:
+                            # Use the most recent (last) ID in the list
+                            resp_id = thread_ids[-1]
+                        elif thread_ids:  # If it's a string
+                            resp_id = thread_ids
+                            
+                        if resp_id:
+                            st.session_state.selected_thread_id = resp_id
+                            st.switch_page("views/1_assistant.py")
+                        else:
+                            st.warning("This thread has no response IDs yet; please send a new message to start it.")
 
                     st.divider()
             else:

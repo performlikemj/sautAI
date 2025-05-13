@@ -226,7 +226,7 @@ def fetch_chef_meal_events(my_events=False):
         # print(f"Chef meal events response: {response}")
         if response and response.status_code == 200:
             data = response.json()
-            # print(f"Chef meal events response: {data}")
+            print(f"Chef meal events response: {data}")
             logging.info(f"Chef meal events API response type: {type(data)}")
             
             # Add more detailed logging to understand the structure
@@ -305,7 +305,7 @@ def fetch_chef_meal_events(my_events=False):
 def fetch_chef_meal_orders(as_chef=False):
     try:
         headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-        url = f"{os.getenv('DJANGO_URL')}/meals/api/chef-received-orders/"
+        url = f"{os.getenv('DJANGO_URL')}/meals/api/chef-meal-orders/"
         
         # Add query parameter for chef view
         if as_chef:
@@ -320,7 +320,7 @@ def fetch_chef_meal_orders(as_chef=False):
         
         if response and response.status_code == 200:
             data = response.json()
-            logging.info(f"Chef meal orders API response type: {type(data)}")
+            print(f"[DBG] Orders Data: {data}")
             # Log a summary of the response
             if isinstance(data, list):
                 logging.info(f"Orders list length: {len(data)}")
@@ -596,8 +596,8 @@ def fetch_chef_meals():
         
         if response and response.status_code == 200:
             data = response.json()
-            logging.info(f"Chef meals API response type: {type(data)}")
-            logging.info(f"Chef meals API response content: {data}")
+            print(f"[DBG] Chef meals API response type: {type(data)}")
+            print(f"[DBG] Chef meals API response content: {data}")
             
             # Extract meals from the response structure
             meals_list = []
@@ -1125,7 +1125,6 @@ def chef_meals():
             st.subheader("Order History")
             # Fetch received orders for analytics
             orders = fetch_chef_meal_orders(as_chef=True)
-
             # Display Active Orders Summary Card
             st.subheader("Active Orders Summary")
             try:
@@ -1355,13 +1354,54 @@ def chef_meals():
                     df_orders['created_at'] = pd.to_datetime(df_orders['created_at'], errors='coerce')
                     # Drop rows with invalid or missing dates
                     df_orders = df_orders.dropna(subset=['created_at'])
+                    # ---- Revenue & Earnings / Orders Overview ----
                     if not df_orders.empty:
-                        df_orders['month'] = df_orders['created_at'].dt.to_period('M').astype(str)
-                        revenue_by_month = df_orders.groupby('month')['revenue'].sum().reset_index()
-                        st.subheader("Monthly Revenue")
-                        st.bar_chart(revenue_by_month.set_index('month'))
+                        # Identify the money column once
+                        possible_price_cols = ['revenue', 'price_paid', 'total_price', 'unit_price', 'price']
+                        price_col = next((col for col in possible_price_cols if col in df_orders.columns), None)
+
+                        # Ensure we have something usable
+                        if price_col:
+                            # Guarantee a status column for downstream filters
+                            if 'status' not in df_orders.columns:
+                                df_orders['status'] = 'placed'
+
+                            df_orders[price_col] = pd.to_numeric(df_orders[price_col], errors='coerce').fillna(0)
+
+                            # ---- Revenue Summary ----
+                            gross_sales = df_orders[price_col].sum()
+                            refunded = df_orders.loc[df_orders['status'] == 'refunded', price_col].sum()
+                            cancelled = df_orders.loc[df_orders['status'] == 'cancelled', price_col].sum()
+                            net_sales = gross_sales - refunded - cancelled
+
+                            st.markdown("### Revenue Summary")
+                            col_gross, col_lost, col_net = st.columns(3)
+                            col_gross.metric("Gross", format_currency(gross_sales))
+                            col_lost.metric("Refunded / Cancelled", format_currency(refunded + cancelled))
+                            col_net.metric("Net Earned", format_currency(net_sales))
+
+                            # ---- Orders Overview ----
+                            total_items = df_orders.shape[0]
+                            total_quantity = (
+                                pd.to_numeric(df_orders['quantity'], errors='coerce').fillna(1).sum()
+                                if 'quantity' in df_orders.columns else total_items
+                            )
+                            total_value = gross_sales  # same as gross_sales already computed
+
+                            st.markdown("### Orders Overview")
+                            c_items, c_qty, c_val = st.columns(3)
+                            c_items.metric("Items", int(total_items))
+                            c_qty.metric("Total Quantity", int(total_quantity))
+                            c_val.metric("Total Value", format_currency(total_value))
+
+                            # Raw data for quick inspection
+                            with st.expander("Order Data"):
+                                st.dataframe(df_orders)
+                        else:
+                            st.warning("Couldn’t locate a price column in orders data.")
                     else:
-                        st.info("No valid order dates available for analytics.")
+                        st.info("No orders to display.")
+                    # -----------------------------------------------------
                 else:
                     st.info("No order data available for analytics.")
             else:

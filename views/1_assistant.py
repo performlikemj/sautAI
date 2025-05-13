@@ -9,8 +9,10 @@ from dotenv import load_dotenv
 import openai
 from openai import OpenAIError
 from utils import (api_call_with_refresh, is_user_authenticated, login_form, 
-                   toggle_chef_mode, guest_chat_with_gpt, chat_with_gpt, EventHandler, start_or_continue_streaming,
-                   openai_headers, client, get_user_summary, resend_activation_link, footer)
+                   toggle_chef_mode, guest_chat_with_gpt, chat_with_gpt, EventHandler,
+                   openai_headers, client, get_user_summary, 
+                   resend_activation_link, footer, process_user_input, 
+                   fetch_follow_up_recommendations, display_streaming_summary, stream_user_summary)
 import numpy as np
 import time
 import logging
@@ -424,108 +426,20 @@ def health_metrics_form():
                 logging.error(f"Error adding calorie intake: {e}")
                 st.error("An unexpected error occurred. Please check your inputs and try again.")
 
-def process_user_input(prompt, chat_container):
-    user_id = st.session_state.get('user_id')
-    user_details_prompt = ""  # Initialize with an empty string to ensure it's always defined
-
-    if 'recommend_follow_up' in st.session_state and st.session_state.recommend_follow_up: 
-        st.session_state.recommend_follow_up = []
-
-    # Update chat history immediately with the follow-up prompt
-    st.session_state.chat_history.append({"role": "user", "content": prompt})
-    with chat_container.chat_message("user"):
-        st.markdown(prompt)
-
-    # Send the prompt to the backend and get a message ID
-    if is_user_authenticated():
-        # Determine the location detail to use (country or timezone)
-        location = st.session_state.get('country', st.session_state.get('timezone', 'UTC'))
-
-        # Construct the user_details_prompt with proper formatting
-        user_details_prompt = (
-            f"Consider the following user details while responding:\n"
-            f"- Dietary Preference: {st.session_state.get('dietary_preferences', 'Everything')}\n"
-            f"- Custom Dietary Preference: {st.session_state.get('custom_dietary_preferences', 'None')}\n"
-            f"- Allergies: {st.session_state.get('allergies', 'None')}\n"
-            f"- Custom Allergies: {st.session_state.get('custom_allergies', 'None')}\n"
-            f"- Location: {location}\n"
-            f"- Preferred Language: {st.session_state.get('preferred_language', 'English')}\n"
-            f"- Goal: {st.session_state.get('goal_name', 'No specific goal')}: {st.session_state.get('goal_description', 'No description provided')}\n"
-            f"Question: {prompt}\n"
-        )
-
-    # Choose the appropriate chat function based on whether the user is authenticated
-    response = chat_with_gpt(prompt, st.session_state.thread_id, user_id=user_id) if is_user_authenticated() else guest_chat_with_gpt(prompt, st.session_state.thread_id)
-
-    if response and 'new_thread_id' in response:
-        logging.info(f"New thread ID: {response['new_thread_id']}")
-        st.session_state.thread_id = response['new_thread_id']
-        
-        # Use user_details_prompt only if the user is authenticated
-        if is_user_authenticated():
-            start_or_continue_streaming(client, user_id, openai_headers, chat_container, user_details_prompt, prompt)
-        else:
-            start_or_continue_streaming(client, user_id, openai_headers, chat_container, prompt=prompt)
-
-        # Fetch new follow-up recommendations from the backend (only if authenticated)
-        if is_user_authenticated():
-            headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-            try:
-                follow_up_response = api_call_with_refresh(
-                    url=f'{os.getenv("DJANGO_URL")}/customer_dashboard/api/recommend_follow_up/',
-                    method='post',
-                    headers=headers,
-                    data={"user_id": user_id, "context": prompt}
-                )
-                logging.info(f"Follow-up response status: {follow_up_response.status_code}")
-                logging.info(f"Follow-up response content: {follow_up_response.content}")
-            except requests.exceptions.RequestException as e:
-                logging.error(f"Error fetching follow-up recommendations: {e}")
-                follow_up_response = None
-
-            # Parse the JSON string into a dictionary
-            if follow_up_response and follow_up_response.status_code == 200:
-                follow_up_data = follow_up_response.json()
-                logging.info(f"Follow-up data: {follow_up_data}")
-
-                # Ensure the follow-up data is not empty and contains valid recommendations
-                if isinstance(follow_up_data, list) and len(follow_up_data) > 0:
-                    recommend_prompt_json = follow_up_data[0]
-                    recommend_follow_up = json.loads(recommend_prompt_json)
-                    # Check if the follow-up contains items
-                    if 'items' in recommend_follow_up and len(recommend_follow_up['items']) > 0:
-                        st.session_state.recommend_follow_up = recommend_follow_up
-                    else:
-                        st.session_state.recommend_follow_up = []
-                        logging.info("Follow-up data is empty or has no valid items.")
-                else:
-                    st.session_state.recommend_follow_up = []
-                    logging.error("No valid follow-up data received.")
-            else:
-                st.session_state.recommend_follow_up = []
-                logging.error(f"Failed to fetch follow-up recommendations, response: {follow_up_response}")
-
-    elif response and 'last_assistant_message' in response:
-        st.session_state.thread_id = response.get('new_thread_id', st.session_state.thread_id)
-        st.session_state.chat_history.append({"role": "assistant", "content": response['last_assistant_message']})
-        with chat_container.chat_message("assistant"):
-            st.markdown(response['last_assistant_message'])
-    else:
-        st.error("Could not get a response, please try again.")
-
-# Initialize session state variables if not already initialized
-if 'chat_history' not in st.session_state:
-    st.session_state.chat_history = []
-if 'thread_id' not in st.session_state:
-    st.session_state.thread_id = None
-if 'recommend_follow_up' not in st.session_state:
-    st.session_state.recommend_follow_up = []
-if 'showed_user_summary' not in st.session_state:
-    st.session_state.showed_user_summary = False
-if 'recommend_prompt' not in st.session_state:
-    st.session_state.recommend_prompt = ""
-
+# Main application code
 try:
+    # Initialize session state variables if not already initialized
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = []
+    if 'thread_id' not in st.session_state:
+        st.session_state.thread_id = None
+    if 'recommend_follow_up' not in st.session_state:
+        st.session_state.recommend_follow_up = []
+    if 'showed_user_summary' not in st.session_state:
+        st.session_state.showed_user_summary = False
+    if 'recommend_prompt' not in st.session_state:
+        st.session_state.recommend_prompt = ""
+
     # Login Form
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
         login_form()
@@ -574,21 +488,29 @@ try:
                     metric_trends = fetch_user_metrics(user_id)
                     plot_metric_trends(metric_trends)
 
-        # Only show user summary for non-chef users
-        if not st.session_state.get('showed_user_summary', False) and st.session_state.get('current_role', '') != 'chef':
-            with st.spinner("Grabbing your health summary..."):
-                headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-                summary_data = get_user_summary(st.session_state.get('user_id'), headers)
+        # --- DAILY SUMMARY (streaming) ------------------------------------------
+        if (
+            is_user_authenticated()
+            and st.session_state.get('current_role', '') != 'chef'
+            and not st.session_state.get('showed_user_summary', False)
+        ):
+            with st.spinner("Streaming your daily summary…"):
+                summary_data = display_streaming_summary()   # generator → writes itself
 
-                if summary_data:
-                    user_summary = summary_data['data'][0]['content'][0]['text']['value']
-                    recommend_prompt = summary_data.get('recommend_prompt', '')
+            if summary_data and summary_data.get("summary"):
+                # Push into chat so it scrolls naturally
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "content": summary_data["summary"]
+                })
+                # Keep recommendations if backend sent them
+                st.session_state.recommend_follow_up = summary_data.get("recommend_prompt", {})
+            else:
+                st.warning("Summary wasn’t available yet – you can still chat normally.")
 
-                    st.session_state.chat_history.append({"role": "assistant", "content": user_summary})
-                    if isinstance(recommend_prompt, list) and len(recommend_prompt) > 0:
-                        recommend_prompt_json = recommend_prompt[0]
-                        st.session_state.recommend_follow_up = json.loads(recommend_prompt_json)
-                    st.session_state['showed_user_summary'] = True
+            # prevent re-fetch on rerun
+            st.session_state.showed_user_summary = True
+        # ------------------------------------------------------------------------
 
     # If email is not confirmed, restrict access and prompt to resend activation link
     elif is_user_authenticated() and not st.session_state.get('email_confirmed', False):
@@ -611,12 +533,17 @@ try:
         )
         if response.status_code == 200:
             chat_history = response.json().get('chat_history', [])
-            chat_history.sort(key=lambda x: x['created_at'])
+            if chat_history:
+                # Sort by created timestamp
+                chat_history.sort(key=lambda x: x['created_at'])
 
-            for msg in chat_history:
-                st.session_state.chat_history.append({"role": msg['role'], "content": msg['content']})
+                for msg in chat_history:
+                    st.session_state.chat_history.append({"role": msg['role'], "content": msg['content']})
+            else:
+                logging.error("No chat history found for selected thread.")
         else:
             st.error("Error fetching thread details.")
+            logging.error(f"Error fetching thread details: {response.status_code}, {response.text}")
 
     # Set up the chat container
     st.title("Chat with SautAI")
@@ -630,18 +557,40 @@ try:
         # Process and display chat interactions
         for message in st.session_state.chat_history:
             with chat_container.chat_message(message["role"]):
-                st.markdown(message["content"])
+                # Detect whether the backend returned structured JSON containing an HTML payment button
+                content = message["content"]
+                parsed = None
+                if isinstance(content, dict):
+                    parsed = content
+                else:
+                    try:
+                        parsed = json.loads(content)
+                    except (TypeError, ValueError):
+                        pass
+
+                if parsed and isinstance(parsed, dict) and parsed.get("html_button"):
+                    # Render the checkout button (unsafe HTML allowed for anchor tags/div styling)
+                    st.markdown(parsed["html_button"], unsafe_allow_html=True)
+                else:
+                    st.markdown(content)
 
         # Display follow-up recommendations if available (only for non-chef users)
-        if 'recommend_follow_up' in st.session_state and st.session_state.recommend_follow_up and 'items' in st.session_state.recommend_follow_up and len(st.session_state.recommend_follow_up['items']) > 0 and st.session_state.get('current_role', '') != 'chef':
-            with st.container():
-                st.write("Recommended Follow-Ups:")
-                for index, item in enumerate(st.session_state.recommend_follow_up['items']):
-                    follow_up_text = f"{item.get('recommendation', '')}"
-                    if st.button(follow_up_text, key=f"{follow_up_text}_{index}"):
-                        process_user_input(follow_up_text, chat_container)
+        raw_followups = st.session_state.get('recommend_follow_up', [])
+        if isinstance(raw_followups, dict):
+            items = raw_followups.get('items', [])
+        elif isinstance(raw_followups, list):
+            items = raw_followups
         else:
-            logging.info("No follow-up recommendations to display.")
+            items = []
+
+        if items and st.session_state.get('current_role', '') != 'chef':
+            with st.expander("Recommended Follow‑Ups", expanded=False, icon="💡"):
+                for idx, item in enumerate(items):
+                    text = item.get('recommendation', '')
+                    if st.button(text, key=f"{text}_{idx}"):
+                        process_user_input(text, chat_container)
+        else:
+            logging.info("No follow‑up recommendations to display.")
 
         # Get user input
         prompt = st.chat_input("Enter your question:")
@@ -650,32 +599,120 @@ try:
 
         # Button to start a new chat
         if st.session_state.chat_history and st.button("Start New Chat"):
-            st.session_state.thread_id = None
-            st.session_state.chat_history = []
-            st.session_state.selected_thread_id = None
-            st.session_state.recommend_follow_up = []
-            chat_container.empty()
-            st.rerun()
+            try:
+                if is_user_authenticated():
+                    # Authenticated user: Call new_conversation endpoint
+                    headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                    response = api_call_with_refresh(
+                        url=f'{django_url}/customer_dashboard/api/assistant/new-conversation/',
+                        method='post',
+                        headers=headers
+                    )
+                    if response and response.status_code == 200:
+                        st.session_state.thread_id = None
+                        st.session_state.chat_history = []
+                        st.session_state.selected_thread_id = None
+                        st.session_state.recommend_follow_up = []
+                        st.session_state.showed_user_summary = False # Reset summary flag
+                        chat_container.empty()
+                        st.rerun()
+                    else:
+                        st.error("Failed to start a new conversation. Please try again.")
+                        logging.error(f"Failed to start new conversation. Status: {response.status_code if response else 'No Response'}, Body: {response.text if response else 'N/A'}")
+                else:
+                    # Guest user: Call guest_new_conversation endpoint
+                    guest_session_data = {}
+                    if 'guest_id' in st.session_state:
+                         guest_session_data['guest_id'] = st.session_state['guest_id'] # Send old guest_id if available
+
+                    response = requests.post(
+                        url=f'{django_url}/customer_dashboard/api/assistant/guest-new-conversation/',
+                        json=guest_session_data # Send empty JSON or guest_id if available
+                    )
+                    if response.status_code == 200:
+                        new_guest_id = response.json().get('guest_id')
+                        if new_guest_id:
+                            st.session_state['guest_id'] = new_guest_id # Update session with new guest ID
+                        else:
+                             logging.error("Guest new conversation endpoint did not return a new guest_id.")
+                             # Decide if this is a critical error or can proceed without new ID
+
+                        st.session_state.thread_id = None
+                        st.session_state.chat_history = []
+                        st.session_state.selected_thread_id = None
+                        st.session_state.recommend_follow_up = []
+                        chat_container.empty()
+                        st.rerun()
+                    else:
+                        st.error("Failed to start a new guest conversation. Please try again.")
+                        logging.error(f"Failed to start new guest conversation. Status: {response.status_code}, Body: {response.text}")
+
+            except requests.exceptions.RequestException as e:
+                st.error("Connection error starting new chat. Please check your connection and try again.")
+                logging.error(f"Connection error starting new chat: {e}")
+            except Exception as e:
+                st.error("An unexpected error occurred while starting a new chat.")
+                logging.error("Unexpected error starting new chat", exc_info=True)
     else:
         # For chef mode users, show a simplified chat interface
-        #TODO: Add a chef mode chat interface with a backend api for chef specific queries and tools
+        # TODO: Add a chef mode chat interface with a backend api for chef specific queries and tools
         st.info("You are currently in Chef Mode. Some features may be limited.")
         for message in st.session_state.chat_history:
             with chat_container.chat_message(message["role"]):
-                st.markdown(message["content"])
+                content = message["content"]
+                parsed = None
+                if isinstance(content, dict):
+                    parsed = content
+                else:
+                    try:
+                        parsed = json.loads(content)
+                    except (TypeError, ValueError):
+                        pass
+
+                if parsed and isinstance(parsed, dict) and parsed.get("html_button"):
+                    st.markdown(parsed["html_button"], unsafe_allow_html=True)
+                else:
+                    st.markdown(content)
 
         # Get user input
         prompt = st.chat_input("Enter your question:")
         if prompt:
             process_user_input(prompt, chat_container)
 
-        # Button to start a new chat
+        # Button to start a new chat (Chef Mode)
         if st.session_state.chat_history and st.button("Start New Chat"):
-            st.session_state.thread_id = None
-            st.session_state.chat_history = []
-            st.session_state.selected_thread_id = None
-            chat_container.empty()
-            st.rerun()
+            # For Chef mode, we might need a separate logic or endpoint,
+            # or perhaps Chefs always use the authenticated endpoint.
+            # Assuming Chef is an authenticated user for now.
+            try:
+                if is_user_authenticated(): # Assuming chefs are always authenticated
+                    headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                    response = api_call_with_refresh(
+                        url=f'{django_url}/customer_dashboard/api/assistant/new-conversation/',
+                        method='post',
+                        headers=headers
+                    )
+                    if response and response.status_code == 200:
+                        st.session_state.thread_id = None
+                        st.session_state.chat_history = []
+                        st.session_state.selected_thread_id = None
+                        # No recommend_follow_up or summary for chefs typically
+                        chat_container.empty()
+                        st.rerun()
+                    else:
+                        st.error("Failed to start a new conversation. Please try again.")
+                        logging.error(f"Failed to start new conversation (Chef Mode). Status: {response.status_code if response else 'No Response'}, Body: {response.text if response else 'N/A'}")
+                else:
+                     # This case should ideally not happen if Chefs must be authenticated
+                     st.error("Error: Chef user not authenticated.")
+                     logging.error("Chef mode 'Start New Chat' attempted without authentication.")
+
+            except requests.exceptions.RequestException as e:
+                st.error("Connection error starting new chat. Please check your connection and try again.")
+                logging.error(f"Connection error starting new chat (Chef Mode): {e}")
+            except Exception as e:
+                st.error("An unexpected error occurred while starting a new chat.")
+                logging.error("Unexpected error starting new chat (Chef Mode)", exc_info=True)
 
 except Exception as e:
     logging.error("Exception occurred", exc_info=True)

@@ -3,9 +3,10 @@ import pandas as pd
 import json # Import json library
 from utils import (
     api_call_with_refresh, login_form, toggle_chef_mode, 
-    start_or_continue_streaming, client, openai_headers, guest_chat_with_gpt, 
+    client, openai_headers, guest_chat_with_gpt, 
     chat_with_gpt, is_user_authenticated, resend_activation_link, footer,
-    get_chef_meals_by_postal_code, replace_meal_with_chef_meal
+    get_chef_meals_by_postal_code, replace_meal_with_chef_meal,
+    place_chef_order, adjust_chef_order
 )
 import os
 from dotenv import load_dotenv
@@ -504,9 +505,55 @@ def show_normal_ui(meal_plan_df, meal_plan_id, is_approved, is_past_week, select
             # Show payment options in columns
             payment_cols = st.columns(3)
             
+            # Order quantity editor - add this before the payment buttons
+            if order_details and order_details.get('status') in ('placed', 'confirmed'):
+                cutoff_time = None
+                if 'meal_event_details' in order_details and 'order_cutoff_time' in order_details['meal_event_details']:
+                    cutoff_str = order_details['meal_event_details']['order_cutoff_time'].replace('Z', '+00:00')
+                    cutoff_time = datetime.fromisoformat(cutoff_str)
+                    expired = datetime.utcnow() >= cutoff_time
+                else:
+                    # If cutoff time not available, disable editing to be safe
+                    expired = True
+
+                st.info(f"You ordered {order_details['quantity']} serving(s). "
+                        f"Cut-off: {cutoff_time.astimezone().strftime('%b %d %H:%M') if cutoff_time else 'Unknown'}")
+
+                new_qty = st.number_input("Edit quantity", 1, 20, 
+                                        value=order_details['quantity'],
+                                        key=f"qty_{order_details['id']}")
+                
+                if st.button("Update order", disabled=expired or new_qty==order_details['quantity']):
+                    resp = adjust_chef_order(order_details['id'], int(new_qty))
+                    if resp and resp.status_code == 200:
+                        st.success("Order updated!")
+                        st.rerun()
+                    elif resp and resp.status_code == 409:
+                        st.warning("You already have an active order for that event.")
+                    elif resp and resp.status_code == 400:
+                        st.error("Edits closed. Please contact support.")
+                    else:
+                        st.warning("Could not update order.")
+            
             # Column 1: Proceed to Payment
             with payment_cols[0]:
-                if st.button("💳 Proceed to Payment", type="primary", use_container_width=True):
+                # Determine if payment button should be disabled
+                payment_disabled = False
+                
+                # If order status is placed or confirmed, disable payment button if after cutoff
+                if order_details and order_details.get('status') in ('placed', 'confirmed'):
+                    if 'meal_event_details' in order_details and 'order_cutoff_time' in order_details['meal_event_details']:
+                        cutoff_str = order_details['meal_event_details']['order_cutoff_time'].replace('Z', '+00:00')
+                        cutoff_time = datetime.fromisoformat(cutoff_str)
+                        if datetime.utcnow() >= cutoff_time:
+                            payment_disabled = True
+                            st.info("Payment will be collected automatically after the cutoff time.")
+                
+                # Or if order is already confirmed, disable payment
+                if order_details and order_details.get('status') == 'confirmed':
+                    payment_disabled = True
+
+                if st.button("💳 Proceed to Payment", type="primary", use_container_width=True, disabled=payment_disabled):
                     with st.spinner("Initiating secure payment..."):
                         try:
                             payment_resp = api_call_with_refresh(
@@ -1158,32 +1205,44 @@ def show_normal_ui(meal_plan_df, meal_plan_id, is_approved, is_past_week, select
                                         with confirm_col1:
                                             if st.button("Confirm Replacement", key=f"confirm_replace_{meal.get('id')}", type="primary"):
                                                 # Call API to replace the meal
-                                                with st.spinner("Replacing meal..."):
-                                                    replace_result = replace_meal_with_chef_meal(
-                                                        meal_plan_meal_id=selected_meal_plan_meal_id,
-                                                        chef_meal_id=meal.get('id'),
-                                                        event_id=event_id,
-                                                        quantity=quantity,
-                                                        special_requests=special_requests
-                                                    )
-                                                    
-                                                    if replace_result:
-                                                        st.success(f"Successfully replaced {selected_meal_name} with {quantity} {chef_meal.get('name')} meal{'s' if quantity > 1 else ''}!")
-                                                        
-                                                        # Trigger gamification event for replacing with chef meal
-                                                        trigger_gamification_event('replaced_with_chef_meal', {
-                                                            'meal_plan_id': meal_plan_id,
-                                                            'chef_meal_id': meal.get('id')
-                                                        })
-                                                        
-                                                        # Clear replacement state and refresh page
-                                                        del st.session_state[f'replacing_with_chef_meal_{meal.get("id")}']
-                                                        del st.session_state[f'chef_meal_to_replace_{meal.get("id")}']
-                                                        time.sleep(1)  # Give time to read the success message
-                                                        st.rerun()
-                                                    else:
-                                                        st.error("Failed to replace meal. Please try again.")
-                                                        
+                                                with st.spinner("Placing chef meal order..."):
+                                                    try:
+                                                        # Use the new place_chef_order function
+                                                        # First get the event_id
+                                                        if event_id:
+                                                            replace_result = place_chef_order(
+                                                                meal_event_id=event_id,
+                                                                qty=quantity,
+                                                                special=special_requests
+                                                            )
+                                                            
+                                                            if replace_result and replace_result.status_code == 201:
+                                                                st.success(f"Successfully ordered {quantity} {chef_meal.get('name')} meal{'s' if quantity > 1 else ''}!")
+                                                                
+                                                                # Trigger gamification event for replacing with chef meal
+                                                                trigger_gamification_event('replaced_with_chef_meal', {
+                                                                    'meal_plan_id': meal_plan_id,
+                                                                    'chef_meal_id': meal.get('id')
+                                                                })
+                                                                
+                                                                # Clear replacement state and refresh page
+                                                                del st.session_state[f'replacing_with_chef_meal_{meal.get("id")}']
+                                                                del st.session_state[f'chef_meal_to_replace_{meal.get("id")}']
+                                                                time.sleep(1)  # Give time to read the success message
+                                                                st.rerun()
+                                                            elif replace_result and replace_result.status_code == 409:
+                                                                st.warning("You already have an active order for that event.")
+                                                            elif replace_result and replace_result.status_code == 400:
+                                                                st.error("Orders have closed for this event. Please contact support.")
+                                                            else:
+                                                                st.error("Failed to place order. Please try again.")
+                                                        else:
+                                                            st.error("Could not determine event information. Please try a different meal.")
+                                                    except Exception as e:
+                                                        st.error(f"Error placing order: {str(e)}")
+                                                        logging.error(f"Error placing chef meal order: {str(e)}")
+                                                        logging.error(traceback.format_exc())
+
                                         with confirm_col2:
                                             if st.button("Cancel", key=f"cancel_replace_{meal.get('id')}"):
                                                 del st.session_state[f'replacing_with_chef_meal_{meal.get("id")}']
