@@ -451,8 +451,8 @@ try:
                     response = requests.get(api_url, timeout=10)
                     if response.status_code == 200:
                         data = response.json()
-                        st.info("Email confirmed successfully! You can communicate with your personal assistant now via email.")
-                        st.switch_page("views/home.py") # Rerun home page to reflect logged-in state
+                        st.success("Email confirmed successfully! You can communicate with your personal assistant now via email.")
+                        st.rerun() # Rerun home page to reflect logged-in state
                     else:
                         error_message = "Failed to confirm email. The link may be invalid or expired."
                         try:
