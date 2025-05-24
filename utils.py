@@ -36,6 +36,38 @@ django_url = os.getenv("DJANGO_URL")
 
 openai_env_key = os.getenv("OPENAI_KEY")
 
+# ============================
+# API Related Functions
+# ============================
+
+def fetch_languages():
+    """
+    Fetch available languages from the API endpoint.
+    Returns a list of language objects with code, name, name_local, and bidi properties.
+    Falls back to default languages if API call fails.
+    """
+    try:
+        api_url = f"{os.getenv('DJANGO_URL')}/auth/api/languages/"
+        response = requests.get(api_url, timeout=10)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            # Fallback to default languages if API call fails
+            return [
+                {"code": "en", "name": "English", "name_local": "English", "bidi": False},
+                {"code": "jp", "name": "Japanese", "name_local": "日本語", "bidi": False},
+                {"code": "es", "name": "Spanish", "name_local": "Español", "bidi": False},
+                {"code": "fr", "name": "French", "name_local": "Français", "bidi": False}
+            ]
+    except Exception as e:
+        logging.error(f"Error fetching languages: {e}")
+        # Fallback to default languages if API call fails
+        return [
+            {"code": "en", "name": "English", "name_local": "English", "bidi": False},
+            {"code": "jp", "name": "Japanese", "name_local": "日本語", "bidi": False},
+            {"code": "es", "name": "Spanish", "name_local": "Español", "bidi": False},
+            {"code": "fr", "name": "French", "name_local": "Français", "bidi": False}
+        ]
 
 # ============================
 # HTTP Session Management
@@ -381,7 +413,6 @@ def process_user_input(prompt, chat_container):
             if response_id:
                 st.session_state.thread_id = response_id
             
-            print(f'full_response: {full_response}')
             # Add the full response to chat history
             # This uses the actual response text instead of a placeholder
             st.session_state.chat_history.append({
@@ -393,12 +424,9 @@ def process_user_input(prompt, chat_container):
             parsed = None
             if isinstance(full_response, dict):
                 parsed = full_response
-                print(f'parsed: {parsed}')
             else:
                 try:
                     parsed = json.loads(full_response)
-                    print(f"parsed: {parsed}")
-                    print(f'parsed.get("html_button"): {parsed.get("html_button")}')
                 except (TypeError, ValueError):
                     pass
 

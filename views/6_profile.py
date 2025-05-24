@@ -4,7 +4,9 @@ import requests
 import os
 import datetime
 import logging
-from utils import api_call_with_refresh, is_user_authenticated, login_form, toggle_chef_mode, fetch_and_update_user_profile, validate_input, resend_activation_link, footer
+from utils import (api_call_with_refresh, is_user_authenticated, login_form, toggle_chef_mode, 
+                  fetch_and_update_user_profile, validate_input, resend_activation_link, footer,
+                  fetch_languages)
 
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[
     logging.FileHandler("error.log"),
@@ -104,6 +106,14 @@ try:
             if user_details.status_code == 200:
                 user_data = user_details.json()
                 st.session_state.user_id = user_data.get('id')
+                personal_assistant_email = user_data.get('personal_assistant_email')
+                if personal_assistant_email:
+                    st.markdown(f"""
+                    <div style="background-color: #f0f2f6; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+                        <h5 style="margin-bottom: 5px;">Your Personal Assistant Contact</h5>
+                        <p style="margin-bottom: 0;">📧 <a href="mailto:{personal_assistant_email}">{personal_assistant_email}</a></p>
+                    </div>
+                    """, unsafe_allow_html=True)
                 if not isinstance(user_data.get('custom_dietary_preferences'), list):
                     user_data['custom_dietary_preferences'] = []
             else:
@@ -125,9 +135,7 @@ try:
             custom_prefs_val = ', '.join(user_data.get('custom_dietary_preferences', []))
             allergies_val = user_data.get('allergies', [])
             custom_allergies_val = ', '.join(user_data.get('custom_allergies', []))
-            email_daily_inst_val = user_data.get('email_daily_instructions', True)
-            email_meal_plan_saved_val = user_data.get('email_meal_plan_saved', True)
-            email_instr_gen_val = user_data.get('email_instruction_generation', True)
+            unsubscribed_from_emails_val = user_data.get('unsubscribed_from_emails', False)
             preferred_servings_val = user_data.get('preferred_servings', 1)
             emergency_supply_goal_val = user_data.get('emergency_supply_goal', st.session_state.get('emergency_supply_goal', 0))
 
@@ -152,11 +160,36 @@ try:
                 'Coffee', 'Cinnamon', 'Garlic', 'Chickpeas', 'Lentils'
             ]
 
-            # Languages
-            language_options = {'en': 'English', 'jp': 'Japanese', 'es': 'Spanish', 'fr': 'French'}
-            language_labels = list(language_options.values())
-            language_keys = list(language_options.keys())
-            current_language_label = language_options.get(preferred_language_val, 'English')
+            # Fetch available languages from API
+            languages = fetch_languages()
+            
+            # Find the current language in the languages list
+            current_language_display = None
+            current_language_index = 0
+            
+            for i, lang in enumerate(languages):
+                if lang['code'] == preferred_language_val:
+                    current_language_display = f"{lang['name']} ({lang['name_local']})"
+                    current_language_index = i
+                    break
+            
+            # If not found, default to English or first language
+            if current_language_display is None:
+                for i, lang in enumerate(languages):
+                    if lang['code'] == 'en':
+                        current_language_display = f"{lang['name']} ({lang['name_local']})"
+                        current_language_index = i
+                        break
+                
+                # If English not found either, use the first language
+                if current_language_display is None and languages:
+                    lang = languages[0]
+                    current_language_display = f"{lang['name']} ({lang['name_local']})"
+                    current_language_index = 0
+
+            # Create language display options
+            language_display_options = [f"{lang['name']} ({lang['name_local']})" for lang in languages]
+            language_codes = [lang['code'] for lang in languages]
 
             # Timezone options
             timezones = pytz.all_timezones
@@ -229,17 +262,20 @@ try:
 
                 # Language and Timezone
                 st.subheader("Preferences")
-                preferred_lang = st.selectbox("Preferred Language", language_labels, index=language_labels.index(current_language_label))
-                selected_language_code = language_keys[language_labels.index(preferred_lang)]
+                preferred_lang = st.selectbox(
+                    "Preferred Language", 
+                    language_display_options, 
+                    index=current_language_index,
+                    help="Select your preferred language for the application"
+                )
+                selected_language_code = language_codes[language_display_options.index(preferred_lang)]
                 selected_timezone = st.selectbox('Time Zone', options=timezones, index=timezones.index(timezone_val))
 
                 # Email Settings
-                email_daily_choice = st.radio("Receive daily cooking instructions?", ('Yes', 'No'),
-                                              index=0 if email_daily_inst_val else 1)
-                email_plan_saved_choice = st.radio("Receive a shopping list when your meal plan is saved or updated?", ('Yes', 'No'),
-                                                   index=0 if email_meal_plan_saved_val else 1)
-                email_instr_gen_choice = st.radio("Receive an email when you request cooking instructions?", ('Yes', 'No'),
-                                                  index=0 if email_instr_gen_val else 1)
+                st.subheader("Email Preferences")
+                receive_emails_choice = st.radio("Receive emails from sautAI?", ('Yes', 'No'),
+                                              index=0 if not unsubscribed_from_emails_val else 1,
+                                              help="When set to 'No', you will not receive any emails including daily cooking instructions, shopping lists, or cooking instructions.")
 
                 # Goals
                 st.subheader("User Goals")
@@ -269,9 +305,7 @@ try:
                             'custom_allergies': custom_allergies_list,
                             'timezone': selected_timezone,
                             'preferred_language': selected_language_code,
-                            'email_daily_instructions': (email_daily_choice == 'Yes'),
-                            'email_meal_plan_saved': (email_plan_saved_choice == 'Yes'),
-                            'email_instruction_generation': (email_instr_gen_choice == 'Yes'),
+                            'unsubscribed_from_emails': (receive_emails_choice == 'No'),
                             'preferred_servings': preferred_servings_input,
                             'emergency_supply_goal': emergency_supply_goal_input,
                             'address': {
@@ -300,8 +334,6 @@ try:
                                     st.error("Failed to update goal.")
                             # Refresh session state user info after update
                             fetch_and_update_user_profile()
-                            # Navigate back to home
-                            st.switch_page("views/home.py")
                         else:
                             error_data = update_response.json()
                             if isinstance(error_data, dict):

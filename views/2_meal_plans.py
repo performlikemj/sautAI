@@ -24,6 +24,30 @@ logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %
 
 load_dotenv()
 
+# ── Global Streamlit button style for uniform size & layout ──────────────────
+def _set_button_style():
+    st.markdown(
+        """
+        <style>
+            /* Ensure every Streamlit button keeps the same height and fills
+               its flex‑cell so the row never collapses or wraps. */
+            div[data-testid="stButton"] button {
+                min-height: 46px;          /* fixed, Instacart‑spec height */
+                padding: 0.5rem 1rem;      /* comfortable click target    */
+                width: 100%;               /* stretch to column width     */
+                border-radius: 6px;        /* gentle rounding for consistency */
+            }
+            /* Prevent uneven flex shrink/grow that pushes buttons off the row */
+            div[data-testid="stButton"]{
+                flex: 1 1 0;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+_set_button_style()
+
 @st.fragment
 def generate_meal_plan(selected_week_start, selected_week_end, headers):
     with st.spinner("Creating your personalized meal plan..."):
@@ -378,11 +402,66 @@ def display_instructions_pagination():
     else:
         st.warning("Instructions not yet available.")
 
+# First, add the helper functions above the show_normal_ui function
+def check_instacart_url(meal_plan_id, headers):
+    """Check if an Instacart URL exists for the meal plan"""
+    try:
+        response = api_call_with_refresh(
+            url=f"{os.getenv('DJANGO_URL')}/meals/api/meal-plans/{meal_plan_id}/instacart-url/",
+            method='get',
+            headers=headers
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('instacart_url'), data.get('has_url', False)
+        return None, False
+    except Exception as e:
+        logging.error(f"Error checking Instacart URL: {str(e)}")
+        return None, False
+
+def generate_instacart_link(meal_plan_id, headers, force_refresh=False):
+    """Generate an Instacart link for the meal plan"""
+    # Get user's postal code from session if available
+    postal_code = None
+    if 'address' in st.session_state and st.session_state.get('address', {}).get('postalcode'):
+        postal_code = st.session_state.get('address', {}).get('postalcode')
+    
+    payload = {
+        "meal_plan_id": meal_plan_id,
+        "force_refresh": force_refresh
+    }
+    
+    if postal_code:
+        payload["postal_code"] = postal_code
+    
+    try:
+        response = api_call_with_refresh(
+            url=f"{os.getenv('DJANGO_URL')}/meals/api/generate-instacart-link/",
+            method='post',
+            headers=headers,
+            data=payload
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('status') == 'success':
+                return data.get('instacart_url')
+            else:
+                st.warning(data.get('message', 'Failed to generate Instacart link'))
+        else:
+            st.error(f"API error: {response.status_code}")
+        return None
+    except Exception as e:
+        logging.error(f"Error generating Instacart link: {str(e)}")
+        return None
+
 def show_normal_ui(meal_plan_df, meal_plan_id, is_approved, is_past_week, selected_data_full,
                    meal_plan_id_from_url=None, meal_id_from_url=None, action=None, selected_tab=None,
                    selected_day=None, selected_week_start=None, day_offset=None):
     headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
     current_meal_prep_pref = st.session_state.get('meal_prep_preference', 'daily')
+    
 
     # Handle payment tab if selected
     if selected_tab == "💳 Payment":
@@ -681,9 +760,11 @@ def show_normal_ui(meal_plan_df, meal_plan_id, is_approved, is_past_week, select
             # Show meal prep preference
             st.info(f"🔄 **Meal Prep Preference**: {'Daily preparation' if current_meal_prep_pref == 'daily' else 'Bulk preparation'}")
             
+            # Remove the entire Instacart section from here
+            
         else:
             st.warning("⚠️ This meal plan is not yet approved")
-            st.info("Approve your meal plan to unlock reviews and cooking instructions!")
+            st.info("Approve your meal plan to unlock reviews, cooking instructions, and shopping lists!")
             
         # Display any additional meal plan details or statistics here
 
@@ -1637,7 +1718,6 @@ if is_user_authenticated() and st.session_state.get('email_confirmed', False):
             st.stop()
         if response.status_code == 200:
             meal_plan_data = response.json()
-            
             # Extract meal_plans list if we have a dictionary with meal_plans key
             if isinstance(meal_plan_data, dict) and 'meal_plans' in meal_plan_data:
                 meal_plans_list = meal_plan_data['meal_plans']
@@ -1687,7 +1767,6 @@ if is_user_authenticated() and st.session_state.get('email_confirmed', False):
             pending_order_id_from_api = None # Initialize
             if meal_plan_details_resp.status_code == 200:
                 meal_plan_details = meal_plan_details_resp.json()
-                # print(f"Meal plan details: {meal_plan_details}")
                 is_approved = meal_plan_details.get('is_approved', False)
                 
                 # --- Check for pending payment based on API response --- #
@@ -2236,24 +2315,17 @@ if is_user_authenticated() and st.session_state.get('email_confirmed', False):
                 st.rerun()  # Refresh to show the payment tab
 
             else:
-                # Show action buttons only if no other section is active
-                action_cols = st.columns(3)
-                
-                # REMOVE the block below that shows the extra button
-                # Check if there's a pending payment to display Pay Now button
-                # pending_payment = 'pending_chef_order_id' in st.session_state and st.session_state.get('pending_chef_order_id')
-                # 
-                # if pending_payment:
-                #    # Add a Pay Now button at the top
-                #    st.warning("⚠️ You have a pending payment for chef meals in this plan.")
-                #    if st.button("💳 Pay Now", type="primary", use_container_width=True):
-                #        st.session_state.active_section = 'payment_required'
-                #        st.rerun()
-                #    
-                #    st.markdown("---")  # Add a separator between payment notice and regular actions
-                
-                with action_cols[0]:
-                    if st.button("👨‍🍳 Generate Cooking Instructions", use_container_width=True, disabled=is_past_week or selected_data_full.empty):
+                if st.button("✅ Approve Meal Plan", use_container_width=True, disabled=is_past_week or is_approved):
+                    if is_approved:
+                        st.info("This meal plan is already approved.")
+                    else:
+                        st.session_state.active_section = 'approval_options'
+                        st.rerun()    
+                                        
+                action_cols_1 = st.columns(2)  # Changed from 3 to 4 columns to add Instacart button
+                action_cols_2 = st.columns(2)  # Changed from 3 to 4 columns to add Instacart button
+                with action_cols_1[0]:
+                    if st.button("👨‍🍳 Cooking Instructions", use_container_width=True, disabled=is_past_week or selected_data_full.empty):
                         if selected_data_full.empty:
                             st.warning("Please select meals to generate cooking instructions")
                         else:
@@ -2306,7 +2378,7 @@ if is_user_authenticated() and st.session_state.get('email_confirmed', False):
                                     logging.error(f"Error generating instructions: {str(e)}")
                                     logging.error(traceback.format_exc())
 
-                with action_cols[1]:
+                with action_cols_1[1]:
                     if st.button("📝 Edit Selected Meals", use_container_width=True, disabled=is_past_week or selected_data_full.empty):
                         if selected_data_full.empty:
                             st.warning("Please select meals to edit")
@@ -2314,25 +2386,71 @@ if is_user_authenticated() and st.session_state.get('email_confirmed', False):
                             st.session_state.active_section = 'edit_form'
                             st.rerun()
 
-                with action_cols[2]:
-                    if st.button("✅ Approve Meal Plan", use_container_width=True, disabled=is_past_week or is_approved):
-                        if is_approved:
-                            st.info("This meal plan is already approved.")
+
+                with action_cols_2[0]:
+                    if st.button("🗑️ Delete Meals", use_container_width=True, disabled=is_past_week or selected_data_full.empty):
+                        if selected_data_full.empty:
+                            st.warning("Please select meals to delete")
                         else:
-                            st.session_state.active_section = 'approval_options'
+                            st.session_state.active_section = 'delete_confirmation'
                             st.rerun()
                 
-                # Delete button below the main action buttons
-                if st.button("🗑️ Delete Selected Meals", use_container_width=True, disabled=is_past_week or selected_data_full.empty):
-                    if selected_data_full.empty:
-                        st.warning("Please select meals to delete")
-                    else:
-                        st.session_state.active_section = 'delete_confirmation'
-                        st.rerun()
-                
-                # Only show the tabbed UI if no other section is active
-                # Determine the default tab based on action
+                with action_cols_2[1]:  # New column for Instacart button
+                    # Check if an Instacart URL exists for this meal plan
+                    instacart_url, has_url = check_instacart_url(meal_plan_id, headers)
+                    # Create Instacart button text with icon according to brand guidelines
+                    instacart_button_text = """<img src="https://live.staticflickr.com/65535/54538897116_fb233f397f_m.jpg" 
+                                             style="height: 22px; vertical-align: middle; margin-right: 10px;"> Get Ingredients"""
+                    
+                    button_text = "🛒 Shop Ingredients" if has_url else "🛒 Shop Ingredients"
+                    if st.button(button_text, use_container_width=True, disabled=is_past_week or not is_approved):
+                        if not is_approved:
+                            st.info("Approve your meal plan first to generate a shopping list.")
+                        elif has_url and instacart_url:
+                            # Show the Instacart button when a URL already exists
+                            st.success("Your shopping list is ready! Click the button below to shop on Instacart.")
+                            st.markdown(f'''
+                            <a href="{instacart_url}" target="_blank" style="text-decoration:none;">
+                                <div style="background-color:#FFFFFF; color:#000000; height:46px; padding:16px 18px; 
+                                border-radius:8px; display:flex; align-items:center; justify-content:center; 
+                                font-weight:500; margin-bottom:10px; font-family:sans-serif;
+                                border: 0.5px solid #E8E9EB;">
+                                    {instacart_button_text}
+                                </div>
+                            </a>''', unsafe_allow_html=True)
+                            
+                            # Add refresh button
+                            if st.button("🔄 Refresh List", key=f"refresh_instacart_{meal_plan_id}", use_container_width=True):
+                                with st.spinner("Refreshing shopping list..."):
+                                    refreshed_url = generate_instacart_link(meal_plan_id, headers, force_refresh=True)
+                                    if refreshed_url:
+                                        st.success("Shopping list refreshed successfully!")
+                                        # Replace the URL in the session state to avoid a page refresh
+                                        instacart_url = refreshed_url
+                                        st.rerun()
+                        else:
+                            # Generate a new shopping list
+                            with st.spinner("Generating shopping list. This may take a moment..."):
+                                generated_url = generate_instacart_link(meal_plan_id, headers)
+                                if generated_url:
+                                    st.success("Shopping list generated successfully!")
+                                    st.markdown(f'''
+                                    <a href="{generated_url}" target="_blank" style="text-decoration:none;">
+                                        <div style="background-color:#FFFFFF; color:#000000; height:46px; padding:16px 18px; 
+                                        border-radius:8px; display:flex; align-items:center; justify-content:center; 
+                                        font-weight:500; margin-bottom:10px; font-family:sans-serif;
+                                        border: 0.5px solid #E8E9EB;">
+                                            {instacart_button_text}
+                                        </div>
+                                    </a>''', unsafe_allow_html=True)
+                                    
+                                    # # Trigger gamification event for generating shopping list
+                                    # trigger_gamification_event('shopping_list_generated', {
+                                    #     'meal_plan_id': meal_plan_id
+                                    # })
 
+            
+                # Restore the tabbed UI handling code
                 # Add payment tab if payment is required
                 payment_required = meal_plan_details.get('payment_required', False) 
                 payment_tab_name = "💳 Payment" # Define for consistency
@@ -2374,8 +2492,8 @@ if is_user_authenticated() and st.session_state.get('email_confirmed', False):
                     tab_names, 
                     key='selected_tab' # Let the widget manage state via this key
                     # No index argument needed anymore
-                 )
-
+                )
+                
                 # Make sure day_offset is defined and available for the function call
                 if 'day_offset' not in locals():
                     day_offset = {'Monday':0,'Tuesday':1,'Wednesday':2,'Thursday':3,'Friday':4,'Saturday':5,'Sunday':6}
@@ -2426,6 +2544,6 @@ st.markdown(
 
     
 # Show action buttons only if no other section is active
-action_cols = st.columns(3)
+action_cols = st.columns(4)  # Change from 3 to 4 columns to add Instacart button
 
 

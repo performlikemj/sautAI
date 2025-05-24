@@ -10,7 +10,8 @@ import pycountry
 import datetime
 import pytz
 from utils import (api_call_with_refresh, login_form, toggle_chef_mode, 
-                   fetch_and_update_user_profile, validate_input, parse_comma_separated_input, footer)
+                   fetch_and_update_user_profile, validate_input, parse_comma_separated_input, footer,
+                   fetch_languages)
 import logging
 
 # Configure logging
@@ -67,19 +68,27 @@ try:
         # Convert the selected country to its two-letter country code
         country_code = pycountry.countries.get(name=selected_country).alpha_2
 
-        # Define a dictionary for languages
-        language_options = {
-            'en': 'English',
-            'jp': 'Japanese',
-            'es': 'Spanish',
-            'fr': 'French',
-        }
-        language_labels = list(language_options.values())
-        language_keys = list(language_options.keys())
-        preferred_language = st.selectbox("Preferred Language", language_labels, index=0)
+        # Fetch available languages from API
+        languages = fetch_languages()
         
-        # Get the corresponding key for the selected value
-        selected_language_code = language_keys[language_labels.index(preferred_language)]
+        # Create language display options - show both language name and native name
+        language_display_options = [f"{lang['name']} ({lang['name_local']})" for lang in languages]
+        language_codes = [lang['code'] for lang in languages]
+        
+        # Set default to English
+        default_language_index = language_codes.index('en') if 'en' in language_codes else 0
+        
+        # Language selection with search/filter ability
+        st.subheader("Language Preference")
+        preferred_language = st.selectbox(
+            "Preferred Language", 
+            language_display_options, 
+            index=default_language_index,
+            help="Select your preferred language for the application"
+        )
+        
+        # Get the corresponding language code for the selected display option
+        selected_language_code = language_codes[language_display_options.index(preferred_language)]
                 
         # Time zone selection
         timezones = pytz.all_timezones

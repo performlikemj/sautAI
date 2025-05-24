@@ -223,10 +223,8 @@ def fetch_chef_meal_events(my_events=False):
             headers=headers,
             params=params
         )
-        # print(f"Chef meal events response: {response}")
         if response and response.status_code == 200:
             data = response.json()
-            print(f"Chef meal events response: {data}")
             logging.info(f"Chef meal events API response type: {type(data)}")
             
             # Add more detailed logging to understand the structure
@@ -320,7 +318,6 @@ def fetch_chef_meal_orders(as_chef=False):
         
         if response and response.status_code == 200:
             data = response.json()
-            print(f"[DBG] Orders Data: {data}")
             # Log a summary of the response
             if isinstance(data, list):
                 logging.info(f"Orders list length: {len(data)}")
@@ -596,8 +593,6 @@ def fetch_chef_meals():
         
         if response and response.status_code == 200:
             data = response.json()
-            print(f"[DBG] Chef meals API response type: {type(data)}")
-            print(f"[DBG] Chef meals API response content: {data}")
             
             # Extract meals from the response structure
             meals_list = []
@@ -1151,7 +1146,6 @@ def chef_meals():
                     # Simply add any event that has active_orders to our list
                     for event in orders['details']['results']:
                         if 'active_orders' in event and event['active_orders']:
-                            # print(f'Active orders: {event["active_orders"]}')
 
                             active_events.append(event)
                             for order in event['active_orders']:
@@ -1890,7 +1884,6 @@ def chef_meals():
                         # TODO: Verify whether the order date is based on when the plan was created or when the order was placed
                         if 'active_orders' in event and event['active_orders']:
                             st.markdown("### Orders")
-                            # print(f'Active orders: {event["active_orders"]}')
                             # Create tabs for different status groups
                             order_tabs = st.tabs(["All Orders", "Placed", "Confirmed", "Completed", "Cancelled"])
                             

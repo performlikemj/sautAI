@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import os
 import datetime
 import logging
-from utils import login_form, toggle_chef_mode, validate_input, footer
+from utils import login_form, toggle_chef_mode, validate_input, footer, fetch_and_update_user_profile
 
 # Load environment variables and configure logging
 load_dotenv()
@@ -16,6 +16,7 @@ logging.info("Starting the Streamlit app")
 
 # Content moved from main() to top level
 try:
+
     # Login Form
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
         with st.expander("Login", expanded=False):

@@ -12,7 +12,7 @@ from utils import (api_call_with_refresh, is_user_authenticated, login_form,
                    toggle_chef_mode, guest_chat_with_gpt, chat_with_gpt, EventHandler,
                    openai_headers, client, get_user_summary, 
                    resend_activation_link, footer, process_user_input, 
-                   fetch_follow_up_recommendations, display_streaming_summary, stream_user_summary)
+                   fetch_follow_up_recommendations, display_streaming_summary, fetch_and_update_user_profile)
 import numpy as np
 import time
 import logging
@@ -428,6 +428,63 @@ def health_metrics_form():
 
 # Main application code
 try:
+    # Handle email authentication link
+    _params = st.query_params
+    _auth_token_full_list = _params.get("auth_token")
+    _expected_action_suffix = _params.get("action")
+
+    if _auth_token_full_list:
+        
+
+        
+        # Check if the action is appended to the auth_token query parameter value
+        if _auth_token_full_list and _expected_action_suffix == "email_auth":
+            _actual_auth_token = _auth_token_full_list.split(_expected_action_suffix)[0]
+
+            # Clear query params immediately to prevent re-processing and clean up URL
+            st.query_params.clear() # Clears all query params
+
+            if _actual_auth_token:
+                api_url = f'{os.getenv("DJANGO_URL")}/auth/api/email_auth/{_actual_auth_token}/'
+                try:
+                    # This is a public endpoint, no auth headers needed for the call itself
+                    response = requests.get(api_url, timeout=10)
+                    if response.status_code == 200:
+                        data = response.json()
+                        st.info("Email confirmed successfully! You can communicate with your personal assistant now via email.")
+                        st.switch_page("views/home.py") # Rerun home page to reflect logged-in state
+                    else:
+                        error_message = "Failed to confirm email. The link may be invalid or expired."
+                        try:
+                            error_details = response.json()
+
+                            # Prioritize 'detail' or 'message' over 'status'
+                            if "detail" in error_details:
+                                error_message = error_details["detail"]
+                            elif "message" in error_details:
+                                error_message = error_details["message"]
+                            elif "status" in error_details:
+                                # Only show status if it's NOT just 'error'
+                                status_val = error_details["status"]
+                                if status_val != "error":
+                                    error_message = status_val
+                                # Otherwise, keep default/fallback
+                            else:
+                                # Show the full dict if nothing matches (debugging)
+                                error_message = str(error_details)
+
+                        except requests.exceptions.JSONDecodeError:
+                            pass
+
+                        st.warning(error_message)
+                        # No explicit st.stop() here, let it fall through or use switch_page like user did
+                except requests.exceptions.RequestException as e:
+                    logging.error(f"Email auth request exception: {str(e)}")
+                    st.error(f"An error occurred while trying to confirm your email. Please check your connection and try again.")
+                    # No explicit st.stop() here, use switch_page
+                    st.switch_page("views/home.py") 
+
+
     # Initialize session state variables if not already initialized
     if 'chat_history' not in st.session_state:
         st.session_state.chat_history = []
