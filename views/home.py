@@ -111,8 +111,8 @@ try:
             
             with hero_col1:
                 st.markdown("""
-                    <h1 style="color: #5cb85c;">Fresh, Homestyle Meals at Your Fingertips</h1>
-                    <p style="font-size: 1.2rem;">Your personal AI-powered diet and nutrition assistant that makes healthy eating simple, delicious, and tailored just for you.</p>
+                    <h1 style="color: #5cb85c;">Connect With Local Chefs</h1>
+                    <p style="font-size: 1.2rem;">We link you with talented cooks in your community—from chefs preserving family recipes to those creating new flavors. Our AI simply helps plan your meals.</p>
                     """, unsafe_allow_html=True)
                 
                 if st.button("Get Started Today 🍽️", use_container_width=True):
@@ -129,8 +129,8 @@ try:
             st.markdown("""
                 <div class="responsive-container">
                     <div>
-                        <h1 style="color: #5cb85c;">Fresh, Homestyle Meals at Your Fingertips</h1>
-                        <p style="font-size: 1.2rem;">Your personal AI-powered diet and nutrition assistant that makes healthy eating simple, delicious, and tailored just for you.</p>
+                        <h1 style="color: #5cb85c;">Connect With Local Chefs</h1>
+                        <p style="font-size: 1.2rem;">We link you with talented cooks in your community—from chefs preserving family recipes to those creating new flavors. Our AI simply helps plan your meals.</p>
                     </div>
                     <div>
                         <img src="https://live.staticflickr.com/65535/53502731882_3c40de9d35_b.jpg" class="hero-image">
@@ -148,17 +148,17 @@ try:
     
     intro_col1, intro_col2, intro_col3 = st.columns(3)
     
+
     with intro_col1:
-        st.markdown("### 🥘 Personalized Nutrition")
+        st.markdown("### 🥘 Local Chef Connection")
         st.markdown("""
-        Get meal plans crafted for your dietary needs, preferences and health goals.
-        No more guesswork about what to eat!
+        Discover chefs in your neighborhood who prepare traditional favorites and exciting new meals while keeping culinary traditions alive.
         """)
     
     with intro_col2:
-        st.markdown("### 🧠 AI-Powered Insights")
+        st.markdown("### 🧠 AI Meal Planning")
         st.markdown("""
-        Our intelligent assistant analyzes your habits and provides actionable nutrition advice tailored to your needs.
+        Let our AI suggest balanced meal plans so you can focus on enjoying food and community.
         """)
     
     with intro_col3:
@@ -187,7 +187,7 @@ try:
                 - **Customized Weekly Plans** – Get a full week of meals tailored to your diet and preferences
                 - **Ingredient Awareness** – Avoid allergens and disliked foods automatically
                 - **One-Click Adjustments** – Swap meals you don't like with alternatives in seconds
-                - **Chef Connections** – Connect with local chefs for healthy meal preparation
+                - **Chef Connections** – Connect with local chefs for healthy meal preparation—from inventive new dishes to cherished classics
                 """)
         
         with features_tab2:
@@ -224,7 +224,7 @@ try:
             - **Customized Weekly Plans** – Get a full week of meals tailored to your diet and preferences
             - **Ingredient Awareness** – Avoid allergens and disliked foods automatically
             - **One-Click Adjustments** – Swap meals you don't like with alternatives in seconds
-            - **Chef Connections** – Connect with local chefs for healthy meal preparation
+            - **Chef Connections** – Connect with local chefs for healthy meal preparation—from inventive new dishes to cherished classics
             """)
             
         with st.expander("Health Tracking", expanded=False):
@@ -317,10 +317,10 @@ try:
         with cta_col1:
             st.markdown("<h2>Ready to Transform Your Relationship with Food?</h2>", unsafe_allow_html=True)
             st.markdown("""
-            Join thousands of users who have discovered the joy of healthy eating with sautAI. 
-            Our personalized approach makes nutrition simple, sustainable, and enjoyable.
-            
-            Start your journey to better health today!
+            Join a community that celebrates local chefs, from family recipes passed down through generations to brand new creations.
+            Our AI-powered meal planning keeps things simple while you focus on sharing real food with real people.
+
+            Start your journey to connected, tradition-rich meals today!
             """)
         
         with cta_col2:
@@ -333,10 +333,10 @@ try:
         # Mobile view - stack vertically
         st.markdown("<h2>Ready to Transform Your Relationship with Food?</h2>", unsafe_allow_html=True)
         st.markdown("""
-        Join thousands of users who have discovered the joy of healthy eating with sautAI. 
-        Our personalized approach makes nutrition simple, sustainable, and enjoyable.
-        
-        Start your journey to better health today!
+        Join a community that celebrates local chefs, from family recipes passed down through generations to brand new creations.
+        Our AI-powered meal planning keeps things simple while you focus on sharing real food with real people.
+
+        Start your journey to connected, tradition-rich meals today!
         """)
         
         st.button("Create Free Account", use_container_width=True, type="primary", key="mobile_cta_1")
