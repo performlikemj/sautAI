@@ -1,6 +1,6 @@
 # Dietician Assistant
 
-This is a Streamlit application that serves as a dietician assistant. It allows users to track their calorie intake and health metrics, order food through our service, and provides a chatbot for dietary advice.
+This Streamlit application connects you with local chefs while providing AI assistance for personalized meal planning. Users can track their calorie intake and health metrics, order chef-prepared meals, and chat with our AI for dietary advice. Our goal is to preserve treasured family recipes, showcase exciting new dishes, and keep culinary traditions alive.
 
 ## Features
 
@@ -8,7 +8,7 @@ This is a Streamlit application that serves as a dietician assistant. It allows 
 - **Calorie Data Visualization**: Allows users to visualize their calorie data.
 - **Health Metrics Form**: Allows users to log various health metrics.
 - **Health Metrics Visualization**: Allows users to visualize their health metrics in a static table, as the latest metrics, or as a trend chart.
-- **Meal Ordering**: Allows users to order meals that meat their dietary preference
+- **Meal Ordering**: Allows users to order meals that meet their dietary preference and are prepared by local chefs—whether you crave creative new recipes or beloved classics handed down for generations
 - **Chatbot**: Provides dietary advice based on user input.
 
 ## Installation
