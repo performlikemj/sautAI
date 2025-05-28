@@ -121,7 +121,7 @@ try:
             with hero_col2:
                 st.markdown("""
                 <div style="padding: 10px;">
-                    <img src="https://live.staticflickr.com/65535/53502731882_3c40de9d35_b.jpg" class="hero-image">
+                    <img src="https://live.staticflickr.com/65535/54548860874_7569d1dbdc_b.jpg" class="hero-image">
                 </div>
                 """, unsafe_allow_html=True)
         else:
@@ -133,7 +133,7 @@ try:
                         <p style="font-size: 1.2rem;">We link you with talented cooks in your community—from chefs preserving family recipes to those creating new flavors. Our AI simply helps plan your meals.</p>
                     </div>
                     <div>
-                        <img src="https://live.staticflickr.com/65535/53502731882_3c40de9d35_b.jpg" class="hero-image">
+                        <img src="https://live.staticflickr.com/65535/54548860874_7569d1dbdc_b.jpg" class="hero-image">
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -150,7 +150,7 @@ try:
     
 
     with intro_col1:
-        st.markdown("### 🥘 Local Chef Connection")
+        st.markdown("### 🥘 Local Connection")
         st.markdown("""
         Discover chefs in your neighborhood who prepare traditional favorites and exciting new meals while keeping culinary traditions alive.
         """)
@@ -180,7 +180,7 @@ try:
         with features_tab1:
             col1, col2 = st.columns([0.4, 0.6])
             with col1:
-                st.image("https://live.staticflickr.com/65535/53502731882_3c40de9d35_b.jpg", use_container_width=True)
+                st.image("https://live.staticflickr.com/65535/54550764768_d565973881_b.jpg", use_container_width=True)
             with col2:
                 st.markdown("### Effortless Meal Planning")
                 st.markdown("""
@@ -193,7 +193,7 @@ try:
         with features_tab2:
             col1, col2 = st.columns([0.4, 0.6])
             with col1:
-                st.image("https://live.staticflickr.com/65535/53503924179_28ed5b65c6_b.jpg", use_container_width=True)
+                st.image("https://live.staticflickr.com/65535/54550711849_2ac8954256_b.jpg", use_container_width=True)
             with col2:
                 st.markdown("### Simple Health Monitoring")
                 st.markdown("""
@@ -206,7 +206,7 @@ try:
         with features_tab3:
             col1, col2 = st.columns([0.4, 0.6])
             with col1:
-                st.image("https://live.staticflickr.com/65535/53503924239_cfbdefb816_b.jpg", use_container_width=True)
+                st.image("https://live.staticflickr.com/65535/54549653432_73f6b0bdfd_b.jpg", use_container_width=True)
             with col2:
                 st.markdown("### Ongoing Support")
                 st.markdown("""
