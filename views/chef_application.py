@@ -82,14 +82,6 @@ try:
             help="Enter the postal codes of the areas where you plan to serve meals."
         )
 
-        # Terms and Conditions
-        st.subheader("Terms and Conditions")
-        terms_accepted = st.checkbox(
-            "I agree to the terms and conditions",
-            value=st.session_state.chef_application_data['terms_accepted'],
-            help="Please read and accept the terms and conditions before submitting your application."
-        )
-
         # Submit button
         submitted = st.form_submit_button("Submit Application")
 
@@ -99,13 +91,8 @@ try:
                 'experience': experience,
                 'bio': bio,
                 'postal_codes': postal_codes,
-                'terms_accepted': terms_accepted
             }
-            if not terms_accepted:
-                st.session_state.chef_application_error = "Please accept the terms and conditions to submit your application."
-                st.session_state.show_chef_application = True
-                st.rerun()
-            elif not experience or not bio or not postal_codes:
+            if not experience or not bio or not postal_codes:
                 st.session_state.chef_application_error = "Please fill in all required fields."
                 st.session_state.show_chef_application = True
                 st.rerun()
