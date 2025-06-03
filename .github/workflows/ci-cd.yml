@@ -113,26 +113,33 @@ jobs:
           source venv/bin/activate
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          source venv/bin/activate
+          pip install -r requirements.txt
 
-      - name: Zip artifact for deployment
-        run: zip release.zip ./* -r
+      - name: Prepare deployment files
+        run: |
+          # Create deployment directory
+          mkdir -p deployment
+          
+          # Copy all necessary files excluding development dependencies
+          cp -r . deployment/
+          
+          # Remove unnecessary files from deployment
+          rm -rf deployment/venv
+          rm -rf deployment/.git
+          rm -rf deployment/__pycache__
+          rm -rf deployment/.pytest_cache
+          rm -rf deployment/tests
+          rm -rf deployment/.sautai
+          find deployment -name "*.pyc" -delete
+          find deployment -name "*.log" -delete
+          find deployment -name ".DS_Store" -delete
 
-      - name: Upload artifact for deployment jobs
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-app
-          path: |
-            release.zip
-            !venv/
-
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: python-app
-
-      - name: Unzip artifact for deployment
-        run: unzip release.zip
+      - name: Create deployment artifact
+        run: |
+          cd deployment
+          zip -r ../sautai-deployment.zip . -x "*.git*" "*__pycache__*" "*.pyc"
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -146,4 +153,5 @@ jobs:
         id: deploy-to-webapp
         with:
           app-name: 'sautAI'
-          slot-name: 'Production' 
+          slot-name: 'Production'
+          package: 'sautai-deployment.zip' 
