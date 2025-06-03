@@ -12,10 +12,13 @@ from utils import (api_call_with_refresh, is_user_authenticated, login_form,
                    toggle_chef_mode, guest_chat_with_gpt, chat_with_gpt, EventHandler,
                    openai_headers, client, get_user_summary, 
                    resend_activation_link, footer, process_user_input, 
-                   fetch_follow_up_recommendations, display_streaming_summary, fetch_and_update_user_profile)
+                   fetch_follow_up_recommendations, display_streaming_summary, fetch_and_update_user_profile,
+                   check_django_cookies, navigate_to_page)
 import numpy as np
 import time
 import logging
+import sys
+import uuid
 
 # Set up logging
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[
@@ -477,12 +480,13 @@ try:
                             pass
 
                         st.warning(error_message)
-                        # No explicit st.stop() here, let it fall through or use switch_page like user did
+                        # No explicit st.stop() here, use switch_page
+                        navigate_to_page('home')
                 except requests.exceptions.RequestException as e:
                     logging.error(f"Email auth request exception: {str(e)}")
                     st.error(f"An error occurred while trying to confirm your email. Please check your connection and try again.")
                     # No explicit st.stop() here, use switch_page
-                    st.switch_page("views/home.py") 
+                    navigate_to_page('home')
 
 
     # Initialize session state variables if not already initialized
@@ -563,7 +567,7 @@ try:
                 # Keep recommendations if backend sent them
                 st.session_state.recommend_follow_up = summary_data.get("recommend_prompt", {})
             else:
-                st.warning("Summary wasn’t available yet – you can still chat normally.")
+                st.warning("Summary wasn't available yet – you can still chat normally.")
 
             # prevent re-fetch on rerun
             st.session_state.showed_user_summary = True

@@ -11,7 +11,7 @@ import datetime
 import pytz
 from utils import (api_call_with_refresh, login_form, toggle_chef_mode, 
                    fetch_and_update_user_profile, validate_input, parse_comma_separated_input, footer,
-                   fetch_languages)
+                   fetch_languages, navigate_to_page)
 from security_utils import (
     sanitize_registration_data, 
     validate_registration_security,
@@ -21,6 +21,7 @@ from security_utils import (
     CSRFProtection
 )
 import logging
+import traceback
 
 # Configure logging
 logging.basicConfig(level=logging.WARNING,
@@ -221,7 +222,7 @@ try:
                     st.success("Registration successful!")
                     st.info("Please check your email to activate your account.")
                     # Navigate to home page
-                    st.switch_page("views/home.py")
+                    navigate_to_page('home')
                 elif response.status_code == 400:
                     # Handle bad request - validation errors
                     try:

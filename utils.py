@@ -1488,12 +1488,13 @@ def login_form():
                     logging.error(f"Unexpected error during login: {e}")
 
         if register_button:
-            st.switch_page("views/7_register.py")
+            # Set a session state variable to indicate navigation to register page
+            navigate_to_page('register')
 
         # Password Reset Button
         if st.button("Forgot your password?"):
-            # Directly navigate to the activate page for password reset
-            st.switch_page("views/5_account.py")
+            # Set a session state variable to indicate navigation to account page
+            navigate_to_page('account')
 
 
 def resend_activation_link(user_id):
@@ -1796,3 +1797,18 @@ def adjust_chef_order(order_id: int, qty: int):
         data={"quantity": qty},
         headers=hdr,
     )
+
+# ============================
+# Navigation Utility Functions
+# ============================
+def navigate_to_page(page_key):
+    """
+    Navigate to a specific page using the modern Streamlit navigation system.
+    
+    Args:
+        page_key (str): The key identifying the target page
+                       Options: 'home', 'assistant', 'meal_plans', 'pantry', 'history', 
+                               'account', 'profile', 'register', 'chef_meals', 'chef_application'
+    """
+    st.session_state['navigate_to'] = page_key
+    st.rerun()

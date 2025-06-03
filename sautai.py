@@ -161,11 +161,19 @@ def main():
         token = st.query_params.get("token", "")
         action = st.query_params.get("action", "")
         
-        # If there are activation parameters, include the activation page
-        # This is a "hidden" page that won't show in nav but can be accessed by activation link
+        # Always include account page, but with different titles based on context
         if uid and token and (action == 'activate' or action == 'password_reset'):
-            pages.append(st.Page("views/5_account.py", title="Account Activation", icon="✅"))
-        
+            # Special case for activation/password reset links
+            if action == 'activate':
+                pages.append(st.Page("views/5_account.py", title="Email Activation", icon="✅"))
+            else:  # password_reset
+                pages.append(st.Page("views/5_account.py", title="Reset Password", icon="🔒"))
+        elif st.session_state.get("is_logged_in", False):
+            # Logged in users see "My Account"
+            pages.append(st.Page("views/5_account.py", title="My Account", icon="⚙️"))
+        else:
+            # Unauthenticated users see "Account" (for password reset, etc.)
+            pages.append(st.Page("views/5_account.py", title="Account", icon="🔒"))
         
         if st.session_state.get("is_logged_in", False):
             # Check if user is in chef mode
@@ -174,13 +182,11 @@ def main():
             if current_role == "chef" and st.session_state.get("is_chef", False):
                 # Only show chef-relevant pages when in chef mode
                 pages.append(st.Page("views/8_chef_meals.py", title="Chef Dashboard", icon="👨‍🍳"))
-                pages.append(st.Page("views/5_account.py", title="My Account", icon="⚙️"))
                 pages.append(st.Page("views/6_profile.py", title="Profile", icon="🪪"))
             else:
                 # Show regular user pages when not in chef mode
                 pages.append(st.Page("views/3_pantry.py", title="Pantry", icon="🏪"))
                 pages.append(st.Page("views/4_history.py", title="Chat History", icon="💬"))
-                pages.append(st.Page("views/5_account.py", title="My Account", icon="⚙️"))
                 pages.append(st.Page("views/6_profile.py", title="Profile", icon="🪪"))
                 # Only show chef application page if explicitly requested
                 if st.session_state.get("show_chef_application", False):
@@ -198,6 +204,38 @@ def main():
     
     # Display chef toggle in sidebar if user has chef privileges
     display_chef_toggle_in_sidebar()
+    
+    # Handle programmatic navigation requests
+    if 'navigate_to' in st.session_state:
+        target = st.session_state.pop('navigate_to')  # Remove after reading
+        
+        # Find the target page based on the navigation request
+        all_pages = get_pages()
+        target_page = None
+        
+        if target == 'register':
+            target_page = next((page for page in all_pages if '7_register' in page.url_path or 'register' in page.title.lower()), None)
+        elif target == 'account':
+            target_page = next((page for page in all_pages if '5_account' in page.url_path or 'account' in page.title.lower()), None)
+        elif target == 'assistant':
+            target_page = next((page for page in all_pages if '1_assistant' in page.url_path or 'assistant' in page.title.lower()), None)
+        elif target == 'home':
+            target_page = next((page for page in all_pages if 'home' in page.url_path or page.title.lower() == 'home'), None)
+        elif target == 'profile':
+            target_page = next((page for page in all_pages if '6_profile' in page.url_path or 'profile' in page.title.lower()), None)
+        elif target == 'chef_meals':
+            target_page = next((page for page in all_pages if '8_chef_meals' in page.url_path or 'chef' in page.title.lower()), None)
+        elif target == 'chef_application':
+            target_page = next((page for page in all_pages if 'chef_application' in page.url_path or 'chef application' in page.title.lower()), None)
+        elif target == 'meal_plans':
+            target_page = next((page for page in all_pages if '2_meal_plans' in page.url_path or 'meal plans' in page.title.lower()), None)
+        elif target == 'pantry':
+            target_page = next((page for page in all_pages if '3_pantry' in page.url_path or 'pantry' in page.title.lower()), None)
+        elif target == 'history':
+            target_page = next((page for page in all_pages if '4_history' in page.url_path or 'history' in page.title.lower()), None)
+        
+        if target_page:
+            st.switch_page(target_page)
     
     # Initialize navigation
     try:

@@ -6,7 +6,7 @@ from utils import (
     client, openai_headers, guest_chat_with_gpt, 
     chat_with_gpt, is_user_authenticated, resend_activation_link, footer,
     get_chef_meals_by_postal_code, replace_meal_with_chef_meal,
-    place_chef_order, adjust_chef_order
+    place_chef_order, adjust_chef_order, navigate_to_page
 )
 import os
 from dotenv import load_dotenv
@@ -1396,7 +1396,7 @@ def show_normal_ui(meal_plan_df, meal_plan_id, is_approved, is_past_week, select
             if 'address' not in st.session_state or not st.session_state.get('address', {}).get('postalcode'):
                 st.warning("Please set your postal code in your profile to see available chef meals.")
                 if st.button("Go to Profile Settings"):
-                    st.switch_page("views/5_account.py")
+                    navigate_to_page('account')
             else:
                 st.error("No chef meal data available at this time.")
                 st.markdown("""
@@ -1523,7 +1523,7 @@ if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in'
         login_form()
     with login_cols[1]:
         if st.button("Create Account", use_container_width=True):
-            st.switch_page("views/7_register.py")
+            navigate_to_page('register')
             
     
     # Sample preview (optional)

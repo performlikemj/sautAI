@@ -3,7 +3,7 @@ import streamlit as st
 import requests
 import os
 from dotenv import load_dotenv
-from utils import api_call_with_refresh, login_form, toggle_chef_mode
+from utils import api_call_with_refresh, login_form, toggle_chef_mode, footer
 import datetime
 import logging
 
@@ -82,34 +82,59 @@ try:
             
     # Now require login for everything else
     if 'is_logged_in' not in st.session_state or not st.session_state['is_logged_in']:
-        st.title("My Account")
-        login_form()
+        st.title("Account")
+        
+        # Create tabs for better organization
+        tab1, tab2 = st.tabs(["Login", "Reset Password"])
+        
+        with tab1:
+            st.subheader("Login to Your Account")
+            login_form()
 
-        # Forgotten Password Form for Unauthenticated Users
-        if action != 'password_reset' and action != 'activate':
-            st.subheader("Forgot Password?")
-            email = st.text_input("Email Address", "")
-            if st.button("Send Reset Password Link"):
-                # Define the URL
-                url = f"{os.getenv('DJANGO_URL')}/auth/api/password_reset_request/"
+        with tab2:
+            # Forgotten Password Form for Unauthenticated Users
+            if action != 'password_reset' and action != 'activate':
+                st.subheader("Reset Your Password")
+                st.write("Enter your email address and we'll send you a link to reset your password.")
+                
+                with st.form("password_reset_form"):
+                    email = st.text_input("Email Address", placeholder="Enter your email address")
+                    submit_button = st.form_submit_button("Send Reset Link", type="primary")
+                    
+                    if submit_button and email:
+                        # Define the URL
+                        url = f"{os.getenv('DJANGO_URL')}/auth/api/password_reset_request/"
 
-                # Define the data
-                data = {'email': email}
+                        # Define the data
+                        data = {'email': email}
 
-                # Send the POST request
-                response = api_call_with_refresh(url, method='post', data=data)
+                        # Send the POST request
+                        response = api_call_with_refresh(url, method='post', data=data)
 
-                # Check the response
-                if response.status_code == 200:
-                    st.success("Reset password link sent successfully.")
-                else:
-                    st.error("Failed to send reset password link.")
+                        # Check the response
+                        if response.status_code == 200:
+                            st.success("✅ Reset password link sent successfully! Please check your email.")
+                            st.info("If you don't see the email in your inbox, please check your spam folder.")
+                        else:
+                            st.error("❌ Failed to send reset password link. Please check your email address and try again.")
+                    elif submit_button and not email:
+                        st.error("Please enter your email address.")
         st.stop()
     
     # Rest of the account page for logged-in users
-    # Logout Button
-    if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
-        if st.button("Logout", key='form_logout'):
+    st.title("My Account")
+    
+    # User info section
+    if st.session_state.get('user_info'):
+        user_info = st.session_state['user_info']
+        st.success(f"👋 Welcome back, {user_info.get('username', 'User')}!")
+    
+    # Account management tabs for logged-in users
+    account_tab1, account_tab2 = st.tabs(["Account Settings", "Change Password"])
+    
+    with account_tab1:
+        # Logout Button
+        if st.button("🚪 Logout", type="secondary"):
             # Clear session state but preserve navigation
             navigation_state = st.session_state.get("navigation", None)
             for key in list(st.session_state.keys()):
@@ -118,35 +143,49 @@ try:
                 st.session_state["navigation"] = navigation_state
             st.success("Logged out successfully!")
             st.rerun()
+    
+    with account_tab2:
+        st.subheader("Change Your Password")
+        st.write("Enter your current password and choose a new one.")
+        
+        with st.form("change_password_form"):
+            current_password = st.text_input("Current Password", type="password")
+            new_password = st.text_input("New Password", type="password")
+            confirm_password = st.text_input("Confirm New Password", type="password")
+            submit_button = st.form_submit_button("Change Password", type="primary")
+            
+            if submit_button:
+                if not all([current_password, new_password, confirm_password]):
+                    st.error("Please fill in all fields.")
+                elif new_password != confirm_password:
+                    st.error("New password and confirmation do not match.")
+                else:
+                    # Define the URL
+                    url = f"{os.getenv('DJANGO_URL')}/auth/api/change_password/"
 
-        current_password = st.text_input("Current Password", type="password")
-        new_password = st.text_input("New Password", type="password")
-        confirm_password = st.text_input("Confirm New Password", type="password")
-        if st.button("Change Password"):
-            # Define the URL
-            url = f"{os.getenv('DJANGO_URL')}/auth/api/change_password/"
+                    # Define the data
+                    data = {
+                        'current_password': current_password,
+                        'new_password': new_password,
+                        'confirm_password': confirm_password
+                    }
 
-            # Define the data
-            data = {
-                'current_password': current_password,
-                'new_password': new_password,
-                'confirm_password': confirm_password
-            }
+                    # Send the POST request
+                    headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+                    response = api_call_with_refresh(url, method='post', data=data, headers=headers)
 
-            # Send the POST request
-            headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
-            response = api_call_with_refresh(url, method='post', data=data, headers=headers)
-
-            # Check the response
-            if response.status_code == 200:
-                st.success("Password changed successfully.")
-            elif response.status_code == 400:
-                st.error(response.json()['message'])
-            elif response.status_code == 500:
-                st.error("An error occurred while changing the password.")
-            else:
-                st.error("Failed to change password.")
+                    # Check the response
+                    if response.status_code == 200:
+                        st.success("✅ Password changed successfully!")
+                    elif response.status_code == 400:
+                        st.error(f"❌ {response.json().get('message', 'Failed to change password.')}")
+                    elif response.status_code == 500:
+                        st.error("❌ An error occurred while changing the password.")
+                    else:
+                        st.error("❌ Failed to change password.")
 
 except Exception as e:
     logging.error(f"An error occurred: {str(e)}")
     st.error("An unexpected error occurred. Please try again later.")
+
+footer()

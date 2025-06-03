@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import os
 import datetime
 import logging
-from utils import login_form, toggle_chef_mode, validate_input, footer, fetch_and_update_user_profile
+from utils import login_form, toggle_chef_mode, validate_input, footer, fetch_and_update_user_profile, navigate_to_page
 
 # Load environment variables and configure logging
 load_dotenv()
@@ -51,7 +51,7 @@ try:
                             st.session_state['access_token'] = response_data['access']
                             st.session_state['refresh_token'] = response_data['refresh']
                             st.session_state['is_logged_in'] = True
-                            st.switch_page("views/1_assistant.py")  # Navigate to assistant page after login
+                            navigate_to_page('assistant')  # Navigate to assistant page after login
                         else:
                             st.error("Invalid username or password.")
                     except requests.exceptions.HTTPError as http_err:
@@ -61,11 +61,11 @@ try:
                         st.error("Unable to connect to the server. Please try again later.")
                         logging.error(f"Connection error: {req_err}")
             if register_button:
-                st.switch_page("views/7_register.py")
+                navigate_to_page('register')
 
             # Password Reset Button
             if st.button("Forgot your password?"):
-                st.switch_page("views/5_account.py")
+                navigate_to_page('account')
 
     # Logout Button
     if 'is_logged_in' in st.session_state and st.session_state['is_logged_in']:
@@ -116,7 +116,7 @@ try:
                     """, unsafe_allow_html=True)
                 
                 if st.button("Get Started Today 🍽️", use_container_width=True):
-                    st.switch_page("views/7_register.py")
+                    navigate_to_page('register')
             
             with hero_col2:
                 st.markdown("""
@@ -139,7 +139,7 @@ try:
                 """, unsafe_allow_html=True)
             
             if st.button("Get Started Today 🍽️", use_container_width=True):
-                st.switch_page("views/7_register.py")
+                navigate_to_page('register')
     
     st.markdown("---")  # Divider for visual separation
     
@@ -326,9 +326,9 @@ try:
         with cta_col2:
             st.markdown("<br><br>", unsafe_allow_html=True)  # Spacing
             if st.button("Create Free Account", use_container_width=True, type="primary"):
-                st.switch_page("views/7_register.py")
+                navigate_to_page('register')
             if st.button("Explore as Guest", use_container_width=True):
-                st.switch_page("views/1_assistant.py")
+                navigate_to_page('assistant')
     else:
         # Mobile view - stack vertically
         st.markdown("<h2>Ready to Transform Your Relationship with Food?</h2>", unsafe_allow_html=True)
