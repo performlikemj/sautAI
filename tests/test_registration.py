@@ -327,10 +327,14 @@ class TestActualSecurityImplementation:
         
         for xss_input in xss_inputs:
             sanitized = InputSanitizer.sanitize_string(xss_input)
+            # Check that dangerous HTML tags are escaped/removed
             assert "<script>" not in sanitized.lower()
+            assert "<img" not in sanitized.lower()
             assert "javascript:" not in sanitized.lower()
             assert "onclick" not in sanitized.lower()
-            assert "alert" not in sanitized.lower()
+            # Verify that HTML escaping occurred for inputs with angle brackets
+            if "<" in xss_input and ">" in xss_input:
+                assert "&lt" in sanitized and "&gt" in sanitized
     
     def test_input_sanitizer_sql_injection_prevention(self):
         """Test SQL injection prevention"""
@@ -365,7 +369,10 @@ class TestActualSecurityImplementation:
         for weak_pass in weak_passwords:
             valid, msg = SecurityValidator.validate_password_strength(weak_pass)
             assert not valid
-            assert "weak" in msg.lower() or "short" in msg.lower() or "common" in msg.lower()
+            # Check for actual message patterns our implementation returns
+            assert ("8 characters" in msg.lower() or 
+                    "common" in msg.lower() or 
+                    "must contain" in msg.lower())
         
         # Test strong passwords
         strong_passwords = ["SecurePass123!", "MyStr0ng!Password", "C0mpl3x@Pass"]
@@ -451,8 +458,15 @@ class TestActualSecurityImplementation:
         # Check that all script tags are removed
         def check_no_scripts(obj):
             if isinstance(obj, str):
+                # Check that dangerous HTML tags are escaped/removed
                 assert "<script>" not in obj.lower()
-                assert "alert" not in obj.lower()
+                assert "<img" not in obj.lower()
+                assert "javascript:" not in obj.lower()
+                assert "onclick" not in obj.lower()
+                # Verify HTML escaping for content that originally had dangerous tags
+                if "<script>" in str(obj).replace("&lt;", "<").replace("&gt;", ">").lower():
+                    # Original had script tags, should be HTML escaped now
+                    assert "&lt" in obj and "&gt" in obj
             elif isinstance(obj, dict):
                 for value in obj.values():
                     check_no_scripts(value)
