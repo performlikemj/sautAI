@@ -50,6 +50,9 @@ typing_extensions==4.13.0
 tzdata==2025.2
 urllib3==2.3.0
 
+# Security dependencies
+bleach==6.2.0
+
 # Testing dependencies
 pytest==8.3.4
 pytest-mock==3.14.0

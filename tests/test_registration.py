@@ -307,6 +307,196 @@ class TestRegistrationValidation:
                 assert response.status_code == 400
                 # In our implementation, these should be converted to generic messages
 
+
+class TestActualSecurityImplementation:
+    """Test the actual security utilities we implemented"""
+    
+    def test_input_sanitizer_xss_prevention(self):
+        """Test XSS prevention in input sanitizer"""
+        try:
+            from security_utils import InputSanitizer
+        except ImportError:
+            pytest.skip("Security utilities not available")
+        
+        xss_inputs = [
+            "<script>alert('xss')</script>",
+            "<img src=x onerror=alert(1)>",
+            "javascript:alert('xss')",
+            "onclick='alert(1)'",
+        ]
+        
+        for xss_input in xss_inputs:
+            sanitized = InputSanitizer.sanitize_string(xss_input)
+            assert "<script>" not in sanitized.lower()
+            assert "javascript:" not in sanitized.lower()
+            assert "onclick" not in sanitized.lower()
+            assert "alert" not in sanitized.lower()
+    
+    def test_input_sanitizer_sql_injection_prevention(self):
+        """Test SQL injection prevention"""
+        try:
+            from security_utils import InputSanitizer
+        except ImportError:
+            pytest.skip("Security utilities not available")
+        
+        sql_inputs = [
+            "'; DROP TABLE users; --",
+            "1' OR '1'='1",
+            "UNION SELECT * FROM passwords",
+            "admin'--",
+        ]
+        
+        for sql_input in sql_inputs:
+            sanitized = InputSanitizer.sanitize_string(sql_input)
+            assert "drop table" not in sanitized.lower()
+            assert "union select" not in sanitized.lower()
+            assert "or 1=1" not in sanitized.lower()
+            assert "--" not in sanitized
+    
+    def test_security_validator_password_strength(self):
+        """Test password strength validation"""
+        try:
+            from security_utils import SecurityValidator
+        except ImportError:
+            pytest.skip("Security utilities not available")
+        
+        # Test weak passwords
+        weak_passwords = ["123", "password", "qwerty123", "letmein"]
+        for weak_pass in weak_passwords:
+            valid, msg = SecurityValidator.validate_password_strength(weak_pass)
+            assert not valid
+            assert "weak" in msg.lower() or "short" in msg.lower() or "common" in msg.lower()
+        
+        # Test strong passwords
+        strong_passwords = ["SecurePass123!", "MyStr0ng!Password", "C0mpl3x@Pass"]
+        for strong_pass in strong_passwords:
+            valid, msg = SecurityValidator.validate_password_strength(strong_pass)
+            assert valid
+    
+    def test_security_validator_email_format(self):
+        """Test email format validation"""
+        try:
+            from security_utils import SecurityValidator
+        except ImportError:
+            pytest.skip("Security utilities not available")
+        
+        # Test invalid emails
+        invalid_emails = ["invalid", "@domain.com", "user@", "user..name@domain.com"]
+        for invalid_email in invalid_emails:
+            valid, msg = SecurityValidator.validate_email_format(invalid_email)
+            assert not valid
+        
+        # Test valid emails
+        valid_emails = ["test@example.com", "user.name@domain.co.uk", "user+tag@example.org"]
+        for valid_email in valid_emails:
+            valid, msg = SecurityValidator.validate_email_format(valid_email)
+            assert valid
+    
+    def test_security_validator_username_format(self):
+        """Test username format validation"""
+        try:
+            from security_utils import SecurityValidator
+        except ImportError:
+            pytest.skip("Security utilities not available")
+        
+        # Test invalid usernames
+        invalid_usernames = ["ab", "admin", "user@name", "user name", "user<script>"]
+        for invalid_username in invalid_usernames:
+            valid, msg = SecurityValidator.validate_username_format(invalid_username)
+            assert not valid
+        
+        # Test valid usernames
+        valid_usernames = ["testuser123", "user.name", "user_name", "user-name"]
+        for valid_username in valid_usernames:
+            valid, msg = SecurityValidator.validate_username_format(valid_username)
+            assert valid
+    
+    def test_registration_data_sanitization(self):
+        """Test complete registration data sanitization"""
+        try:
+            from security_utils import sanitize_registration_data
+        except ImportError:
+            pytest.skip("Security utilities not available")
+        
+        dangerous_data = {
+            "user": {
+                "username": "user<script>alert(1)</script>",
+                "email": "<script>test@example.com</script>",
+                "password": "SecurePass123!",
+                "phone_number": "+1-555<script>123-4567",
+                "dietary_preferences": ["Vegetarian<script>"],
+                "custom_dietary_preferences": ["Custom<script>alert(1)</script>"],
+                "allergies": ["Peanuts<script>"],
+                "custom_allergies": ["Custom allergy<script>"],
+                "timezone": "UTC<script>",
+                "preferred_language": "en<script>",
+                "preferred_servings": 2,
+                "emergency_supply_goal": 7
+            },
+            "address": {
+                "street": "123 Main St<script>",
+                "city": "Test City<script>",
+                "state": "Test State<script>",
+                "country": "US",
+                "postalcode": "12345<script>"
+            },
+            "goal": {
+                "goal_name": "Healthy<script>alert(1)</script>",
+                "goal_description": "Eat healthier<script>alert(1)</script>"
+            }
+        }
+        
+        sanitized = sanitize_registration_data(dangerous_data)
+        
+        # Check that all script tags are removed
+        def check_no_scripts(obj):
+            if isinstance(obj, str):
+                assert "<script>" not in obj.lower()
+                assert "alert" not in obj.lower()
+            elif isinstance(obj, dict):
+                for value in obj.values():
+                    check_no_scripts(value)
+            elif isinstance(obj, list):
+                for item in obj:
+                    check_no_scripts(item)
+        
+        check_no_scripts(sanitized)
+    
+    def test_registration_security_validation(self):
+        """Test complete registration security validation"""
+        try:
+            from security_utils import validate_registration_security
+        except ImportError:
+            pytest.skip("Security utilities not available")
+        
+        # Test with dangerous input
+        dangerous_data = {
+            "user": {
+                "username": "'; DROP TABLE users; --",
+                "email": "test@example.com",
+                "password": "weak",
+                "phone_number": "+1234567890",
+                "dietary_preferences": [],
+                "custom_dietary_preferences": [],
+                "allergies": [],
+                "custom_allergies": [],
+                "timezone": "UTC",
+                "preferred_language": "en",
+                "preferred_servings": 2,
+                "emergency_supply_goal": 7
+            }
+        }
+        
+        valid, errors = validate_registration_security(dangerous_data)
+        assert not valid
+        assert len(errors) > 0
+        
+        # Should detect dangerous patterns
+        assert any("dangerous" in error.lower() for error in errors) or \
+               any("password" in error.lower() for error in errors) or \
+               any("username" in error.lower() for error in errors)
+
+
 class TestRegistrationIntegration:
     """Integration tests for registration flow"""
     

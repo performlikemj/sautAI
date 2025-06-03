@@ -12,6 +12,14 @@ import pytz
 from utils import (api_call_with_refresh, login_form, toggle_chef_mode, 
                    fetch_and_update_user_profile, validate_input, parse_comma_separated_input, footer,
                    fetch_languages)
+from security_utils import (
+    sanitize_registration_data, 
+    validate_registration_security,
+    InputSanitizer, 
+    SecurityValidator,
+    RateLimiter,
+    CSRFProtection
+)
 import logging
 
 # Configure logging
@@ -20,6 +28,8 @@ logging.basicConfig(level=logging.WARNING,
                     filename='history.log', # Log to a file. Remove this to log to console
                     filemode='w') # 'w' to overwrite the log file on each run, 'a' to append
 
+# Initialize rate limiter (in production, use Redis or database-backed limiter)
+rate_limiter = RateLimiter(max_attempts=5, window_minutes=15)
 
 # Content moved from register() to top level
 try:
@@ -103,6 +113,15 @@ try:
 
         submit_button = st.form_submit_button(label='Register')
         if submit_button:
+            # Get client IP for rate limiting (in production, use real IP detection)
+            client_ip = st.session_state.get('client_ip', 'unknown')
+            
+            # Check rate limiting
+            if rate_limiter.is_rate_limited(client_ip):
+                st.error("Too many registration attempts. Please try again later.")
+                st.stop()
+            
+            # Basic validation using existing validators
             valid_username, username_msg = validate_input(username, 'username')
             valid_email, email_msg = validate_input(email, 'email')
             valid_password, password_msg = validate_input(password, 'password')
@@ -130,16 +149,10 @@ try:
             if (selected_country or postal_code.strip()) and (not street.strip() or not city.strip()):
                 validation_errors.append("Address Error: When providing country and postal code, street and city are also required.")
 
-            # Display all validation errors in a formatted way
-            if validation_errors:
-                st.error("Please fix the following errors:")
-                for error in validation_errors:
-                    st.warning(error)
-                st.stop()
-
             # Parse custom dietary preferences
             custom_dietary_preferences = parse_comma_separated_input(custom_dietary_preferences_input)
 
+            # Create user data structure
             user_data = {
                 "user": {
                     "username": username,
@@ -167,11 +180,42 @@ try:
                     "goal_description": goal_description
                 }
             }
+            
+            # Security validation and sanitization
+            security_valid, security_errors = validate_registration_security(user_data)
+            if not security_valid:
+                validation_errors.extend(security_errors)
+            
+            # Advanced security validation using new validators
+            username_secure, username_sec_msg = SecurityValidator.validate_username_format(username)
+            if not username_secure:
+                validation_errors.append(f"Username Security: {username_sec_msg}")
+                
+            email_secure, email_sec_msg = SecurityValidator.validate_email_format(email)
+            if not email_secure:
+                validation_errors.append(f"Email Security: {email_sec_msg}")
+                
+            password_secure, password_sec_msg = SecurityValidator.validate_password_strength(password)
+            if not password_secure:
+                validation_errors.append(f"Password Security: {password_sec_msg}")
+
+            # Display all validation errors in a formatted way
+            if validation_errors:
+                st.error("Please fix the following errors:")
+                for error in validation_errors:
+                    st.warning(error)
+                st.stop()
+            
+            # Sanitize user data before sending to API
+            sanitized_data = sanitize_registration_data(user_data)
+            
+            # Log sanitization for security monitoring
+            logging.info(f"Registration attempt for username: {InputSanitizer.sanitize_username(username)[:10]}...")
 
             try:
                 with st.spinner("Registering your account..."):
                     api_url = f"{os.getenv('DJANGO_URL')}/auth/api/register/"
-                    response = requests.post(api_url, json=user_data, timeout=10)
+                    response = requests.post(api_url, json=sanitized_data, timeout=10)
                 
                 if response.status_code == 200:
                     st.success("Registration successful!")

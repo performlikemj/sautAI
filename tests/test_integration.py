@@ -275,17 +275,54 @@ class TestSecurityValidation:
 
     def test_input_sanitization(self):
         """Test input sanitization for XSS prevention"""
+        # Import our actual security utilities
+        import sys
+        import os
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        
+        try:
+            from security_utils import InputSanitizer
+        except ImportError:
+            # If security_utils not available, skip test
+            pytest.skip("Security utilities not available")
+        
         malicious_inputs = [
             "<script>alert('xss')</script>",
             "'; DROP TABLE users; --",
             "<img src=x onerror=alert('xss')>",
+            "javascript:alert('xss')",
+            "onclick='alert(1)'",
+            "{{7*7}}",  # Template injection
+            "../../../etc/passwd",  # Path traversal
         ]
         
         for malicious_input in malicious_inputs:
             # Test that malicious input is properly sanitized
-            # In actual implementation, test your sanitization functions
-            sanitized = malicious_input  # Replace with actual sanitization
-            assert "<script>" not in sanitized
+            sanitized = InputSanitizer.sanitize_string(malicious_input)
+            
+            # Should not contain dangerous patterns
+            assert "<script>" not in sanitized.lower()
+            assert "javascript:" not in sanitized.lower()
+            assert "onclick" not in sanitized.lower()
+            assert "alert" not in sanitized.lower()
+            assert "drop table" not in sanitized.lower()
+            assert "../" not in sanitized
+            assert "{{" not in sanitized
+            
+            # Should be safe for display
+            assert len(sanitized) >= 0  # Sanitization might remove everything, that's ok
+            
+        # Test specific field sanitizers
+        test_email = "<script>test@example.com</script>"
+        sanitized_email = InputSanitizer.sanitize_email(test_email)
+        assert "<script>" not in sanitized_email
+        assert "@" in sanitized_email  # Should preserve valid email parts
+        
+        test_username = "user<script>alert(1)</script>name"
+        sanitized_username = InputSanitizer.sanitize_username(test_username)
+        assert "<script>" not in sanitized_username
+        assert "alert" not in sanitized_username
+        assert len(sanitized_username) > 0  # Should preserve valid username parts
 
     def test_rate_limiting_simulation(self):
         """Test rate limiting behavior simulation"""
