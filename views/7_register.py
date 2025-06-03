@@ -57,14 +57,17 @@ try:
         Your address is used to:
         1. Find supported supermarkets in your area
         2. Find chefs in your area to provide meal planning meals
+        
+        **Note:** If you provide a country, you must also provide a postal code (and vice versa). 
+        Street and city are recommended when providing location information.
         """)
-        street = st.text_input("Street")
-        city = st.text_input("City")
-        state = st.text_input("State/Province")
-        postal_code = st.text_input("Postal Code")
+        street = st.text_input("Street", help="Your street address (recommended when providing location)")
+        city = st.text_input("City", help="Your city (recommended when providing location)")
+        state = st.text_input("State/Province", help="Your state or province")
+        postal_code = st.text_input("Postal Code", help="Required if you select a country")
         # Get a list of all countries
         countries = [country.name for country in pycountry.countries]
-        selected_country = st.selectbox("Country", countries)
+        selected_country = st.selectbox("Country", countries, help="Required if you provide a postal code")
         # Convert the selected country to its two-letter country code
         country_code = pycountry.countries.get(name=selected_country).alpha_2
 
@@ -118,6 +121,14 @@ try:
                 validation_errors.append(f"Phone Number Error: {phone_msg}")
             if not valid_postal and postal_code:  # Only validate postal if provided
                 validation_errors.append(f"Postal Code Error: {postal_msg}")
+            
+            # Validate that both country and postal code are provided together
+            if (selected_country and not postal_code.strip()) or (postal_code.strip() and not selected_country):
+                validation_errors.append("Address Error: Both country and postal code must be provided together.")
+            
+            # If either country or postal code is provided, both street and city should also be provided
+            if (selected_country or postal_code.strip()) and (not street.strip() or not city.strip()):
+                validation_errors.append("Address Error: When providing country and postal code, street and city are also required.")
 
             # Display all validation errors in a formatted way
             if validation_errors:
@@ -161,19 +172,112 @@ try:
                 with st.spinner("Registering your account..."):
                     api_url = f"{os.getenv('DJANGO_URL')}/auth/api/register/"
                     response = requests.post(api_url, json=user_data, timeout=10)
+                
                 if response.status_code == 200:
                     st.success("Registration successful!")
                     st.info("Please check your email to activate your account.")
                     # Navigate to home page
                     st.switch_page("views/home.py")
-                if response.status_code == 400:
-                    errors = response.json().get('errors', {})
-                    if isinstance(errors, dict):
-                        # Generic message for all registration failures
-                        st.error("Unable to complete registration. If you already have an account, please try logging in. Otherwise, please try again with a different email address.")
-                        st.markdown("[Click here to log in](pages/home.py)", unsafe_allow_html=True)
-                    else:
-                        st.error("Registration failed. Please check your input and try again.")
+                elif response.status_code == 400:
+                    # Handle bad request - validation errors
+                    try:
+                        error_data = response.json()
+                        errors = error_data.get('errors', {})
+                        
+                        # Log detailed errors for debugging but show sanitized messages to users
+                        logging.warning(f"Registration validation errors: {errors}")
+                        
+                        if isinstance(errors, dict):
+                            # Only display safe, user-friendly error messages
+                            user_friendly_errors = []
+                            
+                            for field, messages in errors.items():
+                                if field == '__all__':
+                                    # Handle general form validation errors
+                                    if isinstance(messages, list):
+                                        for msg in messages:
+                                            if 'country and postal code must be provided together' in str(msg).lower():
+                                                user_friendly_errors.append("Please ensure both country and postal code are provided together.")
+                                            elif 'duplicate' in str(msg).lower() or 'already exists' in str(msg).lower():
+                                                # Don't reveal specific account information - generic message
+                                                user_friendly_errors.append("Registration failed. Please check your information and try again.")
+                                            else:
+                                                # Generic message for other validation errors
+                                                user_friendly_errors.append("Please check your information and try again.")
+                                    else:
+                                        msg = str(messages)
+                                        if 'country and postal code must be provided together' in msg.lower():
+                                            user_friendly_errors.append("Please ensure both country and postal code are provided together.")
+                                        elif 'duplicate' in msg.lower() or 'already exists' in msg.lower():
+                                            # Don't reveal specific account information - generic message
+                                            user_friendly_errors.append("Registration failed. Please check your information and try again.")
+                                        else:
+                                            user_friendly_errors.append("Please check your information and try again.")
+                                            
+                                elif field in ['username', 'email', 'password']:
+                                    # Only show sanitized messages for sensitive fields
+                                    if isinstance(messages, list):
+                                        for msg in messages:
+                                            if 'already exists' in str(msg).lower() or 'duplicate' in str(msg).lower():
+                                                if field == 'username':
+                                                    user_friendly_errors.append("This username is already taken. Please choose a different one.")
+                                                elif field == 'email':
+                                                    # Don't reveal email existence - prevent enumeration
+                                                    user_friendly_errors.append("Registration failed. Please check your information and try again.")
+                                            elif 'invalid' in str(msg).lower():
+                                                if field == 'email':
+                                                    user_friendly_errors.append("Please enter a valid email address.")
+                                                elif field == 'password':
+                                                    user_friendly_errors.append("Please choose a stronger password.")
+                                            else:
+                                                # Generic message for other field errors
+                                                user_friendly_errors.append(f"Please check your {field} and try again.")
+                                    else:
+                                        msg = str(messages)
+                                        if 'already exists' in msg.lower() or 'duplicate' in msg.lower():
+                                            if field == 'username':
+                                                user_friendly_errors.append("This username is already taken. Please choose a different one.")
+                                            elif field == 'email':
+                                                # Don't reveal email existence - prevent enumeration
+                                                user_friendly_errors.append("Registration failed. Please check your information and try again.")
+                                        elif 'invalid' in msg.lower():
+                                            if field == 'email':
+                                                user_friendly_errors.append("Please enter a valid email address.")
+                                            elif field == 'password':
+                                                user_friendly_errors.append("Please choose a stronger password.")
+                                        else:
+                                            user_friendly_errors.append(f"Please check your {field} and try again.")
+                            
+                            if user_friendly_errors:
+                                st.error("Registration failed. Please fix the following issues:")
+                                for msg in user_friendly_errors:
+                                    st.warning(msg)
+                                
+                                # Show generic login link instead of conditional one
+                                st.info("Already have an account? [Click here to log in](pages/home.py)")
+                            else:
+                                # Fallback generic message
+                                st.error("Registration failed. Please check your information and try again.")
+                        else:
+                            # Generic message for unexpected error structure
+                            st.error("Registration failed. Please check your information and try again.")
+                            
+                    except (ValueError, KeyError) as e:
+                        # Log the parsing error but don't expose it to user
+                        logging.error(f"Error parsing registration response: {e}")
+                        st.error("Registration failed. Please check your information and try again.")
+                        
+                elif response.status_code == 500:
+                    # Handle internal server error - don't expose server details
+                    logging.error(f"Server error during registration: {response.status_code}")
+                    st.error("We're experiencing technical difficulties. Please try again in a few moments.")
+                    st.info("If the problem continues, please contact support.")
+                    
+                else:
+                    # Handle other status codes - don't expose specific codes to user
+                    logging.error(f"Unexpected registration response: {response.status_code}")
+                    st.error("Registration failed. Please try again.")
+                    
             except requests.exceptions.RequestException as e:
                 st.error("Failed to register due to a network issue. Please try again later.")
                 logging.error(f"Registration network error: {e}")
