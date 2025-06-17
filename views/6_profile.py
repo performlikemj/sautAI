@@ -96,6 +96,11 @@ try:
     elif is_user_authenticated() and st.session_state.get('email_confirmed', False):
         if 'current_role' in st.session_state and st.session_state['current_role'] != 'chef':
             st.title("Profile")
+            
+            # Display chef application success message if it exists
+            if 'chef_application_success' in st.session_state:
+                st.success(st.session_state.chef_application_success)
+                del st.session_state.chef_application_success
 
             # Fetch user details
             headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}

@@ -152,8 +152,8 @@ try:
                     # Clear form data from session state
                     if 'chef_application_data' in st.session_state:
                         del st.session_state.chef_application_data
-                    st.success("Your application has been submitted successfully!")
-                    st.info("We'll review your application and get back to you soon.")
+                    # Store success message in session state to display on profile page
+                    st.session_state.chef_application_success = "Your chef application has been submitted successfully! We'll review your application and get back to you soon."
                     # Remove the show_chef_application flag from session state
                     if 'show_chef_application' in st.session_state:
                         del st.session_state.show_chef_application
