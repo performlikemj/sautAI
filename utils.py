@@ -599,6 +599,7 @@ def refresh_chef_status():
     This should be called when there might be changes to chef status.
     """
     try:
+        logging.warning("refresh_chef_status: Starting chef status refresh")
         if is_user_authenticated():
             headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
             
@@ -611,6 +612,7 @@ def refresh_chef_status():
             
             if user_response and user_response.status_code == 200:
                 user_data = user_response.json()
+                logging.warning(f"refresh_chef_status: Backend says is_chef={user_data.get('is_chef')}, current_role={user_data.get('current_role')}")
                 
                 # Update session state
                 old_is_chef = st.session_state.get('is_chef', False)
@@ -625,12 +627,17 @@ def refresh_chef_status():
                     st.session_state['user_info']['current_role'] = user_data.get('current_role', 'customer')
                 
                 # Return True if chef status changed
-                return old_is_chef != new_is_chef
+                status_changed = old_is_chef != new_is_chef
+                logging.warning(f"refresh_chef_status: Status changed from {old_is_chef} to {new_is_chef}: {status_changed}")
+                return status_changed
             else:
-                logging.error(f"Failed to refresh chef status. Status: {user_response.status_code if user_response else 'No response'}")
+                logging.error(f"refresh_chef_status: API call failed. Status: {user_response.status_code if user_response else 'No response'}")
                 return False
+        else:
+            logging.warning("refresh_chef_status: User not authenticated, skipping refresh")
+            return False
     except Exception as e:
-        logging.error(f"Error refreshing chef status: {str(e)}")
+        logging.error(f"refresh_chef_status: Exception occurred: {str(e)}")
         return False
 
 def display_chef_toggle_in_sidebar():
@@ -638,8 +645,12 @@ def display_chef_toggle_in_sidebar():
     Displays a toggle in the sidebar for users with chef privileges to switch between chef and customer modes.
     This function should be called from the main app file to make the toggle available on all pages.
     """
+    # Log the current session state for debugging
+    logging.warning(f"Chef toggle check: is_chef={st.session_state.get('is_chef', 'NOT_SET')}, current_role={st.session_state.get('current_role', 'NOT_SET')}, is_logged_in={st.session_state.get('is_logged_in', 'NOT_SET')}")
+    
     # Only show for users with chef privileges
     if 'is_chef' in st.session_state and st.session_state['is_chef']:
+        logging.warning("Chef toggle: Displaying toggle - user has chef privileges")
         st.sidebar.markdown("---")
         st.sidebar.markdown("### Chef Access")
         
@@ -680,19 +691,23 @@ def display_chef_toggle_in_sidebar():
                 logging.error(f"Error switching modes: {str(e)}")
                 logging.error(traceback.format_exc())
     else:
+        logging.warning("Chef toggle: NOT displaying - user does not have chef privileges or not logged in")
         # Check if user might be a chef but session state is outdated
         # Only do this check periodically to avoid excessive API calls
         if (is_user_authenticated() and 
             'last_chef_status_check' not in st.session_state or 
             time.time() - st.session_state.get('last_chef_status_check', 0) > 300):  # Check every 5 minutes
             
+            logging.warning("Chef toggle: Performing periodic chef status refresh")
             # Refresh chef status from backend
             if refresh_chef_status():
                 # Chef status changed, rerun to show the toggle
                 st.session_state['last_chef_status_check'] = time.time()
+                logging.warning("Chef toggle: Status changed, rerunning app")
                 st.rerun()
             else:
                 st.session_state['last_chef_status_check'] = time.time()
+                logging.warning("Chef toggle: No status change detected")
 
 def get_chef_meals_by_postal_code(meal_type=None, date=None, week_start_date=None, chef_id=None, include_compatible_only=False, page=1, page_size=10):
     """
@@ -1510,6 +1525,7 @@ def login_form():
                     )
                     if response.status_code == 200:
                         response_data = response.json()
+                        logging.info(f"Login successful: is_chef={response_data.get('is_chef')}, current_role={response_data.get('current_role')}")
                         st.success("Logged in successfully!")
                         # Update session state with user information
                         st.session_state['user_info'] = response_data
@@ -1530,6 +1546,7 @@ def login_form():
                         st.session_state['access_token'] = response_data['access']
                         st.session_state['refresh_token'] = response_data['refresh']
                         st.session_state['is_logged_in'] = True
+                        logging.info(f"Session state set: is_chef={st.session_state.get('is_chef')}, current_role={st.session_state.get('current_role')}")
                         st.rerun()  # Rerun to update navigation
                 except requests.exceptions.HTTPError as http_err:
                     st.error("Invalid username or password.")

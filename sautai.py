@@ -203,6 +203,7 @@ def main():
     st.session_state["navigation"] = pages
     
     # Display chef toggle in sidebar if user has chef privileges
+    logging.warning("Main app: About to call display_chef_toggle_in_sidebar")
     display_chef_toggle_in_sidebar()
     
     # Handle programmatic navigation requests
