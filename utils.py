@@ -593,6 +593,46 @@ def footer():
         unsafe_allow_html=True
     )
 
+def refresh_chef_status():
+    """
+    Refresh the chef status from the backend to ensure session state is up to date.
+    This should be called when there might be changes to chef status.
+    """
+    try:
+        if is_user_authenticated():
+            headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+            
+            # Fetch latest user details
+            user_response = api_call_with_refresh(
+                url=f'{os.getenv("DJANGO_URL")}/auth/api/user_details/', 
+                method='get', 
+                headers=headers
+            )
+            
+            if user_response and user_response.status_code == 200:
+                user_data = user_response.json()
+                
+                # Update session state
+                old_is_chef = st.session_state.get('is_chef', False)
+                new_is_chef = user_data.get('is_chef', False)
+                
+                st.session_state['is_chef'] = new_is_chef
+                st.session_state['current_role'] = user_data.get('current_role', 'customer')
+                
+                # Also update user_info if it exists
+                if 'user_info' in st.session_state:
+                    st.session_state['user_info']['is_chef'] = new_is_chef
+                    st.session_state['user_info']['current_role'] = user_data.get('current_role', 'customer')
+                
+                # Return True if chef status changed
+                return old_is_chef != new_is_chef
+            else:
+                logging.error(f"Failed to refresh chef status. Status: {user_response.status_code if user_response else 'No response'}")
+                return False
+    except Exception as e:
+        logging.error(f"Error refreshing chef status: {str(e)}")
+        return False
+
 def display_chef_toggle_in_sidebar():
     """
     Displays a toggle in the sidebar for users with chef privileges to switch between chef and customer modes.
@@ -639,6 +679,20 @@ def display_chef_toggle_in_sidebar():
                 st.sidebar.error(f"Error switching modes: {str(e)}")
                 logging.error(f"Error switching modes: {str(e)}")
                 logging.error(traceback.format_exc())
+    else:
+        # Check if user might be a chef but session state is outdated
+        # Only do this check periodically to avoid excessive API calls
+        if (is_user_authenticated() and 
+            'last_chef_status_check' not in st.session_state or 
+            time.time() - st.session_state.get('last_chef_status_check', 0) > 300):  # Check every 5 minutes
+            
+            # Refresh chef status from backend
+            if refresh_chef_status():
+                # Chef status changed, rerun to show the toggle
+                st.session_state['last_chef_status_check'] = time.time()
+                st.rerun()
+            else:
+                st.session_state['last_chef_status_check'] = time.time()
 
 def get_chef_meals_by_postal_code(meal_type=None, date=None, week_start_date=None, chef_id=None, include_compatible_only=False, page=1, page_size=10):
     """

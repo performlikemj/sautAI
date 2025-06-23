@@ -6,7 +6,7 @@ import datetime
 import logging
 from utils import (api_call_with_refresh, is_user_authenticated, login_form, toggle_chef_mode, 
                   fetch_and_update_user_profile, validate_input, resend_activation_link, footer,
-                  fetch_languages)
+                  fetch_languages, refresh_chef_status)
 
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[
     logging.FileHandler("error.log"),
@@ -403,10 +403,20 @@ try:
                 Become a part of the future of food—where innovation meets community collaboration.
                 """)
                 
-                if st.button("Apply to Become a Chef", use_container_width=True):
-                    st.session_state.show_chef_application = True
-                    st.rerun()
-                    
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("Apply to Become a Chef", use_container_width=True):
+                        st.session_state.show_chef_application = True
+                        st.rerun()
+                
+                with col2:
+                    if st.button("🔄 Refresh Chef Status", use_container_width=True, help="Check if your chef application has been approved"):
+                        with st.spinner("Checking chef status..."):
+                            if refresh_chef_status():
+                                st.success("Chef status updated!")
+                                st.rerun()
+                            else:
+                                st.info("No changes to your chef status.")
 
         else:
             # If the user somehow is authenticated but no role, just show an error or handle gracefully

@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 import logging
-from utils import api_call_with_refresh, is_user_authenticated, login_form, footer
+from utils import api_call_with_refresh, is_user_authenticated, login_form, footer, refresh_chef_status
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[
@@ -157,6 +157,10 @@ try:
                     # Remove the show_chef_application flag from session state
                     if 'show_chef_application' in st.session_state:
                         del st.session_state.show_chef_application
+                    
+                    # Refresh chef status in case it was immediately approved (for testing/admin scenarios)
+                    refresh_chef_status()
+                    
                     # Redirect back to profile page
                     st.switch_page("views/6_profile.py")
                 elif response.status_code == 409:
