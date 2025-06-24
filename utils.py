@@ -1314,7 +1314,6 @@ def get_user_summary(user_id, headers):
         # Handle different status codes
         if response.status_code == 200:
             # Summary is complete and available
-            print(response.json())
             return response.json()
         elif response.status_code == 202:
             # Summary is still being generated

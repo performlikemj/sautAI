@@ -29,7 +29,6 @@ def check_chef_status():
             method='get',
             headers=headers
         )
-        
         if response and response.status_code == 200:
             return response.json()
 
