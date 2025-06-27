@@ -91,7 +91,7 @@ class RegistrationTester:
                 "custom_allergies": [],
                 "timezone": "UTC",
                 "preferred_language": "en",
-                "preferred_servings": 2,
+                "household_member_count": 2,
                 "emergency_supply_goal": 7
             },
             "address": {
@@ -273,7 +273,7 @@ class RegistrationTester:
                 "custom_allergies": [],
                 "timezone": "UTC",
                 "preferred_language": "en",
-                "preferred_servings": 2,
+                "household_member_count": 2,
                 "emergency_supply_goal": 7
             },
             "address": {

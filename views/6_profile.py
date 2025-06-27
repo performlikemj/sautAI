@@ -141,7 +141,8 @@ try:
             allergies_val = user_data.get('allergies', [])
             custom_allergies_val = ', '.join(user_data.get('custom_allergies', []))
             unsubscribed_from_emails_val = user_data.get('unsubscribed_from_emails', False)
-            preferred_servings_val = user_data.get('preferred_servings', 1)
+            household_member_count_val = user_data.get('household_member_count', 1)
+            household_members_val = user_data.get('household_members', [])
             emergency_supply_goal_val = user_data.get('emergency_supply_goal', st.session_state.get('emergency_supply_goal', 0))
 
             street_val = address_data.get('street', '')
@@ -254,8 +255,33 @@ try:
                 selected_allergies = st.multiselect("Allergies", all_allergies, default=[a for a in allergies_val if a in all_allergies])
                 custom_allergies_input = st.text_area("Custom Allergies (comma separated)", value=custom_allergies_val, help="Enter multiple custom allergies separated by commas. Example: Peanuts, Shellfish, Kiwi")
 
-                # Preferred Servings
-                preferred_servings_input = st.number_input("Preferred Servings", min_value=1, value=preferred_servings_val, help="How many people you typically cook for or want meals scaled to.")
+                # Household Member Count
+                household_member_count_input = st.number_input(
+                    "Household Members",
+                    min_value=1,
+                    value=household_member_count_val,
+                    help="How many people live in your household?"
+                )
+
+                household_members_input = []
+                for i in range(int(household_member_count_input)):
+                    existing = household_members_val[i] if i < len(household_members_val) else {}
+                    with st.expander(f"Household Member {i+1} (optional)"):
+                        m_name = st.text_input("Name", value=existing.get('name', ''), key=f"profile_member_name_{i}")
+                        m_age = st.number_input("Age", min_value=0, value=existing.get('age', 0) or 0, step=1, key=f"profile_member_age_{i}")
+                        m_diet = st.multiselect(
+                            "Dietary Preferences",
+                            dietary_preferences,
+                            default=existing.get('dietary_preferences', []),
+                            key=f"profile_member_diet_{i}"
+                        )
+                        m_notes = st.text_area("Notes", value=existing.get('notes', ''), key=f"profile_member_notes_{i}")
+                        household_members_input.append({
+                            'name': m_name,
+                            'age': m_age if m_age else None,
+                            'dietary_preferences': m_diet,
+                            'notes': m_notes,
+                        })
 
                 # Emergency Supply Goal
                 emergency_supply_goal_input = st.number_input(
@@ -311,7 +337,8 @@ try:
                             'timezone': selected_timezone,
                             'preferred_language': selected_language_code,
                             'unsubscribed_from_emails': (receive_emails_choice == 'No'),
-                            'preferred_servings': preferred_servings_input,
+                            'household_member_count': household_member_count_input,
+                            'household_members': household_members_input,
                             'emergency_supply_goal': emergency_supply_goal_input,
                             'address': {
                                 'street': street_input,

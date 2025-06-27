@@ -327,7 +327,20 @@ def sanitize_registration_data(user_data: Dict[str, Any]) -> Dict[str, Any]:
             ],
             'timezone': InputSanitizer.sanitize_string(user.get('timezone', ''), 50),
             'preferred_language': InputSanitizer.sanitize_string(user.get('preferred_language', ''), 10),
-            'preferred_servings': int(user.get('preferred_servings', 1)) if str(user.get('preferred_servings', 1)).isdigit() else 1,
+            'household_member_count': int(user.get('household_member_count', 1)) if str(user.get('household_member_count', 1)).isdigit() else 1,
+            'household_members': [
+                {
+                    'name': InputSanitizer.sanitize_string(member.get('name', ''), 100),
+                    'age': int(member.get('age', 0)) if str(member.get('age', 0)).isdigit() else None,
+                    'dietary_preferences': [
+                        InputSanitizer.sanitize_string(pref, 50)
+                        for pref in member.get('dietary_preferences', [])
+                        if isinstance(pref, str)
+                    ],
+                    'notes': InputSanitizer.sanitize_string(member.get('notes', ''), 200)
+                }
+                for member in user.get('household_members', []) if isinstance(member, dict)
+            ],
             'emergency_supply_goal': int(user.get('emergency_supply_goal', 0)) if str(user.get('emergency_supply_goal', 0)).isdigit() else 0
         }
     

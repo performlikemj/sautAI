@@ -57,7 +57,7 @@ class TestStreamlitRegistrationIntegration:
             "UTC"  # timezone
         ]
         mock_number_input.side_effect = [
-            2,  # preferred_servings
+            2,  # household_member_count
             7   # emergency_supply_goal
         ]
         mock_form_submit.return_value = True
