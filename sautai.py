@@ -43,7 +43,7 @@ def main():
     # Set page config once in the main entry point
     st.set_page_config(
         page_title="sautAI - Your Diet and Nutrition Guide",
-        page_icon="🍲", 
+        page_icon="images/sautai_logo.PNG",
         layout="wide",
         initial_sidebar_state="auto",
         menu_items={
@@ -80,6 +80,16 @@ def main():
             - [Report a Bug](mailto:support@sautai.com)
             """
         }
+    )
+
+    # Open Graph metadata for better link previews
+    st.markdown(
+        """
+        <meta property="og:site_name" content="sautAI" />
+        <meta property="og:title" content="sautAI - Your Diet and Nutrition Guide" />
+        <meta property="og:image" content="images/sautai_logo.PNG" />
+        """,
+        unsafe_allow_html=True,
     )
     
     # Add custom CSS for logo responsiveness and improved visibility
