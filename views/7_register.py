@@ -58,7 +58,26 @@ try:
         selected_allergies = st.multiselect("Allergies", allergies, default=[]) 
         custom_allergies = st.text_area("Custom Allergies (comma separated)", "", help="Enter multiple custom allergies separated by commas. Example: Peanuts, Shellfish, Kiwi")
         custom_allergies_list = [a.strip() for a in custom_allergies.split(',') if a.strip()]
-        preferred_servings = st.number_input("Preferred Servings", min_value=1, value=1, help="How many people do you typically cook for or want your meals scaled to?")
+        household_member_count = st.number_input(
+            "Household Members",
+            min_value=1,
+            value=1,
+            help="How many people are in your household?"
+        )
+
+        household_members = []
+        for i in range(int(household_member_count)):
+            with st.expander(f"Household Member {i+1} (optional)"):
+                member_name = st.text_input("Name", key=f"member_name_{i}")
+                member_age = st.number_input("Age", min_value=0, value=0, step=1, key=f"member_age_{i}")
+                member_diet = st.multiselect("Dietary Preferences", dietary_preferences, default=[], key=f"member_diet_{i}")
+                member_notes = st.text_area("Notes", key=f"member_notes_{i}")
+                household_members.append({
+                    "name": member_name,
+                    "age": member_age if member_age else None,
+                    "dietary_preferences": member_diet,
+                    "notes": member_notes,
+                })
         emergency_supply_goal = st.number_input("Emergency Supply Goal (days)", min_value=0, value=0,
             help="How many days of emergency supplies do you want to keep in your pantry?")
         
@@ -166,8 +185,9 @@ try:
                     "custom_allergies": custom_allergies_list,
                     "timezone": selected_timezone,
                     "preferred_language": selected_language_code,
-                    "preferred_servings": preferred_servings,
-                    "emergency_supply_goal": emergency_supply_goal  
+                    "household_member_count": household_member_count,
+                    "household_members": household_members,
+                    "emergency_supply_goal": emergency_supply_goal
                 },
                 "address": {
                     "street": street,

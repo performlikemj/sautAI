@@ -27,7 +27,7 @@ class TestRegistrationValidation:
                 "custom_allergies": [],
                 "timezone": "UTC",
                 "preferred_language": "en",
-                "preferred_servings": 2,
+                "household_member_count": 2,
                 "emergency_supply_goal": 7
             },
             "address": {
@@ -437,7 +437,7 @@ class TestActualSecurityImplementation:
                 "custom_allergies": ["Custom allergy<script>"],
                 "timezone": "UTC<script>",
                 "preferred_language": "en<script>",
-                "preferred_servings": 2,
+                "household_member_count": 2,
                 "emergency_supply_goal": 7
             },
             "address": {
@@ -496,7 +496,7 @@ class TestActualSecurityImplementation:
                 "custom_allergies": [],
                 "timezone": "UTC",
                 "preferred_language": "en",
-                "preferred_servings": 2,
+                "household_member_count": 2,
                 "emergency_supply_goal": 7
             }
         }
