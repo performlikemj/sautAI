@@ -1537,7 +1537,13 @@ def login_form():
                         st.session_state['custom_dietary_preferences'] = response_data.get('custom_dietary_preferences', []) 
                         st.session_state['emergency_supply_goal'] = response_data.get('emergency_supply_goal', 0)
                         st.session_state['household_member_count'] = response_data.get('household_member_count', 1)
-                        st.session_state['household_members'] = response_data.get('household_members', [])
+                        
+                        # Enhanced handling for household members during login
+                        household_members = response_data.get('household_members', [])
+                        if household_members is None:
+                            household_members = []
+                        st.session_state['household_members'] = household_members
+                        logging.info(f"Login: Set household members in session state: {len(household_members)} member(s) - {household_members}")
                         st.session_state['allergies'] = response_data['allergies']
                         st.session_state['custom_allergies'] = response_data['custom_allergies']
                         st.session_state['goal_name'] = response_data['goal_name']
@@ -1603,12 +1609,20 @@ def fetch_and_update_user_profile():
                 st.session_state['allergies'] = user_data['allergies']
                 st.session_state['custom_allergies'] = user_data['custom_allergies']
                 st.session_state['household_member_count'] = user_data.get('household_member_count', 1)
-                st.session_state['household_members'] = user_data.get('household_members', [])
+                
+                # Enhanced handling for household members
+                household_members = user_data.get('household_members', [])
+                if household_members is None:
+                    household_members = []
+                st.session_state['household_members'] = household_members
+                logging.info(f"Fetched household members from backend: {len(household_members)} member(s) - {household_members}")
+                
                 st.session_state['goal_name'] = user_data['goals']['goal_name'] if user_data.get('goals') else ""
                 st.session_state['goal_description'] = user_data['goals']['goal_description'] if user_data.get('goals') else ""
                 st.session_state['current_role'] = user_data.get('current_role', '')
             else:
                 st.error("Failed to fetch user profile.")
+                logging.error(f"Failed to fetch user profile: {user_response.status_code} - {user_response.text if user_response else 'No response'}")
 
             # Fetch address details
             address_response = api_call_with_refresh(f'{os.getenv("DJANGO_URL")}/auth/api/address_details/', headers=headers)

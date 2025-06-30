@@ -166,6 +166,12 @@ try:
                 'Coffee', 'Cinnamon', 'Garlic', 'Chickpeas', 'Lentils'
             ]
 
+            # Debug: Show current household members in session state
+            if st.session_state.get('household_members'):
+                with st.expander("🔍 Debug: Current Household Members in Session", expanded=False):
+                    st.json(st.session_state['household_members'])
+                    st.caption(f"Count in session: {len(st.session_state.get('household_members', []))}")
+            
             # Fetch available languages from API
             languages = fetch_languages()
             
@@ -263,25 +269,21 @@ try:
                     help="How many people live in your household?"
                 )
 
-                household_members_input = []
+                # Initialize household members input dictionary to collect data
+                # We'll populate this during form submission, not during rendering
+                household_member_inputs = {}
                 for i in range(int(household_member_count_input)):
                     existing = household_members_val[i] if i < len(household_members_val) else {}
                     with st.expander(f"Household Member {i+1} (optional)"):
-                        m_name = st.text_input("Name", value=existing.get('name', ''), key=f"profile_member_name_{i}")
-                        m_age = st.number_input("Age", min_value=0, value=existing.get('age', 0) or 0, step=1, key=f"profile_member_age_{i}")
-                        m_diet = st.multiselect(
+                        household_member_inputs[f"name_{i}"] = st.text_input("Name", value=existing.get('name', ''), key=f"profile_member_name_{i}")
+                        household_member_inputs[f"age_{i}"] = st.number_input("Age", min_value=0, value=existing.get('age', 0) or 0, step=1, key=f"profile_member_age_{i}")
+                        household_member_inputs[f"diet_{i}"] = st.multiselect(
                             "Dietary Preferences",
                             dietary_preferences,
                             default=existing.get('dietary_preferences', []),
                             key=f"profile_member_diet_{i}"
                         )
-                        m_notes = st.text_area("Notes", value=existing.get('notes', ''), key=f"profile_member_notes_{i}")
-                        household_members_input.append({
-                            'name': m_name,
-                            'age': m_age if m_age else None,
-                            'dietary_preferences': m_diet,
-                            'notes': m_notes,
-                        })
+                        household_member_inputs[f"notes_{i}"] = st.text_area("Notes", value=existing.get('notes', ''), key=f"profile_member_notes_{i}")
 
                 # Emergency Supply Goal
                 emergency_supply_goal_input = st.number_input(
@@ -326,6 +328,17 @@ try:
                         custom_prefs_list = [p.strip() for p in custom_diet_prefs_input.split(',') if p.strip()]
                         custom_allergies_list = [a.strip() for a in custom_allergies_input.split(',') if a.strip()]
 
+                        # Process household members data during form submission
+                        household_members_input = []
+                        for i in range(int(household_member_count_input)):
+                            member_data = {
+                                'name': household_member_inputs.get(f"name_{i}", ''),
+                                'age': household_member_inputs.get(f"age_{i}", 0) if household_member_inputs.get(f"age_{i}", 0) else None,
+                                'dietary_preferences': household_member_inputs.get(f"diet_{i}", []),
+                                'notes': household_member_inputs.get(f"notes_{i}", ''),
+                            }
+                            household_members_input.append(member_data)
+
                         profile_data = {
                             'username': username_input,
                             'email': email_input,
@@ -350,6 +363,10 @@ try:
                             }
                         }
 
+                        # Add debug logging for household members
+                        logging.info(f"Submitting household members data: {household_members_input}")
+                        logging.info(f"Full profile data being sent: {profile_data}")
+                        
                         # Update the profile via API
                         update_response = api_call_with_refresh(
                             url=f'{os.getenv("DJANGO_URL")}/auth/api/update_profile/',
@@ -357,15 +374,45 @@ try:
                             data=profile_data,
                             headers={'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
                         )
+                        
+                        # Log the response for debugging
+                        logging.info(f"Profile update response status: {update_response.status_code}")
+                        if update_response.status_code == 200:
+                            response_data = update_response.json()
+                            logging.info(f"Profile update response data: {response_data}")
+                        else:
+                            logging.error(f"Profile update failed with response: {update_response.text}")
                         if update_response.status_code == 200:
                             st.success("Profile updated successfully!")
+                            
+                            # Update session state immediately with the submitted data
+                            st.session_state['household_member_count'] = household_member_count_input
+                            st.session_state['household_members'] = household_members_input
+                            logging.info(f"Updated session state with household members: {household_members_input}")
+                            
                             if goal_name and goal_description:
                                 if update_goal(goal_name, goal_description):
                                     st.success("Goal updated successfully!")
                                 else:
                                     st.error("Failed to update goal.")
-                            # Refresh session state user info after update
+                            
+                            # Refresh session state user info after update to sync with backend
                             fetch_and_update_user_profile()
+                            
+                            # Verify the data was properly saved
+                            if 'household_members' in st.session_state:
+                                logging.info(f"Session state after refresh: {st.session_state['household_members']}")
+                                saved_count = len(st.session_state['household_members'])
+                                if saved_count > 0:
+                                    st.success(f"✅ Household members saved: {saved_count} member(s)")
+                                    # Show saved members for verification
+                                    for i, member in enumerate(st.session_state['household_members']):
+                                        if member.get('name'):
+                                            st.caption(f"Member {i+1}: {member['name']} (Age: {member.get('age', 'Not specified')})")
+                                else:
+                                    st.info("ℹ️ No household members saved (only main user)")
+                            else:
+                                st.warning("⚠️ Could not verify household members data in session state")
                         else:
                             error_data = update_response.json()
                             if isinstance(error_data, dict):

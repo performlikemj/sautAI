@@ -12,3 +12,6 @@ app.log
 ```
 dump.rdb
 *.json
+Dockerfile
+docker-compose.yml
+.dockerignore
