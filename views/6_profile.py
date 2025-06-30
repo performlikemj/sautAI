@@ -269,21 +269,41 @@ try:
                     help="How many people live in your household?"
                 )
 
-                # Initialize household members input dictionary to collect data
-                # We'll populate this during form submission, not during rendering
-                household_member_inputs = {}
+                # Create household member input fields
+                # Values will be automatically stored in session state with the keys
                 for i in range(int(household_member_count_input)):
                     existing = household_members_val[i] if i < len(household_members_val) else {}
                     with st.expander(f"Household Member {i+1} (optional)"):
-                        household_member_inputs[f"name_{i}"] = st.text_input("Name", value=existing.get('name', ''), key=f"profile_member_name_{i}")
-                        household_member_inputs[f"age_{i}"] = st.number_input("Age", min_value=0, value=existing.get('age', 0) or 0, step=1, key=f"profile_member_age_{i}")
-                        household_member_inputs[f"diet_{i}"] = st.multiselect(
+                        st.text_input("Name", value=existing.get('name', ''), key=f"profile_member_name_{i}")
+                        st.number_input("Age", min_value=0, value=existing.get('age', 0) or 0, step=1, key=f"profile_member_age_{i}")
+                        st.multiselect(
                             "Dietary Preferences",
                             dietary_preferences,
                             default=existing.get('dietary_preferences', []),
                             key=f"profile_member_diet_{i}"
                         )
-                        household_member_inputs[f"notes_{i}"] = st.text_area("Notes", value=existing.get('notes', ''), key=f"profile_member_notes_{i}")
+                        st.text_area("Notes", value=existing.get('notes', ''), key=f"profile_member_notes_{i}")
+                
+                # Debug: Show current form values before submission
+                if household_member_count_input > 1:
+                    with st.expander("🔍 Debug: Current Form Values", expanded=False):
+                        st.write("**Household Members Form Data:**")
+                        for i in range(int(household_member_count_input)):
+                            name = st.session_state.get(f"profile_member_name_{i}", '')
+                            age = st.session_state.get(f"profile_member_age_{i}", 0)
+                            dietary_prefs = st.session_state.get(f"profile_member_diet_{i}", [])
+                            notes = st.session_state.get(f"profile_member_notes_{i}", '')
+                            
+                            if name or age or dietary_prefs or notes:
+                                st.json({
+                                    f"Member {i+1}": {
+                                        "name": name,
+                                        "age": age,
+                                        "dietary_preferences": dietary_prefs,
+                                        "notes": notes
+                                    }
+                                })
+                        st.caption("This shows what data will be submitted when you click 'Update Profile'")
 
                 # Emergency Supply Goal
                 emergency_supply_goal_input = st.number_input(
@@ -328,16 +348,33 @@ try:
                         custom_prefs_list = [p.strip() for p in custom_diet_prefs_input.split(',') if p.strip()]
                         custom_allergies_list = [a.strip() for a in custom_allergies_input.split(',') if a.strip()]
 
-                        # Process household members data during form submission
+                        # Process household members data during form submission using session state
                         household_members_input = []
                         for i in range(int(household_member_count_input)):
+                            # Access values from session state using the widget keys
+                            name = st.session_state.get(f"profile_member_name_{i}", '')
+                            age = st.session_state.get(f"profile_member_age_{i}", 0)
+                            dietary_prefs = st.session_state.get(f"profile_member_diet_{i}", [])
+                            notes = st.session_state.get(f"profile_member_notes_{i}", '')
+                            
+                            # Clean up the data - ensure proper types and handle empty values
                             member_data = {
-                                'name': household_member_inputs.get(f"name_{i}", ''),
-                                'age': household_member_inputs.get(f"age_{i}", 0) if household_member_inputs.get(f"age_{i}", 0) else None,
-                                'dietary_preferences': household_member_inputs.get(f"diet_{i}", []),
-                                'notes': household_member_inputs.get(f"notes_{i}", ''),
+                                'name': str(name).strip() if name else '',
+                                'age': int(age) if age and age > 0 else None,
+                                'dietary_preferences': list(dietary_prefs) if dietary_prefs else [],
+                                'notes': str(notes).strip() if notes else '',
                             }
                             household_members_input.append(member_data)
+                            logging.info(f"Member {i+1} processed data: {member_data}")
+                        
+                        # Filter out completely empty members (no name, age, prefs, or notes)
+                        filtered_members = []
+                        for member in household_members_input:
+                            if (member['name'] or member['age'] or member['dietary_preferences'] or member['notes']):
+                                filtered_members.append(member)
+                        
+                        household_members_input = filtered_members
+                        logging.info(f"Final household members after filtering: {household_members_input}")
 
                         profile_data = {
                             'username': username_input,
@@ -364,6 +401,8 @@ try:
                         }
 
                         # Add debug logging for household members
+                        logging.info(f"Household member count: {household_member_count_input}")
+                        logging.info(f"Available session state keys: {[k for k in st.session_state.keys() if 'profile_member' in k]}")
                         logging.info(f"Submitting household members data: {household_members_input}")
                         logging.info(f"Full profile data being sent: {profile_data}")
                         

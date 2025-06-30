@@ -65,19 +65,35 @@ try:
             help="How many people are in your household?"
         )
 
-        household_members = []
+        # Create household member input fields
+        # Values will be automatically stored in session state with the keys
         for i in range(int(household_member_count)):
             with st.expander(f"Household Member {i+1} (optional)"):
-                member_name = st.text_input("Name", key=f"member_name_{i}")
-                member_age = st.number_input("Age", min_value=0, value=0, step=1, key=f"member_age_{i}")
-                member_diet = st.multiselect("Dietary Preferences", dietary_preferences, default=[], key=f"member_diet_{i}")
-                member_notes = st.text_area("Notes", key=f"member_notes_{i}")
-                household_members.append({
-                    "name": member_name,
-                    "age": member_age if member_age else None,
-                    "dietary_preferences": member_diet,
-                    "notes": member_notes,
-                })
+                st.text_input("Name", key=f"register_member_name_{i}")
+                st.number_input("Age", min_value=0, value=0, step=1, key=f"register_member_age_{i}")
+                st.multiselect("Dietary Preferences", dietary_preferences, default=[], key=f"register_member_diet_{i}")
+                st.text_area("Notes", key=f"register_member_notes_{i}")
+        
+        # Debug: Show current form values before submission (only if more than 1 household member)
+        if household_member_count > 1:
+            with st.expander("🔍 Debug: Current Household Members Data", expanded=False):
+                st.write("**Household Members Form Data:**")
+                for i in range(int(household_member_count)):
+                    name = st.session_state.get(f"register_member_name_{i}", '')
+                    age = st.session_state.get(f"register_member_age_{i}", 0)
+                    dietary_prefs = st.session_state.get(f"register_member_diet_{i}", [])
+                    notes = st.session_state.get(f"register_member_notes_{i}", '')
+                    
+                    if name or age or dietary_prefs or notes:
+                        st.json({
+                            f"Member {i+1}": {
+                                "name": name,
+                                "age": age,
+                                "dietary_preferences": dietary_prefs,
+                                "notes": notes
+                            }
+                        })
+                st.caption("This shows what household member data will be submitted when you register")
         emergency_supply_goal = st.number_input("Emergency Supply Goal (days)", min_value=0, value=0,
             help="How many days of emergency supplies do you want to keep in your pantry?")
         
@@ -172,6 +188,34 @@ try:
             # Parse custom dietary preferences
             custom_dietary_preferences = parse_comma_separated_input(custom_dietary_preferences_input)
 
+            # Process household members data using session state
+            household_members = []
+            for i in range(int(household_member_count)):
+                # Access values from session state using the widget keys
+                name = st.session_state.get(f"register_member_name_{i}", '')
+                age = st.session_state.get(f"register_member_age_{i}", 0)
+                dietary_prefs = st.session_state.get(f"register_member_diet_{i}", [])
+                notes = st.session_state.get(f"register_member_notes_{i}", '')
+                
+                # Clean up the data - ensure proper types and handle empty values
+                member_data = {
+                    'name': str(name).strip() if name else '',
+                    'age': int(age) if age and age > 0 else None,
+                    'dietary_preferences': list(dietary_prefs) if dietary_prefs else [],
+                    'notes': str(notes).strip() if notes else '',
+                }
+                household_members.append(member_data)
+                logging.warning(f"Registration - Member {i+1} data: {member_data}")
+            
+            # Filter out completely empty members (no name, age, prefs, or notes)
+            filtered_members = []
+            for member in household_members:
+                if (member['name'] or member['age'] or member['dietary_preferences'] or member['notes']):
+                    filtered_members.append(member)
+            
+            household_members = filtered_members
+            logging.warning(f"Registration - Final household members after filtering: {household_members}")
+
             # Create user data structure
             user_data = {
                 "user": {
@@ -230,8 +274,12 @@ try:
             # Sanitize user data before sending to API
             sanitized_data = sanitize_registration_data(user_data)
             
-            # Log sanitization for security monitoring
-            logging.info(f"Registration attempt for username: {InputSanitizer.sanitize_username(username)[:10]}...")
+            # Log sanitization for security monitoring and debug household members
+            logging.warning(f"Registration attempt for username: {InputSanitizer.sanitize_username(username)[:10]}...")
+            logging.warning(f"Registration - Household member count: {household_member_count}")
+            logging.warning(f"Registration - Available session state keys: {[k for k in st.session_state.keys() if 'register_member' in k]}")
+            logging.warning(f"Registration - Submitting household members data: {household_members}")
+            logging.warning(f"Registration - Full user data structure: {user_data}")
 
             try:
                 with st.spinner("Registering your account..."):
@@ -240,6 +288,14 @@ try:
                 
                 if response.status_code == 200:
                     st.success("Registration successful!")
+                    
+                    # Show household members confirmation if any were submitted
+                    if household_members:
+                        st.success(f"✅ {len(household_members)} household member(s) registered:")
+                        for i, member in enumerate(household_members):
+                            if member.get('name'):
+                                st.caption(f"Member {i+1}: {member['name']} (Age: {member.get('age', 'Not specified')})")
+                    
                     st.info("Please check your email to activate your account.")
                     # Navigate to home page
                     navigate_to_page('home')
