@@ -15,3 +15,5 @@ dump.rdb
 Dockerfile
 docker-compose.yml
 .dockerignore
+scripts/*
+deploy/*
