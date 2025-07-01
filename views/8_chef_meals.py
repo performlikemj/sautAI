@@ -1145,54 +1145,76 @@ def chef_meals():
             # NEW: Enhanced messaging based on diagnostic info
             diagnostic = stripe_status.get('diagnostic', {})
             currently_due = diagnostic.get('currently_due', [])
+            disabled_reason = stripe_status.get('disabled_reason', '')
             
             if 'external_account' in currently_due:
                 # Specific bank account issue
-                st.warning("⚠️ Your Stripe account needs a bank account to receive payments.")
+                st.error("🚫 **Your Stripe account is past due and needs a bank account**")
+                
+                # Show what's missing
+                st.warning(f"**Account Status:** {disabled_reason}")
+                st.info("**Missing Requirements:**")
+                for item in currently_due:
+                    if item == 'external_account':
+                        st.write("• 🏦 **Bank Account** - Add your bank details for payments")
+                    elif item == 'tos_acceptance.date':
+                        st.write("• 📝 **Terms of Service** - Accept Stripe's terms")
+                    elif item == 'tos_acceptance.ip':
+                        st.write("• 🌐 **IP Verification** - Complete from your location")
+                    else:
+                        st.write(f"• {item.replace('_', ' ').title()}")
                 
                 # Get country-specific guidance
                 guidance = get_bank_account_guidance()
-                if guidance and not safe_get(guidance, 'financial_connections_available', True):
-                    # Show guidance for non-US users using safe access
-                    default_message = 'Bank account setup guidance is available for your region.'
+                if guidance and not guidance.get('financial_connections_available', True):
+                    # Show guidance for non-US users with proper parsing
+                    st.success("🌍 **Bank Account Setup Instructions for Japan:**")
                     
-                    # Try to get message from nested structure first, then fallback to root level
-                    message = safe_get_nested(guidance, ['guidance', 'message'], 
-                                            safe_get(guidance, 'message', default_message))
-                    st.info("🌍 " + message)
-                    
-                    # Try to get steps from nested structure first, then fallback to root level
-                    steps = safe_get_nested(guidance, ['guidance', 'steps'], 
-                                          safe_get(guidance, 'steps', []))
+                    # Parse the actual response structure
+                    instructions = guidance.get('instructions', {})
+                    title = instructions.get('title', 'Bank Account Setup')
+                    steps = instructions.get('steps', [])
                     
                     if steps:
-                        with st.expander("How to add your bank account manually"):
-                            if isinstance(steps, list):
-                                for step in steps:
-                                    st.write(f"• {str(step)}")
-                            else:
-                                # Handle case where steps is not a list
-                                st.write(f"• {str(steps)}")
+                        with st.expander(f"📋 {title} - Click to expand", expanded=True):
+                            for step in steps:
+                                st.write(f"• {step}")
+                    
+                    # Show common issues
+                    common_issues = guidance.get('common_issues', [])
+                    if common_issues:
+                        with st.expander("🔧 Common Issues & Solutions"):
+                            for issue in common_issues:
+                                st.write(f"• {issue}")
                 
+                # Action buttons
+                st.write("---")
                 col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("Continue Bank Account Setup"):
-                        if stripe_status.get('continue_onboarding_url'):
-                            st.markdown(f"[Continue Setup]({stripe_status['continue_onboarding_url']})")
-                        else:
-                            # Generate fresh link
-                            fresh_link = regenerate_stripe_account_link()
-                            if fresh_link and fresh_link.get('onboarding_url'):
-                                st.markdown(f"[Continue Setup]({fresh_link['onboarding_url']})")
                 
-                with col2:
-                    if st.button("Get Fresh Setup Link"):
+                with col1:
+                    if st.button("🏦 Complete Bank Account Setup", use_container_width=True):
+                        # Generate fresh onboarding link
                         fresh_link = regenerate_stripe_account_link()
                         if fresh_link and fresh_link.get('onboarding_url'):
-                            st.success("New setup link generated!")
-                            st.markdown(f"[Complete Setup]({fresh_link['onboarding_url']})")
+                            st.success("Fresh setup link generated!")
+                            st.markdown(f"**[🚀 Complete Your Stripe Setup]({fresh_link['onboarding_url']})**")
+                            st.info("This link will take you to Stripe to add your bank account and accept terms.")
+                        else:
+                            st.error("Failed to generate setup link. Please contact support.")
+                
+                with col2:
+                    if st.button("ℹ️ Need Help?", use_container_width=True):
+                        st.info("""
+                        **Support Options:**
+                        
+                        1. **Follow the Japan-specific instructions** above
+                        2. **Contact our support team** if you encounter issues
+                        3. **Check Stripe Help Center** for additional guidance
+                        
+                        **Important:** Complete ALL requirements to activate your account for payments.
+                        """)
             else:
-                # General onboarding incomplete
+                # General onboarding incomplete (no external_account needed)
                 st.warning("Your Stripe account setup is incomplete.")
                 missing_items = diagnostic.get('currently_due', [])
                 if missing_items:
@@ -1201,68 +1223,10 @@ def chef_meals():
                         st.write(f"• {item.replace('_', ' ').title()}")
                 
                 if st.button("Complete Setup"):
-                    if stripe_status.get('continue_onboarding_url'):
-                        st.markdown(f"[Complete Setup]({stripe_status['continue_onboarding_url']})")
-        elif stripe_status.get('disabled_reason', None):
-            disabled_reason = stripe_status.get('disabled_reason', 'Unknown reason')
-            diagnostic = stripe_status.get('diagnostic', {})
-            
-            # Check if this is a restricted account that needs fixing
-            if (disabled_reason == 'rejected.other' or 
-                ('external_account' in diagnostic.get('currently_due', []) and 
-                 stripe_status.get('has_account', False))):
-                
-                st.error("🚫 Your Stripe account has an incompatible configuration")
-                st.info("""
-                Your Stripe account was created with settings that prevent bank account collection. 
-                This commonly happens with older accounts that need updated configurations for 
-                manual bank entry (especially important for non-US users).
-                """)
-                
-                with st.expander("What does this fix do?"):
-                    st.write("• Creates a new properly configured Stripe account")
-                    st.write("• Deactivates the old incompatible account")
-                    st.write("• Enables manual bank account entry for all countries")
-                    st.write("• Provides fresh onboarding link with correct settings")
-                
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    if st.button("🔧 Fix Account Configuration", use_container_width=True):
-                        with st.spinner("Fixing account configuration..."):
-                            fix_result = fix_restricted_stripe_account()
-                            
-                            if fix_result and fix_result.get('status') == 'success':
-                                st.success("✅ Account Fixed Successfully!")
-                                
-                                # Show new account details
-                                st.info(f"New Account ID: {fix_result.get('new_account_id', 'N/A')}")
-                                
-                                # Provide onboarding link
-                                if fix_result.get('onboarding_url'):
-                                    st.markdown(f"**[Complete New Account Setup]({fix_result['onboarding_url']})**")
-                                    st.info("⚠️ Important: Complete the new account setup to start receiving payments")
-                                
-                                # Refresh the page to show updated status
-                                time.sleep(2)
-                                st.rerun()
-                            else:
-                                error_msg = fix_result.get('error', 'Failed to fix account') if fix_result else 'No response from server'
-                                st.error(f"❌ Failed to fix account: {error_msg}")
-                                
-                                if 'already fixed' in error_msg.lower():
-                                    st.info("Your account may have already been fixed. Try refreshing the page.")
-                
-                with col2:
-                    st.info("**Need Help?**\n\nContact support if the fix doesn't work or if you have questions about the process.")
-            else:
-                # Regular disabled account handling
-                st.warning(f"There's an issue with your Stripe account: {disabled_reason}")
-                if st.button("Update Stripe Account"):
-                    stripe_url = create_stripe_account()
-                    if stripe_url:
-                        st.success("Click the link below to update your Stripe account:")
-                        st.markdown(f"[Update Stripe Account]({stripe_url})")
+                    fresh_link = regenerate_stripe_account_link()
+                    if fresh_link and fresh_link.get('onboarding_url'):
+                        st.markdown(f"[Complete Setup]({fresh_link['onboarding_url']})")
+
         else:
             st.success("✅ Your Stripe account is active and ready!")
             
@@ -1596,7 +1560,7 @@ def chef_meals():
                             with st.expander("Order Data"):
                                 st.dataframe(df_orders)
                         else:
-                            st.warning("Couldn’t locate a price column in orders data.")
+                            st.warning("Couldn't locate a price column in orders data.")
                     else:
                         st.info("No orders to display.")
                     # -----------------------------------------------------
