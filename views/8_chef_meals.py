@@ -249,6 +249,25 @@ def regenerate_stripe_account_link():
         logging.error(f"Error regenerating account link: {str(e)}")
         return None
 
+def fix_restricted_stripe_account():
+    """
+    Fix a restricted Stripe account by creating a new properly configured account
+    """
+    try:
+        headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+        response = api_call_with_refresh(
+            url=f"{os.getenv('DJANGO_URL')}/meals/api/fix-restricted-account/",
+            method='post',
+            headers=headers
+        )
+        
+        if response and response.status_code == 200:
+            return response.json()
+        return None
+    except Exception as e:
+        logging.error(f"Error fixing restricted account: {str(e)}")
+        return None
+
 # Function to get chef dashboard stats
 def get_chef_dashboard_stats():
     """
@@ -1185,12 +1204,65 @@ def chef_meals():
                     if stripe_status.get('continue_onboarding_url'):
                         st.markdown(f"[Complete Setup]({stripe_status['continue_onboarding_url']})")
         elif stripe_status.get('disabled_reason', None):
-            st.warning(f"There's an issue with your Stripe account: {stripe_status.get('disabled_reason', 'Unknown reason')}")
-            if st.button("Update Stripe Account"):
-                stripe_url = create_stripe_account()
-                if stripe_url:
-                    st.success("Click the link below to update your Stripe account:")
-                    st.markdown(f"[Update Stripe Account]({stripe_url})")
+            disabled_reason = stripe_status.get('disabled_reason', 'Unknown reason')
+            diagnostic = stripe_status.get('diagnostic', {})
+            
+            # Check if this is a restricted account that needs fixing
+            if (disabled_reason == 'rejected.other' or 
+                ('external_account' in diagnostic.get('currently_due', []) and 
+                 stripe_status.get('has_account', False))):
+                
+                st.error("🚫 Your Stripe account has an incompatible configuration")
+                st.info("""
+                Your Stripe account was created with settings that prevent bank account collection. 
+                This commonly happens with older accounts that need updated configurations for 
+                manual bank entry (especially important for non-US users).
+                """)
+                
+                with st.expander("What does this fix do?"):
+                    st.write("• Creates a new properly configured Stripe account")
+                    st.write("• Deactivates the old incompatible account")
+                    st.write("• Enables manual bank account entry for all countries")
+                    st.write("• Provides fresh onboarding link with correct settings")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    if st.button("🔧 Fix Account Configuration", use_container_width=True):
+                        with st.spinner("Fixing account configuration..."):
+                            fix_result = fix_restricted_stripe_account()
+                            
+                            if fix_result and fix_result.get('status') == 'success':
+                                st.success("✅ Account Fixed Successfully!")
+                                
+                                # Show new account details
+                                st.info(f"New Account ID: {fix_result.get('new_account_id', 'N/A')}")
+                                
+                                # Provide onboarding link
+                                if fix_result.get('onboarding_url'):
+                                    st.markdown(f"**[Complete New Account Setup]({fix_result['onboarding_url']})**")
+                                    st.info("⚠️ Important: Complete the new account setup to start receiving payments")
+                                
+                                # Refresh the page to show updated status
+                                time.sleep(2)
+                                st.rerun()
+                            else:
+                                error_msg = fix_result.get('error', 'Failed to fix account') if fix_result else 'No response from server'
+                                st.error(f"❌ Failed to fix account: {error_msg}")
+                                
+                                if 'already fixed' in error_msg.lower():
+                                    st.info("Your account may have already been fixed. Try refreshing the page.")
+                
+                with col2:
+                    st.info("**Need Help?**\n\nContact support if the fix doesn't work or if you have questions about the process.")
+            else:
+                # Regular disabled account handling
+                st.warning(f"There's an issue with your Stripe account: {disabled_reason}")
+                if st.button("Update Stripe Account"):
+                    stripe_url = create_stripe_account()
+                    if stripe_url:
+                        st.success("Click the link below to update your Stripe account:")
+                        st.markdown(f"[Update Stripe Account]({stripe_url})")
         else:
             st.success("✅ Your Stripe account is active and ready!")
             
