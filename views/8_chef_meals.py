@@ -155,6 +155,9 @@ def create_stripe_account():
 
 # Function to check Stripe account status
 def check_stripe_account_status():
+    """
+    Check Stripe account status with enhanced diagnostic information
+    """
     try:
         headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
         response = api_call_with_refresh(
@@ -164,7 +167,22 @@ def check_stripe_account_status():
         )
         
         if response and response.status_code == 200:
-            return response.json()
+            data = response.json()
+            
+            # NEW: Handle enhanced diagnostic information
+            if data.get('needs_onboarding') and data.get('continue_onboarding_url'):
+                # User needs to continue onboarding with fresh link
+                logging.info("User needs to continue onboarding")
+            
+            # NEW: Check for specific blocking issues
+            if data.get('diagnostic', {}).get('currently_due'):
+                currently_due = data['diagnostic']['currently_due']
+                if 'external_account' in currently_due:
+                    # User specifically needs to add bank account
+                    data['bank_account_required'] = True
+                    logging.info("User needs to add bank account")
+            
+            return data
         else:
             logging.error(f"Failed to check Stripe account status. Status: {response.status_code if response else 'No response'}")
             st.error("Failed to check Stripe account status")
@@ -174,6 +192,44 @@ def check_stripe_account_status():
         logging.error(f"Error checking Stripe account status: {str(e)}")
         logging.error(traceback.format_exc())
         return {'has_account': False}
+
+def get_bank_account_guidance():
+    """
+    Get country-specific guidance for bank account setup
+    """
+    try:
+        headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+        response = api_call_with_refresh(
+            url=f"{os.getenv('DJANGO_URL')}/meals/api/bank-account-guidance/",
+            method='get',
+            headers=headers
+        )
+        
+        if response and response.status_code == 200:
+            return response.json()
+        return None
+    except Exception as e:
+        logging.error(f"Error getting bank account guidance: {str(e)}")
+        return None
+
+def regenerate_stripe_account_link():
+    """
+    Generate fresh account link for users already in onboarding
+    """
+    try:
+        headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
+        response = api_call_with_refresh(
+            url=f"{os.getenv('DJANGO_URL')}/meals/api/regenerate-stripe-link/",
+            method='post',
+            headers=headers
+        )
+        
+        if response and response.status_code == 200:
+            return response.json()
+        return None
+    except Exception as e:
+        logging.error(f"Error regenerating account link: {str(e)}")
+        return None
 
 # Function to get chef dashboard stats
 def get_chef_dashboard_stats():
@@ -1049,13 +1105,53 @@ def chef_meals():
                     st.markdown(f"[Complete Stripe Onboarding]({stripe_url})")
                     st.info("After completing the onboarding, return to this page.")
         elif not stripe_status.get('is_active', False):
-            st.warning("Your Stripe account is not fully set up. Please complete the onboarding process.")
-            if st.button("Complete Stripe Account Setup"):
-                stripe_url = create_stripe_account()
-                if stripe_url:
-                    st.success("Click the link below to complete your Stripe account setup:")
-                    st.markdown(f"[Complete Stripe Onboarding]({stripe_url})")
-                    st.info("After completing the onboarding, return to this page.")
+            # NEW: Enhanced messaging based on diagnostic info
+            diagnostic = stripe_status.get('diagnostic', {})
+            currently_due = diagnostic.get('currently_due', [])
+            
+            if 'external_account' in currently_due:
+                # Specific bank account issue
+                st.warning("⚠️ Your Stripe account needs a bank account to receive payments.")
+                
+                # Get country-specific guidance
+                guidance = get_bank_account_guidance()
+                if guidance and not guidance.get('financial_connections_available', True):
+                    # Show guidance for non-US users
+                    st.info("🌍 " + guidance['guidance']['message'])
+                    
+                    with st.expander("How to add your bank account manually"):
+                        for step in guidance['guidance']['steps']:
+                            st.write(f"• {step}")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("Continue Bank Account Setup"):
+                        if stripe_status.get('continue_onboarding_url'):
+                            st.markdown(f"[Continue Setup]({stripe_status['continue_onboarding_url']})")
+                        else:
+                            # Generate fresh link
+                            fresh_link = regenerate_stripe_account_link()
+                            if fresh_link and fresh_link.get('onboarding_url'):
+                                st.markdown(f"[Continue Setup]({fresh_link['onboarding_url']})")
+                
+                with col2:
+                    if st.button("Get Fresh Setup Link"):
+                        fresh_link = regenerate_stripe_account_link()
+                        if fresh_link and fresh_link.get('onboarding_url'):
+                            st.success("New setup link generated!")
+                            st.markdown(f"[Complete Setup]({fresh_link['onboarding_url']})")
+            else:
+                # General onboarding incomplete
+                st.warning("Your Stripe account setup is incomplete.")
+                missing_items = diagnostic.get('currently_due', [])
+                if missing_items:
+                    st.write("Missing requirements:")
+                    for item in missing_items:
+                        st.write(f"• {item.replace('_', ' ').title()}")
+                
+                if st.button("Complete Setup"):
+                    if stripe_status.get('continue_onboarding_url'):
+                        st.markdown(f"[Complete Setup]({stripe_status['continue_onboarding_url']})")
         elif stripe_status.get('disabled_reason', None):
             st.warning(f"There's an issue with your Stripe account: {stripe_status.get('disabled_reason', 'Unknown reason')}")
             if st.button("Update Stripe Account"):
@@ -1064,7 +1160,12 @@ def chef_meals():
                     st.success("Click the link below to update your Stripe account:")
                     st.markdown(f"[Update Stripe Account]({stripe_url})")
         else:
-            st.success("Your Stripe account is active and ready to receive payments!")
+            st.success("✅ Your Stripe account is active and ready!")
+            
+            # NEW: Show account health info
+            diagnostic = stripe_status.get('diagnostic', {})
+            if diagnostic.get('external_accounts_count', 0) > 0:
+                st.info(f"💳 {diagnostic['external_accounts_count']} bank account(s) connected")
         
         # Display dashboard statistics
         stats = get_chef_dashboard_stats()
