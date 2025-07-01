@@ -37,6 +37,189 @@ django_url = os.getenv("DJANGO_URL")
 openai_env_key = os.getenv("OPENAI_KEY")
 
 # ============================
+# Utility Functions for Error Handling
+# ============================
+#
+# USAGE EXAMPLES:
+#
+# 1. Safe dictionary access:
+#    value = safe_get(data, 'key', 'default_value')
+#    nested_value = safe_get_nested(data, ['level1', 'level2', 'key'], 'default')
+#
+# 2. Function decorator for error handling:
+#    @handle_api_errors
+#    def my_api_function():
+#        # Your API code here
+#        return response.json()['data']['value']  # Will be safely handled
+#
+# 3. Safe JSON parsing:
+#    data = safe_json_loads(json_string, default={})
+#
+# These utilities prevent crashes from KeyError, IndexError, and other common exceptions
+# while providing useful logging and user-friendly error messages.
+# ============================
+
+def safe_get_nested(data, keys, default=None, log_errors=True):
+    """
+    Safely access nested dictionary/list values with error handling.
+    
+    Args:
+        data: The data structure to access (dict, list, etc.)
+        keys: A list of keys/indices to access (e.g., ['key1', 'key2', 0])
+        default: Default value to return if access fails
+        log_errors: Whether to log errors when keys are not found
+    
+    Returns:
+        The value at the nested location, or default if not found
+    
+    Examples:
+        safe_get_nested({'a': {'b': 'value'}}, ['a', 'b']) -> 'value'
+        safe_get_nested({'a': [{'b': 'value'}]}, ['a', 0, 'b']) -> 'value'
+        safe_get_nested({'a': {}}, ['a', 'missing'], 'default') -> 'default'
+    """
+    try:
+        current = data
+        key_path = []
+        
+        for key in keys:
+            key_path.append(str(key))
+            
+            if isinstance(current, dict):
+                if key not in current:
+                    if log_errors:
+                        logging.warning(f"Key '{key}' not found in dict at path: {' -> '.join(key_path)}. Available keys: {list(current.keys())}")
+                    return default
+                current = current[key]
+            elif isinstance(current, list):
+                try:
+                    index = int(key)
+                    if index >= len(current) or index < -len(current):
+                        if log_errors:
+                            logging.warning(f"Index {index} out of range for list of length {len(current)} at path: {' -> '.join(key_path)}")
+                        return default
+                    current = current[index]
+                except (ValueError, TypeError):
+                    if log_errors:
+                        logging.warning(f"Invalid list index '{key}' at path: {' -> '.join(key_path)}")
+                    return default
+            else:
+                if log_errors:
+                    logging.warning(f"Cannot access key '{key}' on {type(current)} at path: {' -> '.join(key_path)}")
+                return default
+        
+        return current
+        
+    except Exception as e:
+        if log_errors:
+            logging.error(f"Error accessing nested data with keys {keys}: {str(e)}")
+            logging.error(f"Data structure: {type(data)} - {data}")
+        return default
+
+def safe_get(data, key, default=None, log_errors=True):
+    """
+    Safely get a value from a dictionary with error handling.
+    
+    Args:
+        data: The dictionary to access
+        key: The key to access
+        default: Default value to return if key is not found
+        log_errors: Whether to log errors when key is not found
+    
+    Returns:
+        The value at the key, or default if not found
+    """
+    try:
+        if not isinstance(data, dict):
+            if log_errors:
+                logging.warning(f"Expected dict but got {type(data)} when accessing key '{key}'")
+            return default
+        
+        if key not in data:
+            if log_errors:
+                logging.warning(f"Key '{key}' not found in dict. Available keys: {list(data.keys())}")
+            return default
+            
+        return data[key]
+        
+    except Exception as e:
+        if log_errors:
+            logging.error(f"Error accessing key '{key}': {str(e)}")
+        return default
+
+def handle_api_errors(func):
+    """
+    Decorator to handle common API errors and provide user-friendly messages.
+    
+    Usage:
+        @handle_api_errors
+        def my_function():
+            # Your function code here
+            pass
+    """
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except KeyError as e:
+            error_msg = f"Missing expected data field: {str(e)}"
+            logging.error(f"KeyError in {func.__name__}: {error_msg}")
+            logging.error(traceback.format_exc())
+            st.error("We're experiencing a data formatting issue. Please try again or contact support if the issue persists.")
+            return None
+        except requests.exceptions.ConnectionError:
+            error_msg = "Unable to connect to the server"
+            logging.error(f"Connection error in {func.__name__}: {error_msg}")
+            st.error("Unable to connect to the server. Please check your internet connection and try again.")
+            return None
+        except requests.exceptions.Timeout:
+            error_msg = "Request timed out"
+            logging.error(f"Timeout error in {func.__name__}: {error_msg}")
+            st.error("The request is taking too long. Please try again.")
+            return None
+        except requests.exceptions.HTTPError as e:
+            error_msg = f"HTTP error: {str(e)}"
+            logging.error(f"HTTP error in {func.__name__}: {error_msg}")
+            st.error("Server returned an error. Please try again later.")
+            return None
+        except Exception as e:
+            error_msg = f"Unexpected error: {str(e)}"
+            logging.error(f"Unexpected error in {func.__name__}: {error_msg}")
+            logging.error(traceback.format_exc())
+            st.error("An unexpected error occurred. Our team has been notified.")
+            return None
+    
+    wrapper.__name__ = func.__name__
+    wrapper.__doc__ = func.__doc__
+    return wrapper
+
+def safe_json_loads(json_string, default=None, log_errors=True):
+    """
+    Safely parse JSON string with error handling.
+    
+    Args:
+        json_string: The JSON string to parse
+        default: Default value to return if parsing fails
+        log_errors: Whether to log errors when parsing fails
+    
+    Returns:
+        The parsed JSON object, or default if parsing fails
+    """
+    try:
+        if not json_string:
+            return default
+        
+        return json.loads(json_string)
+        
+    except json.JSONDecodeError as e:
+        if log_errors:
+            logging.error(f"JSON parsing error: {str(e)}")
+            logging.error(f"JSON string: {json_string}")
+        return default
+    except Exception as e:
+        if log_errors:
+            logging.error(f"Unexpected error parsing JSON: {str(e)}")
+        return default
+
+# ============================
 # API Related Functions
 # ============================
 

@@ -9,7 +9,7 @@ import datetime
 import logging
 from datetime import datetime, timedelta
 from dateutil.parser import parse
-from utils import api_call_with_refresh, login_form, toggle_chef_mode, is_user_authenticated, validate_input, footer
+from utils import api_call_with_refresh, login_form, toggle_chef_mode, is_user_authenticated, validate_input, footer, safe_get_nested, safe_get, handle_api_errors
 
 # Configure logging
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[
@@ -193,6 +193,7 @@ def check_stripe_account_status():
         logging.error(traceback.format_exc())
         return {'has_account': False}
 
+@handle_api_errors
 def get_bank_account_guidance():
     """
     Get country-specific guidance for bank account setup
@@ -206,10 +207,27 @@ def get_bank_account_guidance():
         )
         
         if response and response.status_code == 200:
-            return response.json()
+            data = response.json()
+            # Log the response structure for debugging
+            logging.info(f"Bank account guidance response structure: {type(data)}")
+            if isinstance(data, dict):
+                logging.info(f"Response keys: {list(data.keys())}")
+                # Log nested structure if it exists
+                if 'guidance' in data and isinstance(data['guidance'], dict):
+                    logging.info(f"Guidance nested keys: {list(data['guidance'].keys())}")
+            return data
+        else:
+            logging.warning(f"Bank account guidance API returned status: {response.status_code if response else 'No response'}")
+            if response:
+                try:
+                    error_data = response.json()
+                    logging.warning(f"Error response: {error_data}")
+                except:
+                    logging.warning(f"Error response text: {response.text}")
         return None
     except Exception as e:
         logging.error(f"Error getting bank account guidance: {str(e)}")
+        logging.error(traceback.format_exc())
         return None
 
 def regenerate_stripe_account_link():
@@ -1115,13 +1133,27 @@ def chef_meals():
                 
                 # Get country-specific guidance
                 guidance = get_bank_account_guidance()
-                if guidance and not guidance.get('financial_connections_available', True):
-                    # Show guidance for non-US users
-                    st.info("🌍 " + guidance['guidance']['message'])
+                if guidance and not safe_get(guidance, 'financial_connections_available', True):
+                    # Show guidance for non-US users using safe access
+                    default_message = 'Bank account setup guidance is available for your region.'
                     
-                    with st.expander("How to add your bank account manually"):
-                        for step in guidance['guidance']['steps']:
-                            st.write(f"• {step}")
+                    # Try to get message from nested structure first, then fallback to root level
+                    message = safe_get_nested(guidance, ['guidance', 'message'], 
+                                            safe_get(guidance, 'message', default_message))
+                    st.info("🌍 " + message)
+                    
+                    # Try to get steps from nested structure first, then fallback to root level
+                    steps = safe_get_nested(guidance, ['guidance', 'steps'], 
+                                          safe_get(guidance, 'steps', []))
+                    
+                    if steps:
+                        with st.expander("How to add your bank account manually"):
+                            if isinstance(steps, list):
+                                for step in steps:
+                                    st.write(f"• {str(step)}")
+                            else:
+                                # Handle case where steps is not a list
+                                st.write(f"• {str(steps)}")
                 
                 col1, col2 = st.columns(2)
                 with col1:
