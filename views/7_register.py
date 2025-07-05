@@ -9,9 +9,19 @@ import requests
 import pycountry
 import datetime
 import pytz
-from utils import (api_call_with_refresh, login_form, toggle_chef_mode, 
-                   fetch_and_update_user_profile, validate_input, parse_comma_separated_input, footer,
-                   fetch_languages, navigate_to_page)
+from utils import (
+    api_call_with_refresh,
+    login_form,
+    toggle_chef_mode,
+    fetch_and_update_user_profile,
+    validate_input,
+    parse_comma_separated_input,
+    footer,
+    fetch_languages,
+    navigate_to_page,
+    start_onboarding_conversation,
+    display_onboarding_stream,
+)
 from security_utils import (
     sanitize_registration_data, 
     validate_registration_security,
@@ -32,9 +42,75 @@ logging.basicConfig(level=logging.WARNING,
 # Initialize rate limiter (in production, use Redis or database-backed limiter)
 rate_limiter = RateLimiter(max_attempts=5, window_minutes=15)
 
+st.title("Register")
+
+if 'registration_method' not in st.session_state:
+    st.session_state.registration_method = 'chat'
+
+if 'onboarding_chat_history' not in st.session_state:
+    st.session_state.onboarding_chat_history = []
+
+method_choice = st.radio(
+    "How would you like to register?",
+    ("Chat with assistant", "Traditional form"),
+    index=0 if st.session_state.registration_method == 'chat' else 1,
+)
+
+st.session_state.registration_method = (
+    'chat' if method_choice == "Chat with assistant" else 'form'
+)
+
+# ----------------------------
+# Chat-based Registration
+# ----------------------------
+
+if st.session_state.registration_method == 'chat':
+    if 'onboarding_guest_id' not in st.session_state:
+        guest = start_onboarding_conversation()
+        if guest:
+            st.session_state.onboarding_guest_id = guest
+            st.session_state.onboarding_chat_history = []
+            st.session_state.onboarding_response_id = None
+
+    if not st.session_state.get('onboarding_complete'):
+        st.write("Create an account by chatting with our onboarding assistant.")
+
+        chat_container = st.container()
+        for msg in st.session_state.get('onboarding_chat_history', []):
+            with chat_container.chat_message(msg['role']):
+                st.markdown(msg['content'])
+
+        user_msg = st.chat_input("Message")
+        if user_msg:
+            st.session_state.onboarding_chat_history.append({'role': 'user', 'content': user_msg})
+            with chat_container.chat_message('user'):
+                st.markdown(user_msg)
+            with chat_container.chat_message('assistant'):
+                resp_id, full_text, tool_out = display_onboarding_stream(
+                    user_msg,
+                    st.session_state.onboarding_guest_id,
+                    st.session_state.get('onboarding_response_id')
+                )
+                st.session_state.onboarding_response_id = resp_id
+                st.session_state.onboarding_chat_history.append({'role': 'assistant', 'content': full_text})
+                if tool_out:
+                    try:
+                        data = json.loads(tool_out) if isinstance(tool_out, str) else tool_out
+                        st.session_state['user_info'] = data
+                        st.session_state['user_id'] = data.get('user_id')
+                        st.session_state['access_token'] = data.get('access')
+                        st.session_state['refresh_token'] = data.get('refresh')
+                        st.session_state['is_logged_in'] = True
+                        st.session_state['onboarding_complete'] = True
+                        st.rerun()
+                    except Exception as e:
+                        logging.error(f"Failed to process tool output: {e}")
+        st.stop()
+
 # Content moved from register() to top level
 try:
-    st.title("Register")
+    if st.session_state.get('onboarding_complete'):
+        st.success("Account created! You can adjust your details below.")
     st.write("Create an account.")
 
     with st.form(key='registration_form'):
