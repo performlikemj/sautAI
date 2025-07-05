@@ -162,5 +162,4 @@ jobs:
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
-          app-name: 'sautAI'
-          slot-name: 'Production' 
+          app-name: 'sautAI' 
