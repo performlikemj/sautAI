@@ -136,7 +136,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment:
-      name: 'Production'
+      name: 'production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
       id-token: write #This is required for requesting the JWT
@@ -162,5 +162,4 @@ jobs:
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
-          app-name: 'sautAI'
-          slot-name: 'Production' 
+          app-name: 'sautAI' 
