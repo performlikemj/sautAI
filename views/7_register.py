@@ -47,6 +47,9 @@ st.title("Register")
 if 'registration_method' not in st.session_state:
     st.session_state.registration_method = 'chat'
 
+if 'onboarding_chat_history' not in st.session_state:
+    st.session_state.onboarding_chat_history = []
+
 method_choice = st.radio(
     "How would you like to register?",
     ("Chat with assistant", "Traditional form"),
