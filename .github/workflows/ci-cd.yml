@@ -136,7 +136,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment:
-      name: 'production'
+      name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
       id-token: write #This is required for requesting the JWT
