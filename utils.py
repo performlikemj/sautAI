@@ -1346,11 +1346,13 @@ def display_onboarding_stream(message: str, guest_id: str, response_id: Optional
             elif et == "response.tool":
                 tool_output = ev.get("output")
                 tool_name = ev.get("name")
+
             elif et == "response.completed":
                 break
 
     st.write_stream(text_gen())
     return response_id, accumulated, tool_name, tool_output
+
 # ============================
 # Utility functions
 # ============================
