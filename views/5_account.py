@@ -37,7 +37,7 @@ try:
                     # Show login form after successful activation
                     st.info("Your account has been activated! Please log in to continue.")
                     login_form()
-                    st.stop()
+                    st.switch_page("home")
                 else:
                     st.error("Account activation failed: " + response.json()['message'])
                     st.stop()

@@ -1283,14 +1283,23 @@ def start_onboarding_conversation(guest_id: Optional[str] = None) -> Optional[st
     payload = {}
     if guest_id:
         payload["guest_id"] = guest_id
+    
+    logging.info(f"Starting onboarding conversation with payload: {payload}")
+    
     try:
         response = dj_post(
             "/customer_dashboard/api/assistant/onboarding/new-conversation/",
             json=payload,
         )
+        logging.info(f"Onboarding API response status: {response.status_code}")
+        
         if response.status_code == 200:
             data = response.json()
-            return data.get("guest_id")
+            guest_id_returned = data.get("guest_id")
+            logging.info(f"Onboarding API returned guest_id: {guest_id_returned}")
+            return guest_id_returned
+        else:
+            logging.error(f"Onboarding API error: {response.status_code} - {response.text}")
     except Exception as e:
         logging.error(f"Error starting onboarding chat: {e}")
     return None
@@ -1298,9 +1307,13 @@ def start_onboarding_conversation(guest_id: Optional[str] = None) -> Optional[st
 
 def onboarding_event_stream(message: str, guest_id: str, response_id: Optional[str] = None):
     """Yield SSE events from the onboarding assistant."""
+    logging.info(f"Onboarding event stream called with guest_id: {guest_id}, message: {message[:50]}...")
+    
     data = {"guest_id": guest_id, "message": message}
     if response_id:
         data["response_id"] = response_id
+    
+    logging.info(f"Sending onboarding stream request with data: {data}")
 
     with dj_post(
         "/customer_dashboard/api/assistant/onboarding/stream-message/",
@@ -1331,27 +1344,123 @@ def display_onboarding_stream(message: str, guest_id: str, response_id: Optional
     accumulated = ""
     tool_output = None
     tool_name = None
+    password_requested = False  # Add this flag
 
     def text_gen():
-        nonlocal accumulated, tool_output, tool_name, response_id
+        nonlocal accumulated, tool_output, tool_name, response_id, password_requested
         for ev in events:
             et = ev.get("type")
             if et == "response.created" and ev.get("id"):
                 response_id = ev["id"]
             elif et == "response.output_text.delta":
                 delta = ev.get("delta", {}).get("text", "") or ev.get("content", "")
-                if delta:
+                # de‑duplicate identical trailing chunks (same logic as main streaming function)
+                if delta and not accumulated.endswith(delta):
                     accumulated += delta
                     yield delta
             elif et == "response.tool":
                 tool_output = ev.get("output")
                 tool_name = ev.get("name")
-
+            elif et == "password_request":  # Handle password request events
+                # FIXED: Check the actual is_password_request value, not just the event type
+                is_password_request = ev.get("is_password_request", False)
+                if is_password_request:
+                    password_requested = True
+                    yield ""  # Yield empty to complete current stream
+                    break
+                # If is_password_request is False, just continue processing
+                continue
             elif et == "response.completed":
                 break
 
     st.write_stream(text_gen())
-    return response_id, accumulated, tool_name, tool_output
+    return response_id, accumulated, tool_name, tool_output, password_requested  # Return password flag
+
+
+def show_password_modal(guest_id: str) -> Optional[str]:
+    """
+    Display a secure password modal and handle submission.
+    Returns the new access token if successful, None if cancelled/failed.
+    """
+    
+    # Debug: Check if guest_id is None
+    if guest_id is None:
+        logging.error("show_password_modal called with guest_id=None")
+        st.error("❌ Session error: Guest ID not found. Please restart the registration process.")
+        if st.button("Restart Registration"):
+            # Clear onboarding state and restart
+            for key in ['onboarding_guest_id', 'onboarding_chat_history', 'onboarding_response_id', 'show_password_modal']:
+                st.session_state.pop(key, None)
+            st.rerun()
+        return None
+    
+    @st.dialog("Complete Your Registration")
+    def password_modal():
+        st.write("🔐 **Secure Password Setup**")
+        st.write("Your account information has been collected. Please create a secure password to complete your registration.")
+        
+        password = st.text_input(
+            "Create Password", 
+            type="password", 
+            help="Must be at least 8 characters with a number, letter, and special character"
+        )
+        confirm_password = st.text_input("Confirm Password", type="password")
+        
+        # Real-time password validation
+        if password:
+            valid_password, password_msg = validate_input(password, 'password')
+            if not valid_password:
+                st.error(password_msg)
+            elif confirm_password and password != confirm_password:
+                st.error("Passwords do not match")
+            elif password == confirm_password and valid_password:
+                st.success("✅ Password meets requirements")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("Complete Registration", type="primary", disabled=not (password and password == confirm_password and valid_password)):
+                try:
+                    # Submit to secure endpoint
+                    payload = {
+                        "guest_id": guest_id,
+                        "password": password
+                    }
+                    logging.info(f"Submitting onboarding completion with guest_id: {guest_id}")
+                    response = dj_post(
+                        "/auth/api/secure-onboarding-complete/",
+                        json=payload
+                    )
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        
+                        # Update session state with new user info
+                        st.session_state['user_info'] = data
+                        st.session_state['user_id'] = data.get('user_id')
+                        st.session_state['access_token'] = data.get('access')
+                        st.session_state['refresh_token'] = data.get('refresh')
+                        st.session_state['is_logged_in'] = True
+                        st.session_state['onboarding_complete'] = True
+                        
+                        st.success("🎉 Account created successfully!")
+                        st.rerun()
+                    else:
+                        error_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
+                        error_msg = error_data.get('message', 'Registration failed. Please try again.')
+                        st.error(f"❌ {error_msg}")
+                        
+                except Exception as e:
+                    logging.error(f"Password submission error: {e}")
+                    st.error("❌ Connection error. Please try again.")
+        
+        with col2:
+            if st.button("Cancel"):
+                st.session_state.pop('show_password_modal', None)
+                st.rerun()
+    
+    # Show the modal
+    password_modal()
 
 # ============================
 # Utility functions

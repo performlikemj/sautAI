@@ -21,6 +21,8 @@ from utils import (
     navigate_to_page,
     start_onboarding_conversation,
     display_onboarding_stream,
+    show_password_modal,  # ADD THIS
+    dj_post,  # ADD THIS
 )
 from security_utils import (
     sanitize_registration_data, 
@@ -72,12 +74,50 @@ st.session_state.registration_method = (
 # ----------------------------
 
 if st.session_state.registration_method == 'chat':
-    if 'onboarding_guest_id' not in st.session_state:
+    # Fix: Check if guest_id is None or not set, not just if key exists
+    if not st.session_state.get('onboarding_guest_id'):
+        logging.info("Starting new onboarding conversation - guest_id is None or missing")
         guest = start_onboarding_conversation()
         if guest:
             st.session_state.onboarding_guest_id = guest
             st.session_state.onboarding_chat_history = []
             st.session_state.onboarding_response_id = None
+            logging.info(f"Started onboarding conversation with guest_id: {guest}")
+        else:
+            logging.error("Failed to start onboarding conversation - received None guest_id")
+            st.error("Failed to start conversation. Please refresh the page and try again.")
+            st.stop()
+
+    # Debug: Log current guest_id before showing modal
+    current_guest_id = st.session_state.get('onboarding_guest_id')
+    logging.info(f"Current onboarding_guest_id in session: {current_guest_id}")
+
+    # Check if password modal should be shown
+    if st.session_state.get('show_password_modal'):
+        show_password_modal(st.session_state.onboarding_guest_id)
+        st.stop()
+
+    # Show success state if onboarding is complete
+    if st.session_state.get('onboarding_complete'):
+        st.success("🎉 **Registration Complete!**")
+        st.write("Your account has been successfully created and you are now logged in.")
+        st.info("You can now access all features of the platform.")
+        
+        if st.button("Go to Dashboard", type="primary"):
+            navigate_to_page('home')
+        
+        st.write("---")
+        st.write("**Account Details:**")
+        if 'user_info' in st.session_state:
+            user_info = st.session_state['user_info']
+            col1, col2 = st.columns(2)
+            with col1:
+                st.write(f"**Username:** {user_info.get('username', 'N/A')}")
+                st.write(f"**Email:** {user_info.get('email', 'N/A')}")
+            with col2:
+                st.write(f"**User ID:** {user_info.get('user_id', 'N/A')}")
+                st.write(f"**Account Status:** Active")
+        st.stop()
 
     if not st.session_state.get('onboarding_complete'):
         st.write("Create an account by chatting with our onboarding assistant.")
@@ -93,13 +133,21 @@ if st.session_state.registration_method == 'chat':
             with chat_container.chat_message('user'):
                 st.markdown(user_msg)
             with chat_container.chat_message('assistant'):
-                resp_id, full_text, tool_name, tool_out = display_onboarding_stream(
+                # Updated function call with password detection
+                resp_id, full_text, tool_name, tool_out, password_requested = display_onboarding_stream(
                     user_msg,
                     st.session_state.onboarding_guest_id,
                     st.session_state.get('onboarding_response_id')
                 )
                 st.session_state.onboarding_response_id = resp_id
                 st.session_state.onboarding_chat_history.append({'role': 'assistant', 'content': full_text})
+                
+                # NEW: Handle password request
+                if password_requested:
+                    st.session_state['show_password_modal'] = True
+                    st.rerun()
+                
+                # Handle successful registration via old tool (fallback)
                 if tool_name == 'guest_register_user' and tool_out:
                     try:
                         data = json.loads(tool_out) if isinstance(tool_out, str) else tool_out
