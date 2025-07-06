@@ -1330,9 +1330,10 @@ def display_onboarding_stream(message: str, guest_id: str, response_id: Optional
     events = onboarding_event_stream(message, guest_id, response_id)
     accumulated = ""
     tool_output = None
+    tool_name = None
 
     def text_gen():
-        nonlocal accumulated, tool_output, response_id
+        nonlocal accumulated, tool_output, tool_name, response_id
         for ev in events:
             et = ev.get("type")
             if et == "response.created" and ev.get("id"):
@@ -1344,11 +1345,14 @@ def display_onboarding_stream(message: str, guest_id: str, response_id: Optional
                     yield delta
             elif et == "response.tool":
                 tool_output = ev.get("output")
+                tool_name = ev.get("name")
+
             elif et == "response.completed":
                 break
 
     st.write_stream(text_gen())
-    return response_id, accumulated, tool_output
+    return response_id, accumulated, tool_name, tool_output
+
 # ============================
 # Utility functions
 # ============================

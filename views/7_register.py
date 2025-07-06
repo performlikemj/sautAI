@@ -49,6 +49,7 @@ if 'registration_method' not in st.session_state:
 
 if 'onboarding_chat_history' not in st.session_state:
     st.session_state.onboarding_chat_history = []
+
 if 'onboarding_guest_id' not in st.session_state:
     st.session_state.onboarding_guest_id = None
 if 'onboarding_response_id' not in st.session_state:
@@ -92,16 +93,18 @@ if st.session_state.registration_method == 'chat':
             with chat_container.chat_message('user'):
                 st.markdown(user_msg)
             with chat_container.chat_message('assistant'):
-                resp_id, full_text, tool_out = display_onboarding_stream(
+                resp_id, full_text, tool_name, tool_out = display_onboarding_stream(
                     user_msg,
                     st.session_state.onboarding_guest_id,
                     st.session_state.get('onboarding_response_id')
                 )
                 st.session_state.onboarding_response_id = resp_id
                 st.session_state.onboarding_chat_history.append({'role': 'assistant', 'content': full_text})
-                if tool_out:
+                if tool_name == 'guest_register_user' and tool_out:
                     try:
                         data = json.loads(tool_out) if isinstance(tool_out, str) else tool_out
+                        if not data.get('access') or not data.get('refresh'):
+                            raise ValueError('Missing tokens in tool output')
                         st.session_state['user_info'] = data
                         st.session_state['user_id'] = data.get('user_id')
                         st.session_state['access_token'] = data.get('access')
