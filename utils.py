@@ -5,7 +5,7 @@ from collections import defaultdict
 import os
 import time
 from typing_extensions import override
-from typing import Tuple, Iterator
+from typing import Tuple, Iterator, Optional, Any
 from openai import OpenAIError
 from openai import AssistantEventHandler, OpenAI, BadRequestError
 from openai.types.beta.threads.runs import ToolCall, ToolCallDelta
@@ -1273,6 +1273,84 @@ def display_chat_message(role: str, content: str):
     """
     with st.chat_message(role):
         st.markdown(content)
+
+# ============================
+# Onboarding Chat Helpers
+# ============================
+
+def start_onboarding_conversation(guest_id: Optional[str] = None) -> Optional[str]:
+    """Start or reset the onboarding chat and return the guest_id."""
+    payload = {}
+    if guest_id:
+        payload["guest_id"] = guest_id
+    try:
+        response = dj_post(
+            "/customer_dashboard/api/assistant/onboarding/new-conversation/",
+            json=payload,
+        )
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("guest_id")
+    except Exception as e:
+        logging.error(f"Error starting onboarding chat: {e}")
+    return None
+
+
+def onboarding_event_stream(message: str, guest_id: str, response_id: Optional[str] = None):
+    """Yield SSE events from the onboarding assistant."""
+    data = {"guest_id": guest_id, "message": message}
+    if response_id:
+        data["response_id"] = response_id
+
+    with dj_post(
+        "/customer_dashboard/api/assistant/onboarding/stream-message/",
+        json=data,
+        stream=True,
+    ) as response:
+        if response.status_code != 200:
+            yield {"type": "error", "message": f"HTTP {response.status_code}"}
+            return
+
+        for raw_line in response.iter_lines():
+            if not raw_line:
+                continue
+            decoded = raw_line.decode("utf-8")
+            if not decoded.startswith("data:"):
+                continue
+            payload = decoded[len("data:"):].strip()
+            try:
+                event = json.loads(payload)
+            except json.JSONDecodeError:
+                continue
+            yield event
+
+
+def display_onboarding_stream(message: str, guest_id: str, response_id: Optional[str] = None):
+    """Stream onboarding assistant text and capture tool output."""
+    events = onboarding_event_stream(message, guest_id, response_id)
+    accumulated = ""
+    tool_output = None
+    tool_name = None
+
+    def text_gen():
+        nonlocal accumulated, tool_output, tool_name, response_id
+        for ev in events:
+            et = ev.get("type")
+            if et == "response.created" and ev.get("id"):
+                response_id = ev["id"]
+            elif et == "response.output_text.delta":
+                delta = ev.get("delta", {}).get("text", "") or ev.get("content", "")
+                if delta:
+                    accumulated += delta
+                    yield delta
+            elif et == "response.tool":
+                tool_output = ev.get("output")
+                tool_name = ev.get("name")
+            elif et == "response.completed":
+                break
+
+    st.write_stream(text_gen())
+    return response_id, accumulated, tool_name, tool_output
 # ============================
 # Utility functions
 # ============================
