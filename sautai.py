@@ -82,6 +82,9 @@ def main():
         }
     )
 
+    # Display the sautAI logo in the sidebar for better branding
+    st.sidebar.image("images/sautai_logo.PNG", use_column_width=True)
+
     # Open Graph metadata for better link previews
     st.markdown(
         """
@@ -250,7 +253,7 @@ def main():
     
     # Initialize navigation
     try:
-        pg = st.navigation(get_pages())
+        pg = st.navigation(get_pages(), position="top")
         pg.run()  # Run the selected page
     except Exception as e:
         logging.error(f"Navigation error: {str(e)}")
