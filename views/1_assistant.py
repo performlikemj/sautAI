@@ -620,19 +620,6 @@ try:
             right: 0;
             z-index: 100;
         }
-
-        [data-testid="stChatInput"] textarea {
-            border: 2px solid var(--primary-color);
-            box-shadow: 0 0 10px var(--primary-color);
-            animation: sautai-glow 2s ease-in-out infinite alternate;
-        }
-
-        @keyframes sautai-glow {
-            from { box-shadow: 0 0 5px var(--primary-color); }
-            to { box-shadow: 0 0 15px var(--primary-color); }
-        }
-
-
         .appview-container .main .block-container {
             padding-bottom: 6rem;
         }
