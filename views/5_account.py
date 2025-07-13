@@ -24,23 +24,23 @@ try:
     # Handle account activation - this should work without login
     if uid and token and action == 'activate':
         st.title("Account Activation")
-        st.info("Click the button below to activate your account.")
-        if st.button("Activate Account", type="primary"):
-            with st.spinner("Activating your account..."):
-                response = api_call_with_refresh(
-                    f'{os.getenv("DJANGO_URL")}/auth/api/register/verify-email/',
-                    method='post',
-                    data={'uid': uid, 'token': token},
-                )
-                if response.ok:
-                    st.success(response.json()['message'])
-                    # Show login form after successful activation
-                    st.info("Your account has been activated! Please log in to continue.")
-                    login_form()
-                    st.switch_page("home")
-                else:
-                    st.error("Account activation failed: " + response.json()['message'])
-                    st.stop()
+        st.info("Activating your account...")
+        with st.spinner("Activating your account..."):
+            response = api_call_with_refresh(
+                f'{os.getenv("DJANGO_URL")}/auth/api/register/verify-email/',
+                method='post',
+                data={'uid': uid, 'token': token},
+            )
+        if response and response.ok:
+            st.success(response.json()['message'])
+            # Show login form after successful activation
+            st.info("Your account has been activated! Please log in to continue.")
+            login_form()
+            st.switch_page("home")
+        else:
+            error_msg = response.json().get('message') if response else 'Unknown error'
+            st.error("Account activation failed: " + error_msg)
+        st.stop()
     
     # Handle password reset - this should work without login
     if uid and token and action == 'password_reset':
