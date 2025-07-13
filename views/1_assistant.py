@@ -632,6 +632,7 @@ try:
             to { box-shadow: 0 0 15px var(--primary-color); }
         }
 
+
         .appview-container .main .block-container {
             padding-bottom: 6rem;
         }
