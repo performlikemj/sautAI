@@ -608,7 +608,38 @@ try:
     # Set up the chat container
     st.title("Chat with SautAI")
     chat_container = st.container()
-    
+
+    # Keep the chat input visible by fixing it to the bottom
+    st.markdown(
+        """
+        <style>
+        [data-testid="stChatInput"] {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        [data-testid="stChatInput"] textarea {
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 0 10px var(--primary-color);
+            animation: sautai-glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes sautai-glow {
+            from { box-shadow: 0 0 5px var(--primary-color); }
+            to { box-shadow: 0 0 15px var(--primary-color); }
+        }
+
+        .appview-container .main .block-container {
+            padding-bottom: 6rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     # Use a container to dynamically update chat messages
     st.info("Response time may vary. Your patience is appreciated.")
 
