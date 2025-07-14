@@ -70,11 +70,31 @@ def generate_meal_plan(selected_week_start, selected_week_end, headers):
                         'dietary_preferences': [pref for pref in st.session_state.dietary_preferences if pref != 'Everything']
                     }
                 )
+                print(gen_resp.status_code)
                 if gen_resp.status_code in (201, 202):
+                    response_data = gen_resp.json()
                     st.info(
-                        "Brand new meal plan coming up... "
-                        "Average wait time is 8 minutes (make a cup of tea and come back)"
+                       f"""Brand new meal plan coming up... 
+                        Average wait time is 8 minutes (make a cup of tea and come back)
+                        """
                     )
+                    status_url = f"{os.getenv('DJANGO_URL')}/{response_data.get('polling_url')}/"
+                    if st.button(
+                        "Check Status",
+                        type="primary",
+                    ):
+                        with st.spinner("Checking status..."):
+                            response = api_call_with_refresh(
+                                status_url,
+                                method="get",
+                                headers=headers,
+                            )
+                            if response.status_code == 200:
+                                response_data = response.json()
+                                if response_data.get("status") == "success":
+                                    st.success("Meal plan is ready!")
+                                else:
+                                    st.error("Meal plan is not ready yet. Please wait a few more minutes.")
                     
                 elif gen_resp.status_code == 200:
                     # Handle existing meal plan (new response format)
