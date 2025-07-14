@@ -70,18 +70,12 @@ def generate_meal_plan(selected_week_start, selected_week_end, headers):
                         'dietary_preferences': [pref for pref in st.session_state.dietary_preferences if pref != 'Everything']
                     }
                 )
-                if gen_resp.status_code == 201:
-                    response_data = gen_resp.json()
-                    st.success("✨ " + response_data.get('message', 'New meal plan generated!'))
+                if gen_resp.status_code in (201, 202):
+                    st.info(
+                        "Brand new meal plan coming up... "
+                        "Average wait time is 8 minutes (make a cup of tea and come back)"
+                    )
                     
-                    # Trigger gamification event
-                    trigger_gamification_event('meal_plan_created', {
-                        'week_start_date': week_start_date,
-                        'meal_count': 21  # Or however many meals are in the plan
-                    })
-                    
-                    st.balloons()
-                    st.rerun()
                 elif gen_resp.status_code == 200:
                     # Handle existing meal plan (new response format)
                     response_data = gen_resp.json()
