@@ -201,39 +201,47 @@ def fetch_gamification_data():
     try:
         headers = {'Authorization': f'Bearer {st.session_state.user_info["access"]}'}
         response = api_call_with_refresh(
-            url=f"{os.getenv('DJANGO_URL')}/gamification/api/streamlit-data/", 
+            url=f"{os.getenv('DJANGO_URL')}/gamification/api/streamlit-data/",
             method='get',
             headers=headers,
         )
-        
+
         if response.status_code == 200:
             data = response.json()
-            
+
+            # Preserve previous level to detect tier changes
+            previous_level = st.session_state.get('user_level', "Dish Washer")
+
             # Update session state
             st.session_state.meal_plan_streak = data.get('meal_plan_streak', 0)
             st.session_state.total_meals_planned = data.get('total_meals_planned', 0)
-            st.session_state.user_level = data.get('user_level', "Apprentice Chef")
+            st.session_state.user_level = data.get('level_name', data.get('user_level', "Dish Washer"))
             st.session_state.points = data.get('points', 0)
-            
+
             # Weekly goal data
             weekly_goal = data.get('weekly_goal', {})
             st.session_state.weekly_goal_progress = weekly_goal.get('progress', 0.0)
             st.session_state.weekly_goal_text = weekly_goal.get('text', "0/7 days planned")
-            
+
             # Check for new achievements
             new_achievements = data.get('new_achievements', [])
             if new_achievements:
-                # Handle new achievements (add notifications or celebrations)
                 for achievement in new_achievements:
                     st.balloons()
                     st.success(f"🏆 New Achievement: {achievement['name']} - {achievement['description']}")
-                    
+
+            # Celebrate a new level tier if it changed
+            if previous_level != st.session_state.user_level:
+                st.toast(f"🎉 You've reached the {st.session_state.user_level} tier!", icon="🎉")
+
             return True
         else:
             logging.error(f"Failed to fetch gamification data: {response.status_code}")
+            st.error("Unable to update points. Please try again.")
             return False
     except Exception as e:
         logging.error(f"Error fetching gamification data: {str(e)}")
+        st.error("Unable to update points. Please try again.")
         return False
 
 def fetch_leaderboard():
@@ -276,9 +284,11 @@ def trigger_gamification_event(event_type, details=None):
             return True
         else:
             logging.error(f"Failed to trigger gamification event: {response.status_code}")
+            st.error("Unable to update points. Please try again.")
             return False
     except Exception as e:
         logging.error(f"Error triggering gamification event: {str(e)}")
+        st.error("Unable to update points. Please try again.")
         return False
 
 def fetch_user_dietary_preferences():
@@ -1438,7 +1448,7 @@ if 'meal_plan_streak' not in st.session_state:
 if 'total_meals_planned' not in st.session_state:
     st.session_state.total_meals_planned = 0
 if 'user_level' not in st.session_state:
-    st.session_state.user_level = "Apprentice Chef"
+    st.session_state.user_level = "Dish Washer"
 if 'points' not in st.session_state:
     st.session_state.points = 0
 if 'weekly_goal_progress' not in st.session_state:
@@ -1623,7 +1633,7 @@ if is_user_authenticated() and st.session_state.get('email_confirmed', False):
                         leaderboard_data.append({
                             "Rank": entry['rank'],
                             "User": username,
-                            "Level": entry['level'],
+                            "Level": entry.get('level_name', entry.get('level')),
                             "Points": entry['points'],
                             "Streak": f"{entry.get('streak', 0)} days"
                         })
