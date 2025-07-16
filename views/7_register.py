@@ -142,7 +142,7 @@ if st.session_state.registration_method == 'chat':
                 st.session_state.onboarding_response_id = resp_id
                 st.session_state.onboarding_chat_history.append({'role': 'assistant', 'content': full_text})
                 
-                # NEW: Handle password request
+                # Handle password request
                 if password_requested:
                     st.session_state['show_password_modal'] = True
                     st.rerun()

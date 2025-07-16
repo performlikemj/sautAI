@@ -1328,6 +1328,13 @@ def onboarding_event_stream(message: str, guest_id: str, response_id: Optional[s
             if not raw_line:
                 continue
             decoded = raw_line.decode("utf-8")
+            
+            # Handle event: close
+            if decoded.startswith("event:"):
+                if "close" in decoded:
+                    break
+                continue
+                
             if not decoded.startswith("data:"):
                 continue
             payload = decoded[len("data:"):].strip()
@@ -1344,12 +1351,13 @@ def display_onboarding_stream(message: str, guest_id: str, response_id: Optional
     accumulated = ""
     tool_output = None
     tool_name = None
-    password_requested = False  # Add this flag
+    password_requested = False
 
     def text_gen():
         nonlocal accumulated, tool_output, tool_name, response_id, password_requested
         for ev in events:
             et = ev.get("type")
+            
             if et == "response.created" and ev.get("id"):
                 response_id = ev["id"]
             elif et == "response.output_text.delta":
@@ -1362,7 +1370,7 @@ def display_onboarding_stream(message: str, guest_id: str, response_id: Optional
                 tool_output = ev.get("output")
                 tool_name = ev.get("name")
             elif et == "password_request":  # Handle password request events
-                # FIXED: Check the actual is_password_request value, not just the event type
+                # Check the actual is_password_request value, not just the event type
                 is_password_request = ev.get("is_password_request", False)
                 if is_password_request:
                     password_requested = True
@@ -1371,10 +1379,11 @@ def display_onboarding_stream(message: str, guest_id: str, response_id: Optional
                 # If is_password_request is False, just continue processing
                 continue
             elif et == "response.completed":
-                break
+                # Don't break here - continue processing to look for password_request event
+                continue
 
     st.write_stream(text_gen())
-    return response_id, accumulated, tool_name, tool_output, password_requested  # Return password flag
+    return response_id, accumulated, tool_name, tool_output, password_requested
 
 
 def show_password_modal(guest_id: str) -> Optional[str]:
@@ -1383,7 +1392,7 @@ def show_password_modal(guest_id: str) -> Optional[str]:
     Returns the new access token if successful, None if cancelled/failed.
     """
     
-    # Debug: Check if guest_id is None
+    # Check if guest_id is None
     if guest_id is None:
         logging.error("show_password_modal called with guest_id=None")
         st.error("❌ Session error: Guest ID not found. Please restart the registration process.")
