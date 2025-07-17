@@ -21,8 +21,10 @@ from utils import (
     navigate_to_page,
     start_onboarding_conversation,
     display_onboarding_stream,
-    show_password_modal,  # ADD THIS
-    dj_post,  # ADD THIS
+    show_password_modal,
+    # restore_pre_onboarding_chat,  # TODO: Future enhancement
+    clear_onboarding_state,
+    dj_post,
 )
 from security_utils import (
     sanitize_registration_data, 
@@ -74,6 +76,20 @@ st.session_state.registration_method = (
 # ----------------------------
 
 if st.session_state.registration_method == 'chat':
+    # Clear regular chat history when entering onboarding to prevent context confusion
+    if not st.session_state.get('onboarding_initialized', False):
+        # TODO: Future enhancement - backup existing chat history for restoration
+        # if 'chat_history' in st.session_state and st.session_state.chat_history:
+        #     st.session_state['pre_onboarding_chat_history'] = st.session_state.chat_history.copy()
+        #     st.session_state['pre_onboarding_thread_id'] = st.session_state.get('thread_id')
+        #     logging.info(f"Backed up {len(st.session_state.chat_history)} chat messages before onboarding")
+        
+        # Clear main chat variables for clean onboarding context
+        st.session_state['chat_history'] = []
+        st.session_state['thread_id'] = None
+        st.session_state['onboarding_initialized'] = True
+        logging.info("Cleared main chat history for onboarding")
+    
     # Fix: Check if guest_id is None or not set, not just if key exists
     if not st.session_state.get('onboarding_guest_id'):
         logging.info("Starting new onboarding conversation - guest_id is None or missing")
@@ -103,8 +119,9 @@ if st.session_state.registration_method == 'chat':
         st.write("Your account has been successfully created and you are now logged in.")
         st.info("You can now access all features of the platform.")
         
-        if st.button("Go to Dashboard", type="primary"):
-            navigate_to_page('home')
+        if st.button("Speak with Assistant", type="primary"):
+            clear_onboarding_state()  # Clean up onboarding session variables
+            navigate_to_page('assistant')
         
         st.write("---")
         st.write("**Account Details:**")

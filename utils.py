@@ -1278,6 +1278,44 @@ def display_chat_message(role: str, content: str):
 # Onboarding Chat Helpers
 # ============================
 
+# TODO: Future enhancement - restore previous chat functionality
+# def restore_pre_onboarding_chat():
+#     """
+#     Restore the chat history that was backed up before onboarding started.
+#     Call this when user completes/cancels onboarding and wants to return to regular chat.
+#     """
+#     if 'pre_onboarding_chat_history' in st.session_state:
+#         st.session_state['chat_history'] = st.session_state['pre_onboarding_chat_history'].copy()
+#         st.session_state['thread_id'] = st.session_state.get('pre_onboarding_thread_id')
+#         
+#         # Clear the backup and onboarding flags
+#         st.session_state.pop('pre_onboarding_chat_history', None)
+#         st.session_state.pop('pre_onboarding_thread_id', None)
+#         st.session_state.pop('onboarding_initialized', None)
+#         
+#         logging.info(f"Restored {len(st.session_state['chat_history'])} chat messages from pre-onboarding backup")
+#         return True
+#     return False
+
+def clear_onboarding_state():
+    """
+    Clear all onboarding-related session state variables.
+    Call this when onboarding is complete or cancelled.
+    """
+    onboarding_keys = [
+        'onboarding_guest_id',
+        'onboarding_chat_history', 
+        'onboarding_response_id',
+        'onboarding_complete',
+        'show_password_modal',
+        'onboarding_initialized'
+    ]
+    
+    for key in onboarding_keys:
+        st.session_state.pop(key, None)
+    
+    logging.info("Cleared all onboarding session state")
+
 def start_onboarding_conversation(guest_id: Optional[str] = None) -> Optional[str]:
     """Start or reset the onboarding chat and return the guest_id."""
     payload = {}
