@@ -70,7 +70,6 @@ def generate_meal_plan(selected_week_start, selected_week_end, headers):
                         'dietary_preferences': [pref for pref in st.session_state.dietary_preferences if pref != 'Everything']
                     }
                 )
-                print(gen_resp.status_code)
                 if gen_resp.status_code in (201, 202):
                     response_data = gen_resp.json()
                     st.info(
@@ -867,7 +866,7 @@ def show_normal_ui(meal_plan_df, meal_plan_id, is_approved, is_past_week, select
                                 st.success("Thank you for your review! 🎉")
                                 
                                 # Trigger gamification event for submitting a meal review
-                                trigger_gamification_event('meal_plan_reviewed', {
+                                trigger_gamification_event('review', {
                                     'meal_plan_id': meal_plan_id,
                                     'rating': rating
                                 })
@@ -969,7 +968,7 @@ def show_normal_ui(meal_plan_df, meal_plan_id, is_approved, is_past_week, select
                     st.success(f"Meal review {'created' if is_new else 'updated'}!")
                     
                     # Trigger gamification event for submitting a meal review
-                    trigger_gamification_event('meal_reviewed', {
+                    trigger_gamification_event('review', {
                         'meal_id': selected_meal_id,
                         'meal_plan_id': meal_plan_id,
                         'rating': meal_rating,
@@ -1325,7 +1324,7 @@ def show_normal_ui(meal_plan_df, meal_plan_id, is_approved, is_past_week, select
                                                                 st.success(f"Successfully ordered {quantity} {chef_meal.get('name')} meal{'s' if quantity > 1 else ''}!")
                                                                 
                                                                 # Trigger gamification event for replacing with chef meal
-                                                                trigger_gamification_event('replaced_with_chef_meal', {
+                                                                trigger_gamification_event('chef_connect', {
                                                                     'meal_plan_id': meal_plan_id,
                                                                     'chef_meal_id': meal.get('id')
                                                                 })
@@ -2159,7 +2158,7 @@ if is_user_authenticated() and st.session_state.get('email_confirmed', False):
                                     st.success(message)
 
                                     # Trigger gamification event
-                                    trigger_gamification_event('meal_plan_approved', {
+                                    trigger_gamification_event('meal_planned', {
                                         'meal_plan_id': meal_plan_id,
                                         'meal_prep_preference': prep_preference
                                     })
@@ -2246,7 +2245,7 @@ if is_user_authenticated() and st.session_state.get('email_confirmed', False):
                                             st.success("✨ Meals updated successfully!")
                                             
                                             # Trigger gamification event
-                                            trigger_gamification_event('meals_updated', {
+                                            trigger_gamification_event('meal_planned', {
                                                 'meal_count': len(updates),
                                                 'meal_plan_id': meal_plan_id
                                             })
@@ -2382,7 +2381,7 @@ if is_user_authenticated() and st.session_state.get('email_confirmed', False):
                                                 st.success("✅ Cooking instructions generated successfully!")
                                                 
                                                 # Trigger gamification event
-                                                trigger_gamification_event('cooking_instructions_generated', {
+                                                trigger_gamification_event('cooking', {
                                                     'meal_plan_id': meal_plan_id,
                                                     'meal_count': len(meal_plan_meal_ids)
                                                 })

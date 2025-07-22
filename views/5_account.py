@@ -21,6 +21,39 @@ try:
     token = st.query_params.get("token", [""])
     action = st.query_params.get("action", [""])
     
+    # Handle immediate email processing - this should work without login
+    if token and action == 'process_now':
+        st.title("Process Email Now")
+        st.info("Processing your email message immediately...")
+        
+        try:
+            with st.spinner("Processing your message..."):
+                # Call the API to trigger immediate processing
+                response = requests.get(
+                    f'{os.getenv("DJANGO_URL")}/auth/api/process_now/',
+                    json={'token': token},
+                )
+            
+            if response and response.ok:
+                result = response.json()
+                if result.get('status') == 'success':
+                    st.success("✅ " + result.get('message', 'Your message has been processed successfully!'))
+                    st.info("You should receive a response from your assistant shortly.")
+                else:
+                    st.warning("⚠️ " + result.get('message', 'Your message was processed but there may have been an issue.'))
+            else:
+                error_data = response.json() if response else {}
+                error_msg = error_data.get('message', 'Unknown error occurred')
+                st.error(f"❌ Failed to process your message: {error_msg}")
+                
+        except Exception as e:
+            st.error(f"❌ An error occurred while processing your message: {str(e)}")
+            
+        st.markdown("---")
+        st.markdown("**Need to send another message?** Simply reply to any email from your assistant.")
+        st.markdown("**Want the full experience?** [Log in to your dashboard](/) for more features.")
+        st.stop()
+    
     # Handle account activation - this should work without login
     if uid and token and action == 'activate':
         st.title("Account Activation")
