@@ -83,8 +83,12 @@ def main():
     )
 
     # Display the sautAI logo in the sidebar for better branding
-    st.sidebar.image("images/sautai_logo.PNG", use_container_width=True)
-
+    # st.sidebar.image("images/sautai_logo.PNG", use_container_width=True)
+    st.logo(
+        image="images/sautai_logo.PNG",
+        size="large",
+        icon_image="images/sautai_logo.PNG"  # Smaller version when sidebar collapsed
+    )
     # Open Graph metadata for better link previews
     st.markdown(
         """
