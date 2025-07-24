@@ -1,9 +1,127 @@
 [theme]
-primaryColor="#5cb85c"
-backgroundColor="#FFFFFF"
-secondaryBackgroundColor="#F9F9F9"
-textColor="#303030"
-font="sans serif"
+# Base theme - keeping it light for a fresh, clean food app feel
+base = "dark"
+
+# Primary accent color - SautAI's signature green
+primaryColor = "#5cb85c"
+
+# Main background - clean white for content readability
+backgroundColor = "#FFFFFF"
+
+# Secondary background - warmer, softer tone for widgets and cards
+secondaryBackgroundColor = "#F8FAF7"
+
+# Text color - slightly warmer dark gray for better readability
+textColor = "#2C3E2D"
+
+# Link color - complementary to primary green, warmer tone
+linkColor = "#4A8B3A"
+
+# Links with underline for better accessibility
+linkUnderline = true
+
+# Code background - light green tint to match brand
+codeBackgroundColor = "#F5F9F5"
+
+# Font family - clean, modern sans-serif
+font = "sans-serif"
+
+# Enhanced typography settings
+baseFontSize = 16
+baseFontWeight = 400
+headingFont = "sans-serif"
+headingFontSizes = ["2.5rem", "2rem", "1.75rem", "1.5rem", "1.25rem", "1rem"]
+headingFontWeights = [700, 600, 600, 500, 500, 500]
+
+# Code styling
+codeFont = "monospace"
+codeFontSize = "0.875rem"
+codeFontWeight = 400
+
+# UI element styling
+baseRadius = "8px"
+buttonRadius = "8px"
+
+# Border colors - subtle green-tinted grays
+borderColor = "#E1E8E1"
+dataframeBorderColor = "#D4E4D4"
+dataframeHeaderBackgroundColor = "#F0F6F0"
+
+# Widget borders for better definition
+showWidgetBorder = true
+
+# Sidebar separator for clean visual separation
+showSidebarBorder = true
+
+# Chart colors optimized for food/health app
+chartCategoricalColors = [
+    "#5cb85c",  # Primary green
+    "#8FBC8F",  # Light green
+    "#FF8C42",  # Warm orange for variety
+    "#FFD93D",  # Sunshine yellow
+    "#6BCF7F",  # Fresh green
+    "#4682B4",  # Steel blue for contrast
+    "#DDA0DD",  # Light purple
+    "#F0E68C",  # Khaki
+    "#98D8C8",  # Mint
+    "#FFEAA7"   # Light yellow
+]
+
+# Sequential colors for data visualization - green-focused palette
+chartSequentialColors = [
+    "#F7FCF5",  # Very light green
+    "#E5F5E0",  # Light green
+    "#C7E9C0",  # Lighter green
+    "#A1D99B",  # Light medium green
+    "#74C476",  # Medium green
+    "#5cb85c",  # Primary green
+    "#41AB5D",  # Darker green
+    "#238B45",  # Dark green
+    "#006D2C",  # Very dark green
+    "#00441B"   # Darkest green
+]
+
+[theme.sidebar]
+# Sidebar with complementary but distinct styling
+primaryColor = "#4A8B3A"
+
+# Sidebar background - subtle green tint for brand consistency
+backgroundColor = "#FAFCFA"
+
+# Sidebar secondary background - slightly darker for contrast
+secondaryBackgroundColor = "#F2F7F2"
+
+# Sidebar text - slightly lighter for hierarchy
+textColor = "#3A4A3A"
+
+# Sidebar links - maintaining brand consistency
+linkColor = "#5cb85c"
+linkUnderline = true
+
+# Code background in sidebar
+codeBackgroundColor = "#F0F6F0"
+
+# Typography for sidebar
+font = "sans-serif"
+headingFont = "sans-serif"
+headingFontSizes = ["1.5rem", "1.25rem", "1.125rem", "1rem", "0.875rem", "0.75rem"]
+headingFontWeights = [700, 600, 600, 500, 500, 500]
+
+# Code styling for sidebar
+codeFont = "monospace"
+codeFontSize = "0.825rem"
+
+# UI elements in sidebar
+baseRadius = "6px"
+buttonRadius = "6px"
+
+# Sidebar borders
+borderColor = "#D4E4D4"
+dataframeBorderColor = "#C7E0C7"
+dataframeHeaderBackgroundColor = "#E8F4E8"
+
+# Widget borders in sidebar
+showWidgetBorder = true
 
 [browser]
 gatherUsageStats = false
