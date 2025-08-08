@@ -41,9 +41,12 @@ logging.basicConfig(
 
 def main():
     # Set page config once in the main entry point
+    # Build an absolute path for the favicon/logo to ensure it loads reliably
+    icon_path = os.path.join(current_dir, "images", "sautai_logo.PNG")
+    web_path = "https://live.staticflickr.com/65535/53937452345_f4e9251155_c.jpg"
     st.set_page_config(
         page_title="sautAI - Your Diet and Nutrition Guide",
-        page_icon="images/sautai_logo.PNG",
+        page_icon=icon_path,
         layout="wide",
         initial_sidebar_state="auto",
         menu_items={
@@ -84,10 +87,11 @@ def main():
 
     # Display the sautAI logo in the sidebar for better branding
     # st.sidebar.image("images/sautai_logo.PNG", use_container_width=True)
+    # Use a wider WEBP logo for better presence at the top-left in both states
     st.logo(
-        image="images/sautai_logo.PNG",
+        image=web_path,
         size="large",
-        icon_image="images/sautai_logo.PNG"  # Smaller version when sidebar collapsed
+        icon_image=web_path
     )
     # Open Graph metadata for better link previews
     st.markdown(
@@ -128,8 +132,8 @@ def main():
     # Add app logo with more prominence - adjusted column ratio for better balance
     header_col1, header_col2 = st.columns([0.3, 0.7])
     with header_col1:
-        # Use st.image for more reliable image loading
-        st.image("images/sautai_logo.PNG", width=250)
+        # Use the same WEBP asset for consistency and clarity
+        st.image(web_path, width=360)
     with header_col2:
         st.markdown('<h1 class="header-text">sautAI</h1>', unsafe_allow_html=True)
         st.markdown('<p class="header-subtext">Your personal diet and nutrition assistant</p>', unsafe_allow_html=True)

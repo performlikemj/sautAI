@@ -675,10 +675,33 @@ try:
 
         if items and st.session_state.get('current_role', '') != 'chef':
             with st.expander("Recommended Follow‑Ups", expanded=False, icon="💡"):
-                for idx, item in enumerate(items):
-                    text = item.get('recommendation', '')
-                    if st.button(text, key=f"{text}_{idx}"):
-                        process_user_input(text, chat_container)
+                try:
+                    # Mobile centering for follow-ups
+                    st.markdown(
+                        """
+                        <style>
+                        @media (max-width: 768px) {
+                          .st-key-followups {
+                            justify-content: center !important;
+                          }
+                        }
+                        </style>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                    row = st.container(horizontal=True, horizontal_alignment="left", gap="small", key="followups")
+                    with row:
+                        for idx, item in enumerate(items):
+                            text = item.get('recommendation', '')
+                            btn = st.container(width="content")
+                            with btn:
+                                if st.button(text, key=f"followup_{idx}"):
+                                    process_user_input(text, chat_container)
+                except TypeError:
+                    for idx, item in enumerate(items):
+                        text = item.get('recommendation', '')
+                        if st.button(text, key=f"{text}_{idx}"):
+                            process_user_input(text, chat_container)
         else:
             logging.info("No follow‑up recommendations to display.")
 

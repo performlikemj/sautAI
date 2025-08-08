@@ -79,266 +79,208 @@ try:
             st.success("Logged out successfully!")
             st.rerun()
         
-    # Hero Section with improved layout and copy and responsive design
-    # Add custom CSS for responsive layout
-    st.markdown("""
-    <style>
-    .responsive-container {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .hero-image {
-        max-width: 100%;
-        height: auto;
-        margin-bottom: 20px;
-    }
-    
-    @media (min-width: 768px) {
-        .responsive-container {
-            flex-direction: row;
-        }
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Use container for more control over layout
-    with st.container():
-        # For larger screens, use columns
-        if st.session_state.get('_is_desktop', True):  # Default to desktop view
-            hero_col1, hero_col2 = st.columns([0.6, 0.4])
-            
-            with hero_col1:
-                st.markdown("""
-                    <h1 style="color: #5cb85c;">Connect With Local Chefs</h1>
-                    <p style="font-size: 1.2rem;">We link you with talented cooks in your community—from chefs preserving family recipes to those creating new flavors. Our AI simply helps plan your meals.</p>
-                    """, unsafe_allow_html=True)
-                
-                if st.button("Get Started Today 🍽️", use_container_width=True):
-                    navigate_to_page('register')
-            
-            with hero_col2:
-                st.markdown("""
-                <div style="padding: 10px;">
-                    <img src="https://live.staticflickr.com/65535/54548860874_7569d1dbdc_b.jpg" class="hero-image">
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            # For mobile/smaller screens, stack vertically
+    # Hero Section with flexbox layout (Streamlit containers)
+    try:
+        # Page-level mobile responsiveness for centering on small screens
+        st.markdown(
+            """
+            <style>
+            @media (max-width: 768px) {
+              .st-key-hero, .st-key-intro, .st-key-features, .st-key-steps, .st-key-cta {
+                justify-content: center !important;
+                align-items: center !important;
+              }
+              .st-key-hero h1, .st-key-hero p,
+              .st-key-intro h3, .st-key-intro p,
+              .st-key-steps h3, .st-key-steps p,
+              .st-key-cta h2, .st-key-cta p {
+                text-align: center !important;
+              }
+              .st-key-hero .stButton button,
+              .st-key-cta .stButton button {
+                width: 100% !important;
+              }
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        hero = st.container(horizontal=True, horizontal_alignment="left", vertical_alignment="center", gap="medium", key="hero")
+        with hero:
+            left = st.container(width="stretch")
+            right = st.container(width="stretch")
+        with left:
             st.markdown("""
-                <div class="responsive-container">
-                    <div>
-                        <h1 style="color: #5cb85c;">Connect With Local Chefs</h1>
-                        <p style="font-size: 1.2rem;">We link you with talented cooks in your community—from chefs preserving family recipes to those creating new flavors. Our AI simply helps plan your meals.</p>
-                    </div>
-                    <div>
-                        <img src="https://live.staticflickr.com/65535/54548860874_7569d1dbdc_b.jpg" class="hero-image">
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            
+                <h1 style="color: #5cb85c; margin-bottom: 0.25rem;">Connect With Local Chefs</h1>
+                <p style="font-size: 1.15rem; line-height: 1.6; max-width: 60ch;">
+                    We link you with talented cooks in your community — from chefs preserving family recipes
+                    to those creating new flavors. Our AI simply helps plan your meals.
+                </p>
+            """, unsafe_allow_html=True)
+            cta_row = st.container(horizontal=True, horizontal_alignment="left", gap="small")
+            with cta_row:
+                if st.button("Get Started Today 🍽️", type="primary"):
+                    navigate_to_page('register')
+                st.button("Explore as Guest", key="hero_guest", type="secondary", on_click=lambda: navigate_to_page('assistant'))
+        with right:
+            st.image("https://live.staticflickr.com/65535/54548860874_7569d1dbdc_b.jpg", use_container_width=True)
+    except TypeError:
+        # Fallback for older Streamlit versions without flexbox container
+        hero_col1, hero_col2 = st.columns([0.6, 0.4])
+        with hero_col1:
+            st.markdown("""
+                <h1 style=\"color: #5cb85c;\">Connect With Local Chefs</h1>
+                <p style=\"font-size: 1.2rem;\">We link you with talented cooks in your community—from chefs preserving family recipes to those creating new flavors. Our AI simply helps plan your meals.</p>
+            """, unsafe_allow_html=True)
             if st.button("Get Started Today 🍽️", use_container_width=True):
                 navigate_to_page('register')
+        with hero_col2:
+            st.image("https://live.staticflickr.com/65535/54548860874_7569d1dbdc_b.jpg", use_container_width=True)
     
     st.markdown("---")  # Divider for visual separation
     
-    # Introduction Section with clearer structure
+    # Introduction Section as responsive cards
     st.markdown("<h2 style='text-align: center;'>Why sautAI?</h2>", unsafe_allow_html=True)
-    
-    intro_col1, intro_col2, intro_col3 = st.columns(3)
-    
-
-    with intro_col1:
-        st.markdown("### 🥘 Local Connection")
-        st.markdown("""
-        Discover chefs in your neighborhood who prepare traditional favorites and exciting new meals while keeping culinary traditions alive.
-        """)
-    
-    with intro_col2:
-        st.markdown("### 🧠 AI Meal Planning")
-        st.markdown("""
-        Let our AI suggest balanced meal plans so you can focus on enjoying food and community.
-        """)
-    
-    with intro_col3:
-        st.markdown("### 🥦 Health Tracking")
-        st.markdown("""
-        Monitor your progress, track calories, and watch your health metrics improve with every meal.
-        """)
+    try:
+        intro = st.container(horizontal=True, horizontal_alignment="left", gap="medium", key="intro")
+        with intro:
+            for title, body in [
+                ("🥘 Local Connection", "Discover chefs in your neighborhood who prepare traditional favorites and exciting new meals while keeping culinary traditions alive."),
+                ("🧠 AI Meal Planning", "Let our AI suggest balanced meal plans so you can focus on enjoying food and community."),
+                ("🥦 Health Tracking", "Monitor your progress, track calories, and watch your health metrics improve with every meal."),
+            ]:
+                card = st.container(border=True, width="stretch")
+                with card:
+                    st.markdown(f"### {title}")
+                    st.markdown(body)
+    except TypeError:
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.markdown("### 🥘 Local Connection")
+            st.markdown("Discover chefs in your neighborhood who prepare traditional favorites and exciting new meals while keeping culinary traditions alive.")
+        with c2:
+            st.markdown("### 🧠 AI Meal Planning")
+            st.markdown("Let our AI suggest balanced meal plans so you can focus on enjoying food and community.")
+        with c3:
+            st.markdown("### 🥦 Health Tracking")
+            st.markdown("Monitor your progress, track calories, and watch your health metrics improve with every meal.")
     
     st.markdown("---")
     
-    # Features Section with more visual appeal and responsive design
+    # Features Section with flex image + text pairs
     st.markdown("<h2 style='text-align: center;'>How sautAI Works For You</h2>", unsafe_allow_html=True)
-    
-    # For responsive features section, check if we're on desktop or mobile
-    if st.session_state.get('_is_desktop', True):
-        # Desktop view - use tabs
-        features_tab1, features_tab2, features_tab3 = st.tabs(["Meal Planning", "Health Tracking", "Expert Support"])
-        
-        with features_tab1:
-            col1, col2 = st.columns([0.4, 0.6])
-            with col1:
-                st.image("https://live.staticflickr.com/65535/54550764768_d565973881_b.jpg", use_container_width=True)
-            with col2:
-                st.markdown("### Effortless Meal Planning")
-                st.markdown("""
-                - **Customized Weekly Plans** – Get a full week of meals tailored to your diet and preferences
-                - **Ingredient Awareness** – Avoid allergens and disliked foods automatically
-                - **One-Click Adjustments** – Swap meals you don't like with alternatives in seconds
-                - **Chef Connections** – Connect with local chefs for healthy meal preparation—from inventive new dishes to cherished classics
-                """)
-        
-        with features_tab2:
-            col1, col2 = st.columns([0.4, 0.6])
-            with col1:
-                st.image("https://live.staticflickr.com/65535/54550711849_2ac8954256_b.jpg", use_container_width=True)
-            with col2:
-                st.markdown("### Simple Health Monitoring")
-                st.markdown("""
-                - **Calorie & Nutrition Tracking** – Effortlessly log and monitor your daily intake
-                - **Progress Visualization** – See your health journey with clear, intuitive charts
-                - **Mood & Energy Monitoring** – Track how foods affect your well-being
-                - **Goal Setting** – Set achievable targets and watch yourself reach them
-                """)
-        
-        with features_tab3:
-            col1, col2 = st.columns([0.4, 0.6])
-            with col1:
-                st.image("https://live.staticflickr.com/65535/54549653432_73f6b0bdfd_b.jpg", use_container_width=True)
-            with col2:
-                st.markdown("### Ongoing Support")
-                st.markdown("""
-                - **AI Nutrition Assistant** – Get immediate answers to all your nutrition questions
-                - **Personalized Recommendations** – Receive suggestions that improve over time
-                - **Emergency Supply Planning** – Be prepared with healthy options for unexpected situations
-                - **Community Connection** – Learn from others on similar health journeys
-                """)
-    else:
-        # Mobile view - stack everything vertically with expanders
-        with st.expander("Meal Planning", expanded=True):
-            st.image("https://live.staticflickr.com/65535/53502731882_3c40de9d35_b.jpg", use_container_width=True)
-            st.markdown("### Effortless Meal Planning")
-            st.markdown("""
-            - **Customized Weekly Plans** – Get a full week of meals tailored to your diet and preferences
-            - **Ingredient Awareness** – Avoid allergens and disliked foods automatically
-            - **One-Click Adjustments** – Swap meals you don't like with alternatives in seconds
-            - **Chef Connections** – Connect with local chefs for healthy meal preparation—from inventive new dishes to cherished classics
-            """)
-            
-        with st.expander("Health Tracking", expanded=False):
-            st.image("https://live.staticflickr.com/65535/53503924179_28ed5b65c6_b.jpg", use_container_width=True)
-            st.markdown("### Simple Health Monitoring")
-            st.markdown("""
-            - **Calorie & Nutrition Tracking** – Effortlessly log and monitor your daily intake
-            - **Progress Visualization** – See your health journey with clear, intuitive charts
-            - **Mood & Energy Monitoring** – Track how foods affect your well-being
-            - **Goal Setting** – Set achievable targets and watch yourself reach them
-            """)
-            
-        with st.expander("Expert Support", expanded=False):
-            st.image("https://live.staticflickr.com/65535/53503924239_cfbdefb816_b.jpg", use_container_width=True)
-            st.markdown("### Ongoing Support")
-            st.markdown("""
-            - **AI Nutrition Assistant** – Get immediate answers to all your nutrition questions
-            - **Personalized Recommendations** – Receive suggestions that improve over time
-            - **Emergency Supply Planning** – Be prepared with healthy options for unexpected situations
-            - **Community Connection** – Learn from others on similar health journeys
-            """)
+    features_wrap = st.container(key="features")
+    def feature_row(image_url: str, title: str, bullets: list[str]):
+        try:
+            row = st.container(horizontal=True, horizontal_alignment="left", vertical_alignment="center", gap="large")
+            with row:
+                img = st.container(width="stretch")
+                text = st.container(width="stretch", border=True)
+            with img:
+                st.image(image_url, use_container_width=True)
+            with text:
+                st.markdown(f"### {title}")
+                for b in bullets:
+                    st.markdown(f"- {b}")
+        except TypeError:
+            c1, c2 = st.columns([0.4, 0.6])
+            with c1:
+                st.image(image_url, use_container_width=True)
+            with c2:
+                st.markdown(f"### {title}")
+                for b in bullets:
+                    st.markdown(f"- {b}")
+
+    with features_wrap:
+        feature_row(
+        "https://live.staticflickr.com/65535/54550764768_d565973881_b.jpg",
+        "Effortless Meal Planning",
+        [
+            "**Customized Weekly Plans** – Meals tailored to your diet and preferences",
+            "**Ingredient Awareness** – Avoid allergens and disliked foods automatically",
+            "**One‑Click Adjustments** – Swap meals in seconds",
+            "**Chef Connections** – Connect with local chefs for preparation",
+        ],
+    )
+        feature_row(
+        "https://live.staticflickr.com/65535/54550711849_2ac8954256_b.jpg",
+        "Simple Health Monitoring",
+        [
+            "**Calorie & Nutrition Tracking** – Log and monitor daily intake",
+            "**Progress Visualization** – Clear, intuitive charts",
+            "**Mood & Energy Monitoring** – See how foods affect you",
+            "**Goal Setting** – Set targets and reach them",
+        ],
+    )
+        feature_row(
+        "https://live.staticflickr.com/65535/54549653432_73f6b0bdfd_b.jpg",
+        "Ongoing Support",
+        [
+            "**AI Nutrition Assistant** – Answers to all your nutrition questions",
+            "**Personalized Recommendations** – Suggestions that improve over time",
+            "**Emergency Supply Planning** – Healthy options for the unexpected",
+            "**Community Connection** – Learn from others on similar journeys",
+        ],
+    )
     
     st.markdown("---")
     
-    # How It Works Section with clearer steps and responsive design
+    # How It Works Section using responsive flex cards
     st.markdown("<h2 style='text-align: center;'>Simple Steps to Better Health</h2>", unsafe_allow_html=True)
-    
-    # Responsive steps section
-    if st.session_state.get('_is_desktop', True):
-        # Desktop view - use 4 columns
-        steps_col1, steps_col2, steps_col3, steps_col4 = st.columns(4)
-        
-        with steps_col1:
-            st.markdown("### 1️⃣ Sign Up")
-            st.markdown("Create your profile and tell us about your dietary needs and health goals.")
-        
-        with steps_col2:
-            st.markdown("### 2️⃣ Get Your Plan")
-            st.markdown("Receive customized meal plans that match your preferences and nutritional requirements.")
-        
-        with steps_col3:
-            st.markdown("### 3️⃣ Track Progress")
-            st.markdown("Log your meals and health metrics to monitor your journey toward better health.")
-        
-        with steps_col4:
-            st.markdown("### 4️⃣ Adjust & Improve")
-            st.markdown("Refine your plans based on what works for you with the help of our AI assistant.")
-    else:
-        # Mobile view - use 2 columns with 2 rows
-        st.markdown("""
-        <style>
-        .step-container {
-            margin-bottom: 20px;
-            padding: 10px;
-            border-radius: 5px;
-            background-color: #f8f9fa;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="step-container">
-            <h3>1️⃣ Sign Up</h3>
-            <p>Create your profile and tell us about your dietary needs and health goals.</p>
-        </div>
-        
-        <div class="step-container">
-            <h3>2️⃣ Get Your Plan</h3>
-            <p>Receive customized meal plans that match your preferences and nutritional requirements.</p>
-        </div>
-        
-        <div class="step-container">
-            <h3>3️⃣ Track Progress</h3>
-            <p>Log your meals and health metrics to monitor your journey toward better health.</p>
-        </div>
-        
-        <div class="step-container">
-            <h3>4️⃣ Adjust & Improve</h3>
-            <p>Refine your plans based on what works for you with the help of our AI assistant.</p>
-        </div>
-        """, unsafe_allow_html=True)
+    try:
+        steps = st.container(horizontal=True, horizontal_alignment="left", gap="medium", key="steps")
+        with steps:
+            for title, desc in [
+                ("1️⃣ Sign Up", "Create your profile and tell us about your dietary needs and health goals."),
+                ("2️⃣ Get Your Plan", "Receive customized meal plans that match your preferences and nutritional requirements."),
+                ("3️⃣ Track Progress", "Log your meals and health metrics to monitor your journey toward better health."),
+                ("4️⃣ Adjust & Improve", "Refine your plans based on what works for you with the help of our AI assistant."),
+            ]:
+                tile = st.container(border=True, width="stretch")
+                with tile:
+                    st.markdown(f"### {title}")
+                    st.markdown(desc)
+    except TypeError:
+        c1, c2, c3, c4 = st.columns(4)
+        for col, (title, desc) in zip([c1, c2, c3, c4], [
+            ("1️⃣ Sign Up", "Create your profile and tell us about your dietary needs and health goals."),
+            ("2️⃣ Get Your Plan", "Receive customized meal plans that match your preferences and nutritional requirements."),
+            ("3️⃣ Track Progress", "Log your meals and health metrics to monitor your journey toward better health."),
+            ("4️⃣ Adjust & Improve", "Refine your plans based on what works for you with the help of our AI assistant."),
+        ]):
+            with col:
+                st.markdown(f"### {title}")
+                st.markdown(desc)
     
     st.markdown("---")
     
-    # Call to Action Section with responsive design
-    if st.session_state.get('_is_desktop', True):
-        # Desktop view - use columns
-        cta_col1, cta_col2 = st.columns([0.7, 0.3])
-        
-        with cta_col1:
-            st.markdown("<h2>Ready to Transform Your Relationship with Food?</h2>", unsafe_allow_html=True)
+    # Call to Action Section with flex
+    st.markdown("<h2>Ready to Transform Your Relationship with Food?</h2>", unsafe_allow_html=True)
+    try:
+        cta = st.container(horizontal=True, horizontal_alignment="left", gap="medium", key="cta")
+        with cta:
+            text = st.container(width="stretch", border=True)
+            actions = st.container(width="stretch")
+        with text:
             st.markdown("""
             Join a community that celebrates local chefs, from family recipes passed down through generations to brand new creations.
             Our AI-powered meal planning keeps things simple while you focus on sharing real food with real people.
 
             Start your journey to connected, tradition-rich meals today!
             """)
-        
-        with cta_col2:
-            st.markdown("<br><br>", unsafe_allow_html=True)  # Spacing
-            if st.button("Create Free Account", use_container_width=True, type="primary"):
+        with actions:
+            if st.button("Create Free Account", type="primary", use_container_width=True):
                 navigate_to_page('register')
             if st.button("Explore as Guest", use_container_width=True):
                 navigate_to_page('assistant')
-    else:
-        # Mobile view - stack vertically
-        st.markdown("<h2>Ready to Transform Your Relationship with Food?</h2>", unsafe_allow_html=True)
+    except TypeError:
         st.markdown("""
         Join a community that celebrates local chefs, from family recipes passed down through generations to brand new creations.
         Our AI-powered meal planning keeps things simple while you focus on sharing real food with real people.
 
         Start your journey to connected, tradition-rich meals today!
         """)
-        
         st.button("Create Free Account", use_container_width=True, type="primary", key="mobile_cta_1")
         st.button("Explore as Guest", use_container_width=True, key="mobile_cta_2")
 

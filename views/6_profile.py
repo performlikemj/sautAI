@@ -168,9 +168,10 @@ try:
 
             # Debug: Show current household members in session state
             if st.session_state.get('household_members'):
-                with st.expander("🔍 Debug: Current Household Members in Session", expanded=False):
-                    st.json(st.session_state['household_members'])
-                    st.caption(f"Count in session: {len(st.session_state.get('household_members', []))}")
+                pass
+                # with st.expander("🔍 Debug: Current Household Members in Session", expanded=False):
+                #     st.json(st.session_state['household_members'])
+                #     st.caption(f"Count in session: {len(st.session_state.get('household_members', []))}")
             
             # Fetch available languages from API
             languages = fetch_languages()
@@ -207,6 +208,17 @@ try:
             timezones = pytz.all_timezones
 
             goal_data = fetch_and_display_goals()
+
+            # Household Members controller (outside the form to enable dynamic add/remove)
+            st.subheader("Household Members")
+            household_member_count_display = st.number_input(
+                "Household Members",
+                min_value=1,
+                value=int(st.session_state.get('household_member_count', household_member_count_val)),
+                help="How many people live in your household? Adjust to add or remove member forms below."
+            )
+            # Keep in session for consistency across reruns and to inform the form section
+            st.session_state['household_member_count'] = int(household_member_count_display)
 
             with st.form("profile_update_form"):
                 st.subheader("User Information")
@@ -261,17 +273,9 @@ try:
                 selected_allergies = st.multiselect("Allergies", all_allergies, default=[a for a in allergies_val if a in all_allergies])
                 custom_allergies_input = st.text_area("Custom Allergies (comma separated)", value=custom_allergies_val, help="Enter multiple custom allergies separated by commas. Example: Peanuts, Shellfish, Kiwi")
 
-                # Household Member Count
-                household_member_count_input = st.number_input(
-                    "Household Members",
-                    min_value=1,
-                    value=household_member_count_val,
-                    help="How many people live in your household?"
-                )
-
                 # Create household member input fields
                 # Values will be automatically stored in session state with the keys
-                for i in range(int(household_member_count_input)):
+                for i in range(int(household_member_count_display)):
                     existing = household_members_val[i] if i < len(household_members_val) else {}
                     with st.expander(f"Household Member {i+1} (optional)"):
                         st.text_input("Name", value=existing.get('name', ''), key=f"profile_member_name_{i}")
@@ -285,10 +289,10 @@ try:
                         st.text_area("Notes", value=existing.get('notes', ''), key=f"profile_member_notes_{i}")
                 
                 # Debug: Show current form values before submission
-                if household_member_count_input > 1:
+                if household_member_count_display > 1:
                     with st.expander("🔍 Debug: Current Form Values", expanded=False):
                         st.write("**Household Members Form Data:**")
-                        for i in range(int(household_member_count_input)):
+                        for i in range(int(household_member_count_display)):
                             name = st.session_state.get(f"profile_member_name_{i}", '')
                             age = st.session_state.get(f"profile_member_age_{i}", 0)
                             dietary_prefs = st.session_state.get(f"profile_member_diet_{i}", [])
@@ -350,7 +354,7 @@ try:
 
                         # Process household members data during form submission using session state
                         household_members_input = []
-                        for i in range(int(household_member_count_input)):
+                        for i in range(int(household_member_count_display)):
                             # Access values from session state using the widget keys
                             name = st.session_state.get(f"profile_member_name_{i}", '')
                             age = st.session_state.get(f"profile_member_age_{i}", 0)
@@ -387,7 +391,7 @@ try:
                             'timezone': selected_timezone,
                             'preferred_language': selected_language_code,
                             'unsubscribed_from_emails': (receive_emails_choice == 'No'),
-                            'household_member_count': household_member_count_input,
+                            'household_member_count': int(household_member_count_display),
                             'household_members': household_members_input,
                             'emergency_supply_goal': emergency_supply_goal_input,
                             'address': {
@@ -401,7 +405,7 @@ try:
                         }
 
                         # Add debug logging for household members
-                        logging.info(f"Household member count: {household_member_count_input}")
+                        logging.info(f"Household member count: {household_member_count_display}")
                         logging.info(f"Available session state keys: {[k for k in st.session_state.keys() if 'profile_member' in k]}")
                         logging.info(f"Submitting household members data: {household_members_input}")
                         logging.info(f"Full profile data being sent: {profile_data}")
@@ -425,7 +429,7 @@ try:
                             st.success("Profile updated successfully!")
                             
                             # Update session state immediately with the submitted data
-                            st.session_state['household_member_count'] = household_member_count_input
+                            st.session_state['household_member_count'] = int(household_member_count_display)
                             st.session_state['household_members'] = household_members_input
                             logging.info(f"Updated session state with household members: {household_members_input}")
                             

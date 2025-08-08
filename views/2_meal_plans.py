@@ -1662,6 +1662,21 @@ if is_user_authenticated() and st.session_state.get('email_confirmed', False):
 
         # Main content area with improved layout
         st.title("📅 Your Meal Plans")
+        # Center title and welcome text on mobile
+        st.markdown(
+            """
+            <style>
+            @media (max-width: 768px) {
+              .st-key-mealplans_title, .st-key-mealplans_welcome { text-align: center !important; }
+              .st-key-mealplans_title h1, .st-key-mealplans_welcome h3, .st-key-mealplans_welcome p { text-align: center !important; }
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        title_wrap = st.container(key="mealplans_title")
+        with title_wrap:
+            pass
         welcome_col1, welcome_col2 = st.columns([2,1])
         if 'selected_week_start' not in st.session_state:
             st.session_state.selected_week_start = datetime.now().date() - timedelta(days=datetime.now().date().weekday())
@@ -1686,48 +1701,104 @@ if is_user_authenticated() and st.session_state.get('email_confirmed', False):
 
         st.markdown("---")
 
-        # Week navigation with improved UI
-        st.markdown("### 📅 Week Navigation")
-        nav_cols = st.columns([1, 2, 1])
-        with nav_cols[0]:
-            if st.button('◀️ Previous Week', use_container_width=True):
-                st.session_state.selected_week_start -= timedelta(weeks=1)
-                st.session_state.selected_day = "All Days"
-                st.rerun()
-        with nav_cols[1]:
-            st.markdown(f"<h3 style='text-align: center;'>{selected_week_start.strftime('%B %d')} - {selected_week_end.strftime('%B %d, %Y')}</h3>", unsafe_allow_html=True)
-        with nav_cols[2]:
-            if st.button('Next Week ▶️', use_container_width=True):
-                st.session_state.selected_week_start += timedelta(weeks=1)
-                st.session_state.selected_day = "All Days"
-                st.rerun()
-
-        # Day selection with visual calendar
-        st.markdown("### 📆 Select Day")
-        day_cols = st.columns(7)
-        days_of_week = [(selected_week_start + timedelta(days=i)).strftime('%a') for i in range(7)] # Use %a for abbreviated day name
-        dates = [(selected_week_start + timedelta(days=i)).strftime('%d') for i in range(7)]
-        
-        # Initialize selected_day from session state
-        selected_day = st.session_state.selected_day
-        
-        for i, (day, date) in enumerate(zip(days_of_week, dates)):
-            with day_cols[i]:
-                if st.button(
-                    f"{day}\n{date}",
-                    key=f"day_btn_{i}",
-                    use_container_width=True,
-                    type="secondary" if day != selected_day else "primary"
-                ):
-                    selected_day = day
-                    st.session_state.selected_day = day
+        # Week navigation with improved UI (mobile-centered)
+        st.markdown("<h3 style='text-align: center;'>📅 Week Navigation</h3>", unsafe_allow_html=True)
+        st.markdown(
+            """
+            <style>
+            @media (max-width: 768px) {
+              .st-key-week_nav { justify-content: center !important; text-align: center !important; }
+              .st-key-week_nav h3 { width: 100%; text-align: center !important; }
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        try:
+            week_nav = st.container(horizontal=True, horizontal_alignment="center", gap="small", key="week_nav")
+            with week_nav:
+                if st.button('◀️ Previous Week', key='prev_week', type='secondary'):
+                    st.session_state.selected_week_start -= timedelta(weeks=1)
+                    st.session_state.selected_day = "All Days"
+                    st.rerun()
+                st.markdown(
+                    f"<h3 style='text-align: center;'>{selected_week_start.strftime('%B %d')} - {selected_week_end.strftime('%B %d, %Y')}</h3>",
+                    unsafe_allow_html=True,
+                )
+                if st.button('Next Week ▶️', key='next_week', type='secondary'):
+                    st.session_state.selected_week_start += timedelta(weeks=1)
+                    st.session_state.selected_day = "All Days"
+                    st.rerun()
+        except TypeError:
+            nav_cols = st.columns([1, 2, 1])
+            with nav_cols[0]:
+                if st.button('◀️ Previous Week', use_container_width=True):
+                    st.session_state.selected_week_start -= timedelta(weeks=1)
+                    st.session_state.selected_day = "All Days"
+                    st.rerun()
+            with nav_cols[1]:
+                st.markdown(
+                    f"<h3 style='text-align: center;'>{selected_week_start.strftime('%B %d')} - {selected_week_end.strftime('%B %d, %Y')}</h3>",
+                    unsafe_allow_html=True,
+                )
+            with nav_cols[2]:
+                if st.button('Next Week ▶️', use_container_width=True):
+                    st.session_state.selected_week_start += timedelta(weeks=1)
+                    st.session_state.selected_day = "All Days"
                     st.rerun()
 
-        # Add an "All Days" option
-        if st.button("👀 View All Days", use_container_width=True, type="secondary" if "All Days" != selected_day else "primary"):
-            selected_day = "All Days"
-            st.session_state.selected_day = "All Days"
-            st.rerun()
+        # Day selection with visual calendar (flex + wrapping, centered on mobile)
+        st.markdown("### 📆 Select Day")
+        days_of_week = [(selected_week_start + timedelta(days=i)).strftime('%a') for i in range(7)]
+        dates = [(selected_week_start + timedelta(days=i)).strftime('%d') for i in range(7)]
+        selected_day = st.session_state.selected_day
+        st.markdown(
+            """
+            <style>
+            @media (max-width: 768px) { .st-key-select_day { justify-content: center !important; } }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        try:
+            day_row = st.container(horizontal=True, horizontal_alignment="center", gap="small", key="select_day")
+            with day_row:
+                for i, (day, date) in enumerate(zip(days_of_week, dates)):
+                    if st.button(
+                        f"{day}\n{date}",
+                        key=f"day_btn_{i}",
+                        type="secondary" if day != selected_day else "primary",
+                    ):
+                        selected_day = day
+                        st.session_state.selected_day = day
+                        st.rerun()
+        except TypeError:
+            day_cols = st.columns(7)
+            for i, (day, date) in enumerate(zip(days_of_week, dates)):
+                with day_cols[i]:
+                    if st.button(
+                        f"{day}\n{date}",
+                        key=f"day_btn_{i}",
+                        use_container_width=True,
+                        type="secondary" if day != selected_day else "primary",
+                    ):
+                        selected_day = day
+                        st.session_state.selected_day = day
+                        st.rerun()
+
+        # Add an "All Days" option (center on mobile)
+        try:
+            all_days_row = st.container(horizontal=True, horizontal_alignment="center", key="view_all_days")
+            with all_days_row:
+                if st.button("👀 View All Days", key="view_all_days_btn", type="secondary" if "All Days" != selected_day else "primary"):
+                    selected_day = "All Days"
+                    st.session_state.selected_day = "All Days"
+                    st.rerun()
+        except TypeError:
+            if st.button("👀 View All Days", use_container_width=True, type="secondary" if "All Days" != selected_day else "primary"):
+                selected_day = "All Days"
+                st.session_state.selected_day = "All Days"
+                st.rerun()
 
         st.markdown("---")
 
@@ -1849,8 +1920,7 @@ if is_user_authenticated() and st.session_state.get('email_confirmed', False):
                 # Skip filtering if 'Everything' is selected
                 if 'Everything' in st.session_state.dietary_preferences:
                     # If 'Everything' is selected along with other filters, show a note
-                    if len(st.session_state.dietary_preferences) > 1:
-                        st.info("'Everything' option is selected, showing all meals regardless of other filters.")
+                    pass
                 else:
                     # Get detailed meal data to check dietary attributes
                     filtered_meal_ids = []
