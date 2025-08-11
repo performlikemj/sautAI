@@ -1,4 +1,28 @@
-*.env
+############################################################
+# Root ignore rules for Python backend, React (Vite) web app
+# in `sautai-react-frontend/`, and Expo mobile app in `mobile/`.
+#
+# Notes:
+# - Do NOT ignore lockfiles (package-lock.json, yarn.lock, etc.)
+# - Do NOT ignore Dockerfile, docker-compose.yml, deploy/ or scripts/
+############################################################
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor/IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Environment/secrets
+.env
+.env.*
+!env.example
 *.pem
 *.toml
 !.streamlit/config.toml
@@ -6,11 +30,64 @@
 *.pyc
 get-pip.py
 .sautai*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Redis
+dump.rdb
+*.rdb
+
+
+# Node/JavaScript (applies to nested projects too)
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.eslintcache
+
+# Generic build outputs (frontend and others)
+**/dist/
+**/build/
+
+# Vite/Tooling caches
+**/.vite/
+**/.parcel-cache/
+**/.turbo/
+
+# React web app (Vite)
+sautai-react-frontend/dist/
+sautai-react-frontend/.vite/
+
+# Expo/React Native mobile app
+mobile/.expo/
+mobile/.expo-shared/
+mobile/.cache/
+mobile/web-build/
+mobile/build/
+mobile/dist/
+mobile/android/
+mobile/ios/
+mobile/.gradle/
+
+# Misc utilities
+get-pip.py
+
 app.log
 *.log
-*.rdb
-```
-dump.rdb
+
 *.json
 Dockerfile
 docker-compose.yml

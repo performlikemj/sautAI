@@ -1,0 +1,21 @@
+# Runtime requirements for the sautAI React frontend
+# (This is a Node.js app; install Node and npm to run.)
+node>=18
+npm>=9
+# Optional: pnpm>=9 or yarn>=1.22
+
+# Backend:
+# A running Django backend exposing endpoints like:
+#  - /auth/api/token/ (JWT obtain)
+#  - /auth/api/token/refresh/ (JWT refresh)
+#  - /auth/api/user_details/
+#  - /auth/api/register/
+#  - /customer_dashboard/api/chat_with_gpt/
+#  - /customer_dashboard/api/thread_detail/<id>/
+#  - /customer_dashboard/api/thread_history/
+#  - /meals/api/meal_plans/
+#  - /meals/api/generate_meal_plan/
+#  - /meals/api/chef_meals/
+#  - /meals/api/order/
+#  - /chefs/api/meals/
+#  - /chefs/api/orders/
