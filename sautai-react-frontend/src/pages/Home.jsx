@@ -1,9 +1,15 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { api } from '../api'
+import Carousel from '../components/Carousel.jsx'
 
 export default function Home(){
   const { user } = useAuth()
+  const [applyOpen, setApplyOpen] = useState(false)
+  const [chefForm, setChefForm] = useState({ experience:'', bio:'', serving_areas:'', profile_pic:null })
+  const [submitting, setSubmitting] = useState(false)
+  const [applyMsg, setApplyMsg] = useState(null)
 
   const FeatureRow = ({ image, title, bullets, reverse=false }) => (
     <div className={"media" + (reverse ? " reverse" : "")}>
@@ -30,7 +36,12 @@ export default function Home(){
             <p>We link you with talented cooks in your community — from chefs preserving family recipes to those creating new flavors. Our AI simply helps plan your meals.</p>
             <div className="hero-actions">
               {!user && <Link to="/register" className="btn btn-primary">Get Started Today 🍽️</Link>}
-              <Link to="/chat" className="btn btn-outline">Explore as Guest</Link>
+              {!user && <Link to="/chefs" className="btn btn-outline">Explore as Guest</Link>}
+              {user ? (
+                 user?.is_chef ? null : <button className="btn btn-outline" onClick={()=> setApplyOpen(true)}>Become a Chef</button>
+              ) : (
+                <Link to="/login?next=/profile?applyChef=1" className="btn btn-outline">Become a Chef</Link>
+              )}
             </div>
           </div>
           <div className="hero-image">
@@ -41,9 +52,64 @@ export default function Home(){
 
       <div className="divider" />
 
+      {applyOpen && (
+        <>
+          <div className="right-panel-overlay" onClick={()=> setApplyOpen(false)} />
+          <aside className="right-panel" role="dialog" aria-label="Become a Chef">
+            <div className="right-panel-head">
+              <div className="slot-title">Become a Community Chef</div>
+              <button className="icon-btn" onClick={()=> setApplyOpen(false)}>✕</button>
+            </div>
+            <div className="right-panel-body">
+              {applyMsg && <div className="card" style={{marginBottom:'.6rem'}}>{applyMsg}</div>}
+              <p className="muted">Share your experience and where you can serve. You can complete your profile later.</p>
+              <div className="label">Experience</div>
+              <textarea className="textarea" rows={3} value={chefForm.experience} onChange={e=> setChefForm({...chefForm, experience:e.target.value})} />
+              <div className="label">Bio</div>
+              <textarea className="textarea" rows={3} value={chefForm.bio} onChange={e=> setChefForm({...chefForm, bio:e.target.value})} />
+              <div className="label">Serving areas (postal codes)</div>
+              <input className="input" value={chefForm.serving_areas} onChange={e=> setChefForm({...chefForm, serving_areas:e.target.value})} />
+              <div className="label">Profile picture (optional)</div>
+              <div>
+                <input id="homeProfilePic" type="file" accept="image/jpeg,image/png,image/webp" style={{display:'none'}} onChange={e=> setChefForm({...chefForm, profile_pic: e.target.files?.[0]||null})} />
+                <label htmlFor="homeProfilePic" className="btn btn-outline">Choose file</label>
+                {chefForm.profile_pic && <span className="muted" style={{marginLeft:'.5rem'}}>{chefForm.profile_pic.name}</span>}
+              </div>
+              <div className="actions-row" style={{marginTop:'.6rem'}}>
+                 <button className="btn btn-primary" disabled={submitting} onClick={async ()=>{
+                  setSubmitting(true); setApplyMsg(null)
+                  try{
+                    const fd = new FormData()
+                     fd.append('experience', chefForm.experience)
+                     fd.append('bio', chefForm.bio)
+                     fd.append('serving_areas', chefForm.serving_areas)
+                     // Best effort: attach city/country if we have them on the user object
+                     try{
+                       const city = (user?.address?.city||'').trim()
+                       const country = (user?.address?.country||'').trim()
+                       if (city) fd.append('city', city)
+                       if (country) fd.append('country', country)
+                     }catch{}
+                    if (chefForm.profile_pic) fd.append('profile_pic', chefForm.profile_pic)
+                    const resp = await api.post('/chefs/api/chefs/submit-chef-request/', fd, { headers:{'Content-Type':'multipart/form-data'} })
+                    if (resp.status===200 || resp.status===201){
+                      setApplyMsg('Application submitted. We will notify you when approved.')
+                    } else {
+                      setApplyMsg('Submission failed. Please try again later.')
+                    }
+                   }catch(e){ setApplyMsg(e?.response?.data?.error || 'Submission failed. Please try again.') }
+                  finally{ setSubmitting(false) }
+                }}>{submitting?'Submitting…':'Submit Application'}</button>
+                <button className="btn btn-outline" onClick={()=> setApplyOpen(false)}>Close</button>
+              </div>
+            </div>
+          </aside>
+        </>
+      )}
+
       {/* Intro cards */}
       <section className="section" aria-labelledby="why">
-        <h2 id="why" className="section-title">Why sautAI?</h2>
+        <h2 id="why" className="section-title">Why sautai?</h2>
         <div className="intro-cards" style={{marginTop:'.75rem'}}>
           <div className="card">
             <h3>🥘 Local Connection</h3>
@@ -62,40 +128,56 @@ export default function Home(){
 
       <div className="divider" />
 
-      {/* Features with images */}
+      {/* Features with images (carousel on mobile) */}
       <section className="section" aria-labelledby="how">
-        <h2 id="how" className="section-title">How sautAI Works For You</h2>
-        <FeatureRow
-          image="https://live.staticflickr.com/65535/54550764768_d565973881_b.jpg"
-          title="Effortless Meal Planning"
-          bullets={[
-            "<b>Customized Weekly Plans</b> – Meals tailored to your diet and preferences",
-            "<b>Ingredient Awareness</b> – Avoid allergens and disliked foods automatically",
-            "<b>One‑Click Adjustments</b> – Swap meals in seconds",
-            "<b>Chef Connections</b> – Connect with local chefs for preparation",
-          ]}
-        />
-        <FeatureRow
-          image="https://live.staticflickr.com/65535/54550711849_2ac8954256_b.jpg"
-          title="Simple Health Monitoring"
-          bullets={[
-            "<b>Calorie & Nutrition Tracking</b> – Log and monitor daily intake",
-            "<b>Progress Visualization</b> – Clear, intuitive charts",
-            "<b>Mood & Energy Monitoring</b> – See how foods affect you",
-            "<b>Goal Setting</b> – Set targets and reach them",
-          ]}
-          reverse
-        />
-        <FeatureRow
-          image="https://live.staticflickr.com/65535/54549653432_73f6b0bdfd_b.jpg"
-          title="Ongoing Support"
-          bullets={[
-            "<b>AI Nutrition Assistant</b> – Answers to all your nutrition questions",
-            "<b>Personalized Recommendations</b> – Suggestions that improve over time",
-            "<b>Emergency Supply Planning</b> – Healthy options for the unexpected",
-            "<b>Community Connection</b> – Learn from others on similar journeys",
-          ]}
-        />
+        <h2 id="how" className="section-title">How sautai works for you</h2>
+        <div className="feature-carousel" style={{ marginTop: '.5rem' }}>
+          <Carousel
+            ariaLabel="How sautai works carousel"
+            autoPlay
+            intervalMs={5500}
+            pauseOnHover
+            pauseOnTouch
+            items={[
+              (
+                <FeatureRow
+                  image="https://live.staticflickr.com/65535/54550764768_d565973881_b.jpg"
+                  title="Effortless Meal Planning"
+                  bullets={[
+                    "<b>Customized Weekly Plans</b> – Meals tailored to your diet and preferences",
+                    "<b>Ingredient Awareness</b> – Avoid allergens and disliked foods automatically",
+                    "<b>One‑Click Adjustments</b> – Swap meals in seconds",
+                    "<b>Chef Connections</b> – Connect with local chefs for preparation",
+                  ]}
+                />
+              ),
+              (
+                <FeatureRow
+                  image="https://live.staticflickr.com/65535/54550711849_2ac8954256_b.jpg"
+                  title="Simple Health Monitoring"
+                  bullets={[
+                    "<b>Calorie & Nutrition Tracking</b> – Log and monitor daily intake",
+                    "<b>Progress Visualization</b> – Clear, intuitive charts",
+                    "<b>Mood & Energy Monitoring</b> – See how foods affect you",
+                    "<b>Goal Setting</b> – Set targets and reach them",
+                  ]}
+                />
+              ),
+              (
+                <FeatureRow
+                  image="https://live.staticflickr.com/65535/54549653432_73f6b0bdfd_b.jpg"
+                  title="Ongoing Support"
+                  bullets={[
+                    "<b>AI Nutrition Assistant</b> – Answers to all your nutrition questions",
+                    "<b>Personalized Recommendations</b> – Suggestions that improve over time",
+                    "<b>Emergency Supply Planning</b> – Healthy options for the unexpected",
+                    "<b>Community Connection</b> – Learn from others on similar journeys",
+                  ]}
+                />
+              ),
+            ]}
+          />
+        </div>
       </section>
 
       <div className="divider" />
@@ -133,7 +215,7 @@ export default function Home(){
           </div>
           <div className="actions">
             {!user && <Link to="/register" className="btn btn-primary" style={{textAlign:'center'}}>Create Free Account</Link>}
-            <Link to="/chat" className="btn btn-outline" style={{textAlign:'center'}}>Explore as Guest</Link>
+            {!user && <Link to="/chefs" className="btn btn-outline" style={{textAlign:'center'}}>Explore as Guest</Link>}
           </div>
         </div>
       </section>

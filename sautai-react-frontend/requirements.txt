@@ -1,4 +1,4 @@
-# Runtime requirements for the sautAI React frontend
+# Runtime requirements for the sautai React frontend
 # (This is a Node.js app; install Node and npm to run.)
 node>=18
 npm>=9

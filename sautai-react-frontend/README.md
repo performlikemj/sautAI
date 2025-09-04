@@ -1,10 +1,10 @@
-# sautAI React Frontend
+# sautai React Frontend
 
-A modern React SPA that replaces the Streamlit UI for **sautAI**. It connects to the existing Django backend, preserves feature parity, and ships with a warm, community-focused brand theme.
+A modern React SPA that replaces the Streamlit UI for **sautai**. It connects to the existing Django backend, preserves feature parity, and ships with a warm, community-focused brand theme.
 
 ## Features
 - JWT auth (login/register), user profile & preferences
-- AI chat (with conversation threads/history)
+- AI chat
 - Weekly meal plans with chef meal replacement/ordering
 - Chef dashboard for offerings & orders
 - Nutrition & health basics scaffolded (extend as needed)

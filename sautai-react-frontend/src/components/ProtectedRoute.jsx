@@ -6,9 +6,21 @@ export default function ProtectedRoute({ children, requiredRole }){
   const { user, loading } = useAuth()
   if (loading) return <div className="container"><p>Loading…</p></div>
   if (!user) {
-    console.warn('[ProtectedRoute] No user → redirect to /login')
-    return <Navigate to="/login" replace />
+    const next = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/'
+    console.warn('[ProtectedRoute] No user → redirect to /login', { next })
+    return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />
   }
+
+  // If user not verified, restrict access to most protected pages
+  try{
+    const path = typeof window !== 'undefined' ? (window.location.pathname || '') : ''
+    const allowUnverifiedPaths = new Set(['/verify-email','/profile'])
+    const isAllowed = allowUnverifiedPaths.has(path)
+    const isVerified = Boolean(user?.email_confirmed)
+    if (!isVerified && !isAllowed){
+      return <Navigate to="/verify-email" replace />
+    }
+  }catch{}
 
   if (requiredRole){
     const isChef = Boolean(user?.is_chef)
@@ -17,10 +29,8 @@ export default function ProtectedRoute({ children, requiredRole }){
       (requiredRole === 'chef' && isChef && currentRole === 'chef') ||
       (requiredRole === 'customer' && currentRole === 'customer')
     )
-    console.log('[ProtectedRoute]', { requiredRole, isChef, currentRole, roleAllowed })
     if (!roleAllowed){
-      console.warn('[ProtectedRoute] Access denied, redirecting to /', { requiredRole, isChef, currentRole })
-      return <Navigate to="/" replace />
+      return <Navigate to="/403" replace />
     }
   }
 

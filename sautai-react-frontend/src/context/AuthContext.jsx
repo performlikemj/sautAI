@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { api, setTokens, clearTokens, blacklistRefreshToken } from '../api'
 import { jwtDecode } from 'jwt-decode'
 
@@ -12,6 +12,37 @@ function pickRoleFromServerOrPrev(serverRole, prev){
 export function AuthProvider({ children }){
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const hasFetchedOnce = useRef(false)
+
+  async function fetchUserAndAddressOnce(){
+    if (hasFetchedOnce.current) return
+    hasFetchedOnce.current = true
+    try{
+      const [uRes, aRes] = await Promise.all([
+        api.get('/auth/api/user_details/'),
+        api.get('/auth/api/address_details/').catch(()=>null)
+      ])
+      const base = uRes?.data || {}
+      setUser(prev => {
+        const role = pickRoleFromServerOrPrev(base?.current_role, prev)
+        const nextBase = {
+          ...prev,
+          ...base,
+          is_chef: Boolean(base?.is_chef),
+          current_role: role,
+          household_member_count: Math.max(1, Number(base?.household_member_count || 1))
+        }
+        return nextBase
+      })
+      if (aRes?.data){
+        const a = aRes.data || {}
+        const postal = a.input_postalcode || a.postal_code || a.postalcode || ''
+        setUser(prev => ({ ...(prev||{}), address: { ...a, postalcode: postal }, postal_code: postal }))
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(()=>{
     const token = localStorage.getItem('accessToken')
@@ -20,37 +51,19 @@ export function AuthProvider({ children }){
       const claims = jwtDecode(token)
       setUser(prev => ({ ...(prev||{}), id: claims.user_id }))
     }catch{}
-    api.get('/auth/api/user_details/')
-      .then(async (res) => {
-        const base = res.data || {}
-        setUser(prev => {
-          const role = pickRoleFromServerOrPrev(base?.current_role, prev)
-          const nextBase = { ...prev, ...base, is_chef: Boolean(base?.is_chef), current_role: role }
-          return nextBase
-        })
-        try{
-          const addr = await api.get('/auth/api/address_details/')
-          const a = addr.data || {}
-          const postal = a.input_postalcode || a.postal_code || a.postalcode || ''
-          setUser(prev => ({ ...(prev||{}), address: { ...a, postalcode: postal }, postal_code: postal }))
-        }catch{}
-      })
-      .catch((e)=>{ console.warn('[Auth] user_details failed', e?.response?.status) })
-      .finally(()=>setLoading(false))
+    fetchUserAndAddressOnce().catch((e)=>{ console.warn('[Auth] initial load failed', e?.response?.status); setLoading(false) })
   }, [])
 
   const login = async (username, password) => {
-    const resp = await api.post('/auth/api/login/', { username, password })
+    // Use URL-encoded form to avoid CORS preflight on Content-Type
+    const form = new URLSearchParams()
+    form.set('username', username)
+    form.set('password', password)
+    const resp = await api.post('/auth/api/login/', form)
     if (resp.data?.access || resp.data?.refresh){ setTokens({ access: resp.data?.access, refresh: resp.data?.refresh }) }
-    const u = await api.get('/auth/api/user_details/')
-    setUser(prev => ({ ...(prev||{}), ...(u.data||{}), is_chef: Boolean(u.data?.is_chef), current_role: pickRoleFromServerOrPrev(u.data?.current_role, prev) }))
-    try{
-      const addr = await api.get('/auth/api/address_details/')
-      const a = addr.data || {}
-      const postal = a.input_postalcode || a.postal_code || a.postalcode || ''
-      setUser(prev => ({ ...(prev||{}), address: { ...a, postalcode: postal }, postal_code: postal }))
-    }catch{}
-    return u.data
+    hasFetchedOnce.current = false
+    await fetchUserAndAddressOnce()
+    return user
   }
 
   const logout = async () => {
@@ -60,18 +73,13 @@ export function AuthProvider({ children }){
   }
 
   const register = async (payload) => {
-    const resp = await api.post('/auth/api/register/', payload)
+    const body = payload && payload.user ? payload : { user: payload }
+    const resp = await api.post('/auth/api/register/', body, { skipUserId: true })
     if (resp.data.access && resp.data.refresh){
       setTokens({ access: resp.data.access, refresh: resp.data.refresh })
-      const u = await api.get('/auth/api/user_details/')
-      setUser(prev => ({ ...(prev||{}), ...(u.data||{}), is_chef: Boolean(u.data?.is_chef), current_role: pickRoleFromServerOrPrev(u.data?.current_role, prev) }))
-      try{
-        const addr = await api.get('/auth/api/address_details/')
-        const a = addr.data || {}
-        const postal = a.input_postalcode || a.postal_code || a.postalcode || ''
-        setUser(prev => ({ ...(prev||{}), address: { ...a, postalcode: postal }, postal_code: postal }))
-      }catch{}
-      return u.data
+      hasFetchedOnce.current = false
+      await fetchUserAndAddressOnce()
+      return user
     } else {
       await login(payload.username, payload.password)
     }
@@ -92,11 +100,20 @@ export function AuthProvider({ children }){
   const switchRole = async (role) => {
     const token = localStorage.getItem('accessToken')
     const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-    console.log('[Auth] switchRole → /auth/api/switch_role/', { role, hasAccess: Boolean(token), headersPreview: { Authorization: `${headers.Authorization.slice(0, 18)}…` } })
-    const resp = await api.post('/auth/api/switch_role/', { role }, { headers })
-    console.log('[Auth] switchRole ←', { status: resp?.status })
-    setUser(prev => ({ ...(prev||{}), current_role: role }))
-    setTimeout(()=>{ refreshUser() }, 500)
+    const resp = await api.post('/auth/api/switch_role/', role ? { role } : {}, { headers })
+    // Option C: backend returns authoritative user and optionally new tokens
+    const payload = resp?.data || {}
+    if (payload.access || payload.refresh){
+      try{ setTokens({ access: payload.access, refresh: payload.refresh }) }catch{}
+    }
+    if (payload.user){
+      setUser(prev => ({ ...(prev||{}), ...(payload.user||{}), is_chef: Boolean(payload?.user?.is_chef), current_role: pickRoleFromServerOrPrev(payload?.user?.current_role, prev) }))
+      return payload?.user?.current_role || role
+    }
+    // Fallback if response did not include user (compat mode)
+    const u = await api.get('/auth/api/user_details/')
+    setUser(prev => ({ ...(prev||{}), ...(u.data||{}), is_chef: Boolean(u.data?.is_chef), current_role: pickRoleFromServerOrPrev(u.data?.current_role, prev), household_member_count: Math.max(1, Number((u.data||{}).household_member_count || 1)) }))
+    return u?.data?.current_role || role
   }
 
   return (

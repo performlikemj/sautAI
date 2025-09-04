@@ -6,6 +6,10 @@ import { api, refreshAccessToken } from '../api'
 export default function Chat(){
   const [params] = useSearchParams()
   const initialThread = params.get('thread')
+  const initialChef = params.get('chef') || ''
+  const initialTopic = params.get('topic') || ''
+  const initialMealId = params.get('meal_id') || ''
+  const initialQuery = params.get('q') || ''
   const [threadId, setThreadId] = useState(initialThread)
   const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState(null)
@@ -17,7 +21,7 @@ export default function Chat(){
 
   // useChat manages messages and input locally (UI-only usage)
   const [messages, setMessages] = useState([])
-  const [input, setInput] = useState('')
+  const [input, setInput] = useState(initialQuery || '')
   const stop = ()=> aborter?.abort()
   const handleInputChange = (e)=> setInput(e.target.value)
 
@@ -68,22 +72,27 @@ export default function Chat(){
     setIsStreaming(true)
 
     try{
-      const url = `${baseURL}/customer_dashboard/api/assistant/stream-message/`
+      const url = `/customer_dashboard/api/assistant/stream-message/`
 
       // Proactively refresh access token (handles cookie or refresh-token mode)
       try { await refreshAccessToken() } catch { /* ignore; may not have refresh */ }
       let token = localStorage.getItem('accessToken') || ''
       const body = { message: text }
+      if (initialChef) body.chef_username = initialChef
+      if (initialTopic) body.topic = initialTopic
+      if (initialMealId) body.meal_id = initialMealId
       if (threadId) body.thread_id = threadId
 
       let resp = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(body),
-        signal: controller.signal
+        signal: controller.signal,
+        credentials: 'include'
       })
 
       // If unauthorized, try one refresh-and-retry
@@ -94,10 +103,12 @@ export default function Chat(){
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'text/event-stream',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify(body),
-          signal: controller.signal
+          signal: controller.signal,
+          credentials: 'include'
         })
       }
 
@@ -184,6 +195,17 @@ export default function Chat(){
     }
   }
 
+  // Optional: auto-send if q param provided
+  useEffect(()=>{
+    if (initialQuery && !threadId && messages.length === 0 && !isStreaming){
+      // Defer to allow initial render
+      const t = setTimeout(()=>{ sendMessage() }, 0)
+      return ()=> clearTimeout(t)
+    }
+  // We intentionally exclude sendMessage from deps to avoid re-trigger
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const onKeyDown = (e)=>{
     if (e.key === 'Enter' && !e.shiftKey){
       e.preventDefault()
@@ -195,7 +217,7 @@ export default function Chat(){
     <div className="page-chat">
       <div className="chat-header">
         <div className="left">
-          <h2>Chat with sautAI</h2>
+          <h2>Chat with sautai</h2>
           <div className="sub muted">Meal planning, nutrition, and local chef help</div>
         </div>
         <div className="right">

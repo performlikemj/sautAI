@@ -6,7 +6,8 @@ export default defineConfig({
   // Use the monorepo root for .env files, e.g., /sautAI/.env
   envDir: '..',
   server: {
-    port: 5173,
+    // Align with user's running port (e.g., 5174) to keep origin consistent
+    port: 5174,
     host: true,
     proxy: {
       // Dev-time proxy to avoid CORS. Frontend can call relative paths like /auth/... /meals/... etc.
@@ -25,10 +26,14 @@ export default defineConfig({
       '/chefs': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true
+      },
+      '/reviews': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true
       }
     }
   },
   preview: {
-    port: 5173
+    port: 5174
   }
 })
