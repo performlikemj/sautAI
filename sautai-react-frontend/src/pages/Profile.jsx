@@ -8,6 +8,7 @@ import { COUNTRIES, countryNameFromCode, codeFromCountryName } from '../utils/ge
 const FALLBACK_DIETS = ['Everything','Vegetarian','Vegan','Halal','Kosher','Gluten‑Free','Pescatarian','Keto','Paleo','Low‑Calorie','Low‑Sodium','High‑Protein','Dairy‑Free','Nut‑Free']
 const FALLBACK_ALLERGENS = ['Peanuts','Tree nuts','Milk','Egg','Wheat','Soy','Fish','Shellfish','Sesame','Mustard','Celery','Lupin','Sulfites','Molluscs','Corn','Gluten','Kiwi','Pine Nuts','Sunflower Seeds']
 const TIMEZONES = ['UTC','America/New_York','America/Chicago','America/Los_Angeles','Europe/London','Europe/Paris','Asia/Tokyo']
+const MEASUREMENT_LABEL = { US: 'US Customary (oz, lb, cups)', METRIC: 'Metric (g, kg, ml, l)' }
 
 export default function Profile(){
   const { user, setUser, refreshUser } = useAuth()
@@ -50,7 +51,8 @@ export default function Profile(){
         custom_allergies: Array.isArray(data.custom_allergies) ? data.custom_allergies.join(', ') : (data.custom_allergies || ''),
         custom_dietary_preferences: Array.isArray(data.custom_dietary_preferences) ? data.custom_dietary_preferences.join(', ') : (data.custom_dietary_preferences || ''),
         is_chef: Boolean(data?.is_chef),
-        current_role: data?.current_role || 'customer'
+        current_role: data?.current_role || 'customer',
+        measurement_system: data?.measurement_system || 'METRIC'
       }
       setForm(prev => ({ ...(prev||{}), ...normalized }))
       if (Array.isArray(data.household_members)){
@@ -223,6 +225,7 @@ export default function Profile(){
       username: form?.username || '',
       email: form?.email || '',
       phone_number: form?.phone || '',
+      measurement_system: form?.measurement_system || undefined,
       dietary_preferences: ensureArray(form?.dietary_preferences),
       custom_dietary_preferences: normalizeCommaList(form?.custom_dietary_preferences),
       allergies: ensureArray(form?.allergies),
@@ -318,15 +321,29 @@ export default function Profile(){
           />
           <div className="label">Postal Code</div>
           <input className="input" value={form.postal_code||''} onChange={set('postal_code')} />
-          <div style={{marginTop:'.6rem'}}>
-            <button className="btn btn-primary" onClick={()=> saveProfile('personal info')} disabled={saving}>{saving?'Saving…':'Save'}</button>
-            {!user?.is_chef && (
-              <button className="btn btn-outline" style={{marginLeft:'.5rem'}} onClick={()=> { if (ensureLocationBeforeApply()) setApplyOpen(true) }}>Become a Chef</button>
-            )}
+          <div className="section-actions">
+            <div className="left muted"></div>
+            <div className="right" style={{display:'flex', gap:'.5rem'}}>
+              <button className="btn btn-primary" onClick={()=> saveProfile('personal info')} disabled={saving}>{saving?'Saving…':'Save Personal Info'}</button>
+              {!user?.is_chef && (
+                <button className="btn btn-outline" onClick={()=> { if (ensureLocationBeforeApply()) setApplyOpen(true) }}>Become a Chef</button>
+              )}
+            </div>
           </div>
         </div>
         <div className="card">
           <h3>Preferences</h3>
+          <div className="label">Units</div>
+          <div role="radiogroup" aria-label="Measurement system" style={{display:'flex', gap:'.75rem', alignItems:'center', marginBottom:'.5rem'}}>
+            <label className="radio" style={{display:'flex', alignItems:'center', gap:'.35rem'}}>
+              <input type="radio" name="measurement_system" checked={(form.measurement_system||'METRIC')==='US'} onChange={()=> setForm({...form, measurement_system:'US'})} />
+              <span>{MEASUREMENT_LABEL.US}</span>
+            </label>
+            <label className="radio" style={{display:'flex', alignItems:'center', gap:'.35rem'}}>
+              <input type="radio" name="measurement_system" checked={(form.measurement_system||'METRIC')==='METRIC'} onChange={()=> setForm({...form, measurement_system:'METRIC'})} />
+              <span>{MEASUREMENT_LABEL.METRIC}</span>
+            </label>
+          </div>
           <div className="label">Dietary</div>
           <DietMultiSelect
             options={dietOptions}
@@ -346,8 +363,11 @@ export default function Profile(){
           />
           <div className="label">Custom allergies (comma separated)</div>
           <input className="input" value={form.custom_allergies||''} onChange={set('custom_allergies')} />
-          <div style={{marginTop:'.6rem'}}>
-            <button className="btn btn-outline" onClick={()=> saveProfile('preferences')} disabled={saving}>Save Preferences</button>
+          <div className="section-actions">
+            <div className="left muted"></div>
+            <div className="right">
+              <button className="btn btn-primary" onClick={()=> saveProfile('preferences')} disabled={saving}>Save Preferences</button>
+            </div>
           </div>
         </div>
       </div>
@@ -397,11 +417,13 @@ export default function Profile(){
                 </div>
               </div>
             )})()}
-          <div>
-            <button className="btn btn-primary" onClick={()=> { addMember(); setHouseholdIdx(household.length) }}>Add Member</button>
-          </div>
-          <div style={{marginTop:'.6rem'}}>
-            <button className="btn btn-outline" onClick={()=> saveProfile('household')} disabled={saving}>Save Household</button>
+          <div className="section-actions" style={{justifyContent:'space-between'}}>
+            <div className="left">
+              <button className="btn btn-outline" onClick={()=> { addMember(); setHouseholdIdx(household.length) }}>Add Member</button>
+            </div>
+            <div className="right">
+              <button className="btn btn-primary" onClick={()=> saveProfile('household')} disabled={saving}>Save Household</button>
+            </div>
           </div>
         </div>
 
@@ -424,8 +446,11 @@ export default function Profile(){
           </select>
           <div className="label" style={{marginTop:'.6rem'}}>Time Zone</div>
           <TimezoneSelect value={prefTz} onChange={setPrefTz} />
-          <div style={{marginTop:'.6rem'}}>
-            <button className="btn btn-outline" onClick={()=> saveProfile('communication')} disabled={saving}>Save Communication</button>
+          <div className="section-actions">
+            <div className="left muted"></div>
+            <div className="right">
+              <button className="btn btn-primary" onClick={()=> saveProfile('communication')} disabled={saving}>Save Communication</button>
+            </div>
           </div>
         </div>
       </div>

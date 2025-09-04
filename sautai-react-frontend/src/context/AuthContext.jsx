@@ -61,6 +61,19 @@ export function AuthProvider({ children }){
     form.set('password', password)
     const resp = await api.post('/auth/api/login/', form)
     if (resp.data?.access || resp.data?.refresh){ setTokens({ access: resp.data?.access, refresh: resp.data?.refresh }) }
+    // If backend returns a user snapshot (incl. measurement_system), prime UI immediately
+    try{
+      if (resp?.data?.user && typeof resp.data.user === 'object'){
+        const base = resp.data.user
+        setUser(prev => ({
+          ...(prev||{}),
+          ...base,
+          is_chef: Boolean(base?.is_chef),
+          current_role: pickRoleFromServerOrPrev(base?.current_role, prev),
+          household_member_count: Math.max(1, Number(base?.household_member_count || 1))
+        }))
+      }
+    }catch{}
     hasFetchedOnce.current = false
     await fetchUserAndAddressOnce()
     return user

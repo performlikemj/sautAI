@@ -23,8 +23,8 @@ export default function NavBar(){
   const [switching, setSwitching] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
-  const [brandSrc, setBrandSrc] = useState('/sautai_logo.PNG')
-  const onBrandError = ()=> setBrandSrc('/sautai_logo.PNG')
+  const [brandSrc, setBrandSrc] = useState('/sautai_logo_web.png')
+  const onBrandError = ()=> setBrandSrc('/sautai_logo_transparent_800.png')
   const isAuthed = Boolean(user)
   const inChef = user?.current_role === 'chef'
 

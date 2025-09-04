@@ -169,6 +169,11 @@ a.btn{ text-decoration:none }
 .card{ background:var(--surface); border:1px solid color-mix(in oklab, var(--border) 90%, transparent); border-radius:var(--radius-lg); padding:1rem; box-shadow: var(--shadow-xs) }
 .card:hover{ box-shadow: var(--shadow-sm) }
 
+/* Prominent section action rows for forms */
+.section-actions{ margin-top:.8rem; padding-top:.6rem; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:flex-end; gap:.5rem }
+.section-actions .left{ flex:1 }
+.section-actions .right{ display:flex; gap:.5rem }
+
 /* Grids */
 .grid{ display:grid; gap:1rem }
 .grid-2{ grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) }

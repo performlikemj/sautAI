@@ -1159,6 +1159,23 @@ function Overview({ plan, weekStart, chefMeals, isApproved, mealPlanId, onChange
       setReviewComment('')
     }
   }, [reviewing])
+
+  // Keep the open edit panel in sync with the latest plan data.
+  // Place this before any early returns so hook order stays stable.
+  useEffect(()=>{
+    try{
+      if (!selectedSlot) return
+      if (!plan) return
+      const list = Array.isArray(plan?.meals) ? plan.meals : (plan?.meal_plan_meals || [])
+      const currentId = selectedSlot?.meal?.meal_plan_meal_id || selectedSlot?.meal?.id
+      if (!currentId) return
+      const updated = (list||[]).find(x => (x.meal_plan_meal_id || x.id) === currentId)
+      if (!updated) return
+      // Replace only the meal payload; preserve slot metadata and rect
+      setSelectedSlot(prev => prev ? ({ ...prev, meal: { ...updated } }) : prev)
+    }catch{}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan, selectedSlot?.meal?.meal_plan_meal_id, selectedSlot?.meal?.id])
   if (!plan) return <div className="card">No plan available for this week.</div>
   const meals = Array.isArray(plan?.meals) ? plan.meals : (plan?.meal_plan_meals || [])
   const grouped = groupByDay(meals || [])
@@ -1182,21 +1199,7 @@ function Overview({ plan, weekStart, chefMeals, isApproved, mealPlanId, onChange
     return m ? { kind:'meal', m } : { kind:'placeholder', s }
   })
 
-  // Keep the open edit panel in sync with the latest plan data
-  // When the plan refreshes after an update, replace the meal in selectedSlot
-  // with the corresponding fresh meal object from the new plan so the panel UI updates
-  useEffect(()=>{
-    try{
-      if (!selectedSlot) return
-      const currentId = selectedSlot?.meal?.meal_plan_meal_id || selectedSlot?.meal?.id
-      if (!currentId) return
-      const updated = (meals||[]).find(x => (x.meal_plan_meal_id || x.id) === currentId)
-      if (!updated) return
-      // Replace only the meal payload; preserve slot metadata and rect
-      setSelectedSlot(prev => prev ? ({ ...prev, meal: { ...updated } }) : prev)
-    }catch{}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meals, selectedSlot?.meal?.meal_plan_meal_id, selectedSlot?.meal?.id])
+  // (Moved the sync effect above early return to keep hook order consistent.)
 
   const toggleDesc = (rowId)=>{
     setExpandedDescIds(prev => {
